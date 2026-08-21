@@ -18,9 +18,12 @@ describe('INV-45 — the orchestrator never writes a tool version (§7.2)', () =
     expect(offenders).toEqual([]);
   });
 
-  it('INV-45: the scripted journey never calls the versions repository', async () => {
+  it('INV-45: the scripted journey writes versions through composition, never from the orchestrator', async () => {
     const result = await runScriptedFlightLabJourney({ approveCorrection: true });
     const versions = await result.repositories.versions.listByTool(FLIGHT_LAB_TOOL_ID);
-    expect(versions).toEqual([]);
+    expect(versions.map((version) => version.versionId)).toEqual([
+      'tool_version_001',
+      'tool_version_002',
+    ]);
   });
 });

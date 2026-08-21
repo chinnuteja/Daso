@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { persistGraph } from '../../src/adapters/persistence';
+import { persistGraph, setFailAfterVersionWrite } from '../../src/adapters/persistence';
 import { PersistenceError } from '../../src/adapters/persistence/database';
 import type { Repositories } from '../../src/core/ports/repositories';
 import { ExperimentTrial } from '../../src/core/schema/experimentTrial';
@@ -31,6 +31,7 @@ export function defineRepositoryConformance(
     });
 
     afterEach(async () => {
+      setFailAfterVersionWrite(false);
       await harness.teardown();
     });
 
@@ -152,6 +153,75 @@ export function defineRepositoryConformance(
       await persistGraph(harness.repositories, graph);
       const listed = await harness.repositories.tools.listByOwner('child_local_01');
       expect(listed.map((tool) => tool.toolId)).toEqual(['mayas-flight-lab']);
+    });
+
+    it('commits a version and definition atomically', async () => {
+      const graph = flightLabGraph();
+      const version = graph.versions[0];
+      const definition = graph.tools[0];
+      expect(version).toBeDefined();
+      expect(definition).toBeDefined();
+      if (version === undefined || definition === undefined) {
+        return;
+      }
+      const activating = {
+        ...definition,
+        currentVersionId: version.versionId,
+      };
+      await harness.repositories.versions.saveAndActivate(version, activating);
+      expect(canonicalJson(await harness.repositories.versions.get(version.versionId))).toBe(
+        canonicalJson(version),
+      );
+      expect((await harness.repositories.tools.get(definition.toolId))?.currentVersionId).toBe(
+        version.versionId,
+      );
+    });
+
+    it('rolls back version and pointer when compilation fails after the version write', async () => {
+      const graph = flightLabGraph();
+      const version = graph.versions[0];
+      const definition = graph.tools[0];
+      expect(version).toBeDefined();
+      expect(definition).toBeDefined();
+      if (version === undefined || definition === undefined) {
+        return;
+      }
+      setFailAfterVersionWrite(true);
+      await expect(
+        harness.repositories.versions.saveAndActivate(version, {
+          ...definition,
+          currentVersionId: version.versionId,
+        }),
+      ).rejects.toThrow(/injected compilation failure/u);
+      expect(await harness.repositories.versions.get(version.versionId)).toBeNull();
+      expect(await harness.repositories.tools.get(definition.toolId)).toBeNull();
+    });
+
+    it('leaves the active pointer unchanged when a duplicate version is activated', async () => {
+      const graph = flightLabGraph();
+      const first = graph.versions[0];
+      const second = graph.versions[1];
+      const definition = graph.tools[0];
+      expect(first).toBeDefined();
+      expect(second).toBeDefined();
+      expect(definition).toBeDefined();
+      if (first === undefined || second === undefined || definition === undefined) {
+        return;
+      }
+      await harness.repositories.versions.saveAndActivate(first, {
+        ...definition,
+        currentVersionId: first.versionId,
+      });
+      await expect(
+        harness.repositories.versions.saveAndActivate(first, {
+          ...definition,
+          currentVersionId: first.versionId,
+        }),
+      ).rejects.toBeInstanceOf(PersistenceError);
+      expect((await harness.repositories.tools.get(definition.toolId))?.currentVersionId).toBe(
+        first.versionId,
+      );
+      expect(await harness.repositories.versions.get(second.versionId)).toBeNull();
     });
 
     it('deleteByTool removes that tool stream and leaves get returning null', async () => {

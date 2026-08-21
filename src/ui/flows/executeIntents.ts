@@ -2,13 +2,22 @@ import type { Clock } from '../../core/ports/clock';
 import type { IdFactory } from '../../core/ports/ids';
 import type { Repositories } from '../../core/ports/repositories';
 import type { OrchestratorIntent } from '../../core/orchestrator/events';
+import { bodyFromVersion, compileToolVersion, shouldReuseActiveVersion } from '../../core/compiler';
 import { foldApprovedEvents } from '../../core/ledger/fold';
 import type { LedgerEntry } from '../../core/ledger/types';
 import { evaluatePolicy, inspectPolicySubject, type PolicyVerdict } from '../../core/policy';
+import { replay, type RuntimeResult } from '../../core/runtime';
 import { ExperimentTrial } from '../../core/schema/experimentTrial';
 import type { CandidateMutation } from '../../core/schema/mutation';
-import { EventId, type IsoTimestamp, type ToolId, type ToolVersionId } from '../../core/schema/primitives';
-import type { ToolVersionBody } from '../../core/schema/toolVersion';
+import {
+  EventId,
+  type ChildId,
+  type IsoTimestamp,
+  type ToolId,
+  ToolVersionId,
+} from '../../core/schema/primitives';
+import { ToolDefinition } from '../../core/schema/toolDefinition';
+import type { ToolVersion, ToolVersionBody } from '../../core/schema/toolVersion';
 import type { Actor, AuthorshipEventType } from '../../core/schema/vocabulary';
 import {
   validateCandidate,
@@ -20,7 +29,8 @@ import {
  * Composition-layer execution of orchestrator intents. The orchestrator itself never
  * calls this; it only names the intents.
  *
- * `request_compile` folds the ledger and returns the body. It does not write a version.
+ * `request_compile` compiles, atomically saves, and activates a version when the folded
+ * body is new. Unchanged ledgers reuse the active version with no write.
  */
 
 export class IntentExecutionError extends Error {
@@ -39,12 +49,16 @@ export interface CandidateDraft {
 
 export interface TrialDraft {
   readonly toolId: ToolId;
-  readonly toolVersionIdAtCapture: ToolVersionId;
   readonly designName: string;
   readonly distanceM: number;
   readonly obstruction: boolean;
   readonly validAtCapture: boolean;
   readonly note?: string;
+}
+
+export interface ToolDraft {
+  readonly ownerChildId: ChildId;
+  readonly displayName: string;
 }
 
 export interface IntentExecutionInput {
@@ -56,11 +70,15 @@ export interface IntentExecutionInput {
   readonly pendingCandidateId: EventId | null;
   readonly candidate?: CandidateDraft;
   readonly trial?: TrialDraft;
+  readonly toolDraft?: ToolDraft;
 }
 
 export interface IntentExecutionOutput {
   readonly pendingCandidateId: EventId | null;
   readonly compiledBody: ToolVersionBody | null;
+  readonly compiledVersion: ToolVersion | null;
+  readonly runtimeResult: RuntimeResult | null;
+  readonly previousRuntimeResult: RuntimeResult | null;
   readonly recordedTrial: ExperimentTrial | null;
   readonly rejection: GateRejection | null;
 }
@@ -72,6 +90,9 @@ export type GateRejection =
 export async function executeIntents(input: IntentExecutionInput): Promise<IntentExecutionOutput> {
   let pendingCandidateId = input.pendingCandidateId;
   let compiledBody: ToolVersionBody | null = null;
+  let compiledVersion: ToolVersion | null = null;
+  let runtimeResult: RuntimeResult | null = null;
+  let previousRuntimeResult: RuntimeResult | null = null;
   let recordedTrial: ExperimentTrial | null = null;
   let rejection: GateRejection | null = null;
 
@@ -134,28 +155,15 @@ export async function executeIntents(input: IntentExecutionInput): Promise<Inten
         break;
       }
       case 'record_trial': {
-        if (input.trial === undefined) {
-          throw new IntentExecutionError('record_trial requires a trial draft');
-        }
-        const trial = ExperimentTrial.parse({
-          trialId: input.ids.next('trial'),
-          toolId: input.trial.toolId,
-          toolVersionIdAtCapture: input.trial.toolVersionIdAtCapture,
-          designName: input.trial.designName,
-          distanceM: input.trial.distanceM,
-          obstruction: input.trial.obstruction,
-          validAtCapture: input.trial.validAtCapture,
-          validUnderCurrentVersion: input.trial.validAtCapture,
-          createdAt: input.clock.now(),
-          ...(input.trial.note === undefined ? {} : { note: input.trial.note }),
-        });
-        await input.repositories.trials.save(trial);
-        recordedTrial = trial;
+        recordedTrial = await recordResolvedTrial(input);
         break;
       }
       case 'request_compile': {
-        const entries = await input.repositories.ledger.listByTool(input.toolId);
-        compiledBody = foldApprovedEvents(entries);
+        const compiled = await compileAndActivate(input);
+        compiledVersion = compiled.version;
+        compiledBody = bodyFromVersion(compiled.version);
+        runtimeResult = compiled.runtime;
+        previousRuntimeResult = compiled.previous;
         break;
       }
       case 'request_interpretation':
@@ -168,7 +176,102 @@ export async function executeIntents(input: IntentExecutionInput): Promise<Inten
     }
   }
 
-  return { pendingCandidateId, compiledBody, recordedTrial, rejection };
+  return {
+    pendingCandidateId,
+    compiledBody,
+    compiledVersion,
+    runtimeResult,
+    previousRuntimeResult,
+    recordedTrial,
+    rejection,
+  };
+}
+
+async function recordResolvedTrial(input: IntentExecutionInput): Promise<ExperimentTrial> {
+  if (input.trial === undefined) {
+    throw new IntentExecutionError('record_trial requires a structured trial draft');
+  }
+  const definition = await input.repositories.tools.get(input.trial.toolId);
+  if (definition === null) {
+    throw new IntentExecutionError(`tool ${input.trial.toolId} does not exist; capture is rejected`);
+  }
+  const version = await input.repositories.versions.get(definition.currentVersionId);
+  if (version === null) {
+    throw new IntentExecutionError(
+      `active version ${definition.currentVersionId} is missing; capture is rejected`,
+    );
+  }
+  if (version.toolId !== definition.toolId) {
+    throw new IntentExecutionError('active version belongs to a different tool; capture is rejected');
+  }
+  const trial = ExperimentTrial.parse({
+    trialId: input.ids.next('trial'),
+    toolId: input.trial.toolId,
+    toolVersionIdAtCapture: version.versionId,
+    designName: input.trial.designName,
+    distanceM: input.trial.distanceM,
+    obstruction: input.trial.obstruction,
+    validAtCapture: input.trial.validAtCapture,
+    validUnderCurrentVersion: input.trial.validAtCapture,
+    createdAt: input.clock.now(),
+    ...(input.trial.note === undefined ? {} : { note: input.trial.note }),
+  });
+  await input.repositories.trials.save(trial);
+  return trial;
+}
+
+async function compileAndActivate(input: IntentExecutionInput): Promise<{
+  readonly version: ToolVersion;
+  readonly runtime: RuntimeResult;
+  readonly previous: RuntimeResult | null;
+}> {
+  const entries = await input.repositories.ledger.listByTool(input.toolId);
+  const folded = foldApprovedEvents(entries);
+  const definition = await input.repositories.tools.get(input.toolId);
+  const active =
+    definition === null ? null : await input.repositories.versions.get(definition.currentVersionId);
+
+  if (active !== null && active.toolId !== input.toolId) {
+    throw new IntentExecutionError('active version belongs to a different tool');
+  }
+
+  const trials = await input.repositories.trials.listByTool(input.toolId);
+  if (shouldReuseActiveVersion(folded, active) && active !== null) {
+    return { version: active, runtime: replay(active, trials), previous: null };
+  }
+
+  const versionId = ToolVersionId.parse(input.ids.next('tool_version'));
+  const compiledAt = input.clock.now();
+  const compiled = compileToolVersion(entries, { versionId, compiledAt });
+  const nextDefinition = nextToolDefinition(input, definition, compiled.versionId, compiledAt);
+  const previous = active === null ? null : replay(active, trials);
+  await input.repositories.versions.saveAndActivate(compiled, nextDefinition);
+  return { version: compiled, runtime: replay(compiled, trials), previous };
+}
+
+function nextToolDefinition(
+  input: IntentExecutionInput,
+  existing: ToolDefinition | null,
+  versionId: ToolVersion['versionId'],
+  compiledAt: IsoTimestamp,
+): ToolDefinition {
+  if (existing !== null) {
+    return ToolDefinition.parse({
+      ...existing,
+      currentVersionId: versionId,
+    });
+  }
+  if (input.toolDraft === undefined) {
+    throw new IntentExecutionError('first compilation requires a tool draft');
+  }
+  return ToolDefinition.parse({
+    toolId: input.toolId,
+    ownerChildId: input.toolDraft.ownerChildId,
+    displayName: input.toolDraft.displayName,
+    kind: 'experiment_comparator',
+    currentVersionId: versionId,
+    createdAt: compiledAt,
+  });
 }
 
 function validationContextFor(

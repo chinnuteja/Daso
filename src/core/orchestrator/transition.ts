@@ -57,7 +57,7 @@ const TABLE: Record<OrchestratorState, Record<OrchestratorEventKind, TransitionR
     candidate_offered: advance('DEFINE_INPUTS', ['append_candidate']),
     candidate_approved: advance('DEFINE_INPUTS', ['append_approval']),
     candidate_rejected: advance('DEFINE_INPUTS'),
-    inputs_confirmed: advance('PREDICT'),
+    inputs_confirmed: advance('PREDICT', ['request_compile']),
     back_requested: advance('DEFINE_METRICS'),
   }),
   PREDICT: row({

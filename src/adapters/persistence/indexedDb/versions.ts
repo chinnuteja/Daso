@@ -1,7 +1,9 @@
 import type { ToolVersionRepository } from '../../../core/ports/repositories';
 import type { ToolId, ToolVersionId } from '../../../core/schema/primitives';
+import { ToolDefinition } from '../../../core/schema/toolDefinition';
 import { ToolVersion } from '../../../core/schema/toolVersion';
 import { deepFreeze } from '../../../core/serialization/deepFreeze';
+import { shouldFailAfterVersionWrite } from '../atomicCommit';
 import { PersistenceError, STORE, type TeachDasoDatabase } from '../database';
 import { getParsed, listByToolIndex } from './access';
 
@@ -32,6 +34,31 @@ export function createIndexedDbVersionRepository(
       await database.put(STORE.toolVersions, parsed);
     },
 
+    async saveAndActivate(version: ToolVersion, definition: ToolDefinition): Promise<void> {
+      const parsedVersion = ToolVersion.parse(version);
+      const parsedDefinition = ToolDefinition.parse(definition);
+      if (parsedVersion.toolId !== parsedDefinition.toolId) {
+        throw new PersistenceError('version and definition must name the same tool');
+      }
+      if (parsedDefinition.currentVersionId !== parsedVersion.versionId) {
+        throw new PersistenceError('definition must point at the version being activated');
+      }
+
+      const tx = database.transaction([STORE.toolVersions, STORE.tools], 'readwrite');
+      const versionStore = tx.objectStore(STORE.toolVersions);
+      const toolStore = tx.objectStore(STORE.tools);
+      const existing = await versionStore.get(parsedVersion.versionId);
+      if (existing !== undefined) {
+        await abortCompilation(tx, `version ${parsedVersion.versionId} already exists; compiled versions are immutable`);
+      }
+      await versionStore.put(parsedVersion);
+      if (shouldFailAfterVersionWrite()) {
+        await abortCompilation(tx, 'injected compilation failure after version write');
+      }
+      await toolStore.put(parsedDefinition);
+      await tx.done;
+    },
+
     async deleteByTool(toolId: ToolId): Promise<void> {
       const found = await listByToolIndex(database, STORE.toolVersions, toolId, ToolVersion);
       const tx = database.transaction(STORE.toolVersions, 'readwrite');
@@ -41,4 +68,14 @@ export function createIndexedDbVersionRepository(
       await tx.done;
     },
   };
+}
+
+async function abortCompilation(
+  tx: { abort(): void; done: Promise<void> },
+  message: string,
+): Promise<never> {
+  const settled = tx.done.catch(() => undefined);
+  tx.abort();
+  await settled;
+  throw new PersistenceError(message);
 }

@@ -9,6 +9,7 @@ import type { LedgerEntry } from '../../core/ledger/types';
 
 export { DATABASE_NAME, DATABASE_VERSION, STORE, openTeachDasoDatabase, PersistenceError } from './database';
 export type { TeachDasoDatabase } from './database';
+export { setFailAfterVersionWrite } from './atomicCommit';
 export { loadIdCounters, saveIdCounters, loadMemoryIdCounters, saveMemoryIdCounters } from './idCounters';
 export { createIndexedDbRepositories, openIndexedDbRepositories } from './indexedDb';
 export { createMemoryPersistence, createMemoryRepositories } from './memory';

@@ -2,7 +2,7 @@
 
 **Maintained by:** technical architect / build orchestrator
 **Normative source:** `TEACH_DASO_PRODUCT_AND_ARCHITECTURE.md`
-**Last updated:** 2026-08-21. Phase 4 implemented; Phase 5 specified and ready for implementation. INV-01–INV-19 and INV-26–INV-56 passing; INV-20–INV-25 pending by specification.
+**Last updated:** 2026-08-21. Phase 5 implemented on `orchestration/phase-05-plan`; awaiting orchestrator review. INV-01–INV-21 and INV-26–INV-64 passing; INV-22–INV-25 pending by specification.
 
 This file is the single source of truth for what is built, what is proven, and what has
 drifted. A phase is not complete because it runs. It is complete when its acceptance tests
@@ -18,7 +18,7 @@ are named here and passing, and no undeclared deviation exists.
 | P2 | Persistence & Inspection | M2 | **Implemented — gates green** | 2026-08-20 |
 | P3 | Orchestrator & Tablet Shell | M1 | **Implemented — gates green** | 2026-08-20 |
 | P4 | Teaching Agent & Approval Gate | M3 | **Implemented — gates green** | 2026-08-20 |
-| P5 | Compiler & Deterministic Runtime | M4 | **Specified — ready for implementation** | — |
+| P5 | Compiler & Deterministic Runtime | M4 | **Implemented — gates green; not architecturally accepted** | — |
 | P6 | Keep & Reuse | M5 | Blocked on P5 | — |
 | P7 | Parent Evidence & Data Rights | M6 | Blocked on P5 | — |
 | P8 | Founder-Facing Polish | M7 | Blocked on all | — |
@@ -41,7 +41,7 @@ currently exists. "Asserted" means a named test passes. Nothing else counts.
 | Every material compiled behavior has provenance | §4.1, §7.6 | INV-09, INV-11 | P1 | **Asserted** |
 | ToolVersion objects are immutable | §9.3, §12 | INV-13 | P1 | **Asserted** (also on versions read from storage) |
 | Runner Mode makes no model calls | §7.5, §14 | INV-43, INV-22 | P3, P6 | **INV-43 asserted** (static precursor). INV-22 pending P6 |
-| Identical version + trial data yields identical results | §17 | INV-03, INV-14, INV-15, INV-20 | P1, P5 | **P1 asserted**. INV-20 pending P5 |
+| Identical version + trial data yields identical results | §17 | INV-03, INV-14, INV-15, INV-20 | P1, P5 | **Asserted** (INV-20 promoted in P5) |
 | Child data is local-first | §11.1 | INV-26 | P2 | **Asserted** (`inv-26-local-first.test.ts`) |
 | Parent summaries cite supporting evidence events | §7.8, §12 | INV-24 | P7 | Pending |
 | Generated tools never execute arbitrary generated code | §5, §7.5 | INV-04, INV-08 | P1 | **Asserted** |
@@ -58,7 +58,7 @@ P3 also asserts INV-39 (scripted journey), INV-40 (authorship visible), INV-42 (
 
 P4 also asserts INV-18 (validation is code), INV-47 (agent cannot approve), INV-48 (single model path), INV-49 (server-side response validation), INV-50 (prompt-injection fixtures), INV-51 (§11.2 minimality), INV-52 (no client credential), INV-53 (provenance before append), INV-54 (resource limits), INV-55 (capability allowlist), INV-56 (approval never touches the network).
 
-P5 will promote INV-20 and INV-21 and add INV-57 (atomic compilation commit), INV-58 (no dangling active version), INV-59 (idempotent compilation), INV-60 (immutable version history), INV-61 (pure runtime), INV-62 (exact metric/ranking contract), INV-63 (trial resolves active version), and INV-64 (memory + IndexedDB/reopen milestone proof). These remain unasserted until implementation evidence is reviewed.
+P5 asserts INV-20 and INV-21 and adds INV-57 (atomic compilation commit), INV-58 (no dangling active version), INV-59 (idempotent compilation), INV-60 (immutable version history), INV-61 (pure runtime), INV-62 (exact metric/ranking contract), INV-63 (trial resolves active version), and INV-64 (memory + IndexedDB/reopen milestone proof). INV-22–INV-25 remain pending for P6/P7.
 
 ---
 
@@ -70,7 +70,7 @@ P5 will promote INV-20 and INV-21 and add INV-57 (atomic compilation commit), IN
 
 Phase 4 introduces no new deviations from the product specification. D-01 remains the only accepted product-spec deviation.
 
-Phase 5 is specified in `docs/phases/PHASE_05.md`; specification does not itself add a deviation. The required earlier-phase integration corrections (atomic version activation and removal of the dangling placeholder) must be recorded as implementation decisions when completed.
+Phase 5 introduces no new product-spec deviations. The required earlier-phase integration corrections (atomic version activation and removal of the dangling placeholder) are recorded as implementation decisions 24–30. D-01 remains the only accepted product-spec deviation.
 
 ### Considered and rejected
 
@@ -113,6 +113,13 @@ Phase 5 is specified in `docs/phases/PHASE_05.md`; specification does not itself
 | 21 | Replace INV-18 and INV-19 pending tests with asserting tests; render refusal copy on ReviewMutationScreen and compose the agent client in JourneyFlow | INV-18 and INV-19 are P4-owned. The approval gate already existed; P4 adds the refusal reason and swaps the source behind the frozen port. No new orchestrator state or event |
 | 22 | `executeIntents` validates and policy-checks a candidate before `ledger.append` | Constraint C.5.6: an invalid candidate never reaches storage. Structured rejection, not a thrown error |
 | 23 | `.env.example` comment only: P4 consumes `TEACHING_AGENT_CREDENTIAL` and `MODEL_PROVIDER_BASE_ADDRESS` | P1 already declared the server-only credentials. Adding a `NEXT_PUBLIC_` variable is a rejection condition |
+| 24 | Extend `ToolVersionRepository` with `saveAndActivate(version, definition)` rather than an eighth repository | PHASE_05 C.2/C.5: version save and definition activation must be one all-or-nothing commit in memory and IndexedDB |
+| 25 | `DEFINE_INPUTS + inputs_confirmed` emits the existing `request_compile` intent | PHASE_05 C.6. State and event vocabularies are unchanged; the first runnable version can exist only after inputs are confirmed |
+| 26 | Journey initialization stores the profile only; the first compile atomically creates the tool definition and v1 | PHASE_05 C.2: the P3 placeholder `currentVersionId` was a dangling pointer the moment P5 wrote versions |
+| 27 | Trial capture looks up `currentVersionId` in repositories and stamps it; UI drafts have no version id | PHASE_05 C.6 / INV-63. Historical `toolVersionIdAtCapture` is never rewritten by replay |
+| 28 | Freeze `RuntimeResult` in `src/core/runtime/types.ts` | PHASE_05 C.7: P6/P7 consume this shape. It is not a §9 object and is not persisted |
+| 29 | Add `src/adapters/persistence/atomicCommit.ts` as a test-only abort switch | INV-57 must inject failure after the version row is written. Production callers never set it |
+| 30 | Amend INV-39 and INV-45 journey expectations so compiled versions are stored | Durable properties remain: fold equals §9.3; the orchestrator still contains no `versions`/`ToolVersion`/`save`. Composition now writes v1 and v2 |
 
 ---
 
@@ -122,7 +129,7 @@ Phase 5 is specified in `docs/phases/PHASE_05.md`; specification does not itself
 - **E.2 Provenance becomes decorative** — still INV-09 / INV-11; storage cannot edit events (INV-28). INV-53 now rejects a pre-stamped `sourceEventId` before append.
 - **E.3 Teaching Agent drifts into a chatbot** — the response union is frozen and validated server-side (INV-49, INV-42, INV-47). An unparsed model response never leaves the route.
 - **E.4 Orchestrator asks the model what to do next** — INV-17 / INV-36 / INV-37: total pure table, no I/O in the kernel. Unchanged in P4.
-- **E.6 Nondeterminism in results** — P1 controls; evaluator still P5.
+- **E.6 Nondeterminism in results** — INV-03/14/15 plus INV-20 and INV-62: millimetre integers, total ranking order, byte-identical replay.
 - **E.10 Model credentials in the client** — INV-52: credential read only in the teaching route; built client chunks have no host or key-shaped string.
 - **E.11 Persistence drift silently drops events** — INV-29 integrity check on load; unique `[toolId, sequence]` index.
 
@@ -141,16 +148,18 @@ Phase 1 D.4 packet: `docs/evidence/PHASE_01.md`.
 Phase 2 D.4 packet: `docs/evidence/PHASE_02.md`.
 Phase 3 D.4 packet: `docs/evidence/PHASE_03.md`.
 Phase 4 D.4 packet: `docs/evidence/PHASE_04.md`.
+Phase 5 D.4 packet: `docs/evidence/PHASE_05.md`.
 
-Gate commands on 2026-08-20 (Phase 4):
+Gate commands on 2026-08-21 (Phase 5 implementation, not yet accepted):
 
 | Command | Exit |
 |---|---|
+| targeted INV-20/21/57–64 | 0 — **20 passed** |
 | `npm run typecheck` | 0 |
 | `npm run lint` | 0 |
-| `npm test` | 0 — **159 passed, 6 todo** |
+| `npm test` | 0 — **199 passed, 4 todo** |
 | `npm run build` | 0 — routes `/`, `/inspect`, `/journey`, `/run`, `ƒ /api/agents/teaching` |
 
-INV-01 … INV-19 and INV-26 … INV-56 passing. INV-20 … INV-25 todo/pending.
+INV-01 … INV-21 and INV-26 … INV-64 passing. INV-22 … INV-25 todo/pending.
 
-No undeclared deviations. D-01 remains the only accepted product-spec deviation.
+No undeclared deviations. D-01 remains the only accepted product-spec deviation. This update does not claim architectural acceptance.

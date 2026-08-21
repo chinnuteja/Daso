@@ -12,7 +12,6 @@ export {
   FLIGHT_LAB_GOAL,
   FLIGHT_LAB_TEACHING_SCRIPT,
   FLIGHT_LAB_TOOL_ID,
-  FLIGHT_LAB_VERSION_PLACEHOLDER,
   NOTE_INPUT,
   OBSTRUCTION_SUGGESTION,
 } from '../../../src/adapters/teaching/scripted';
@@ -20,7 +19,6 @@ export {
 export const FLIGHT_LAB_TRIAL_DRAFTS: readonly TrialDraft[] = [
   {
     toolId: 'mayas-flight-lab',
-    toolVersionIdAtCapture: 'tool_version_001',
     designName: 'Falcon',
     distanceM: 7.4,
     obstruction: false,
@@ -28,7 +26,6 @@ export const FLIGHT_LAB_TRIAL_DRAFTS: readonly TrialDraft[] = [
   },
   {
     toolId: 'mayas-flight-lab',
-    toolVersionIdAtCapture: 'tool_version_001',
     designName: 'Glider',
     distanceM: 5.8,
     obstruction: false,
@@ -36,7 +33,6 @@ export const FLIGHT_LAB_TRIAL_DRAFTS: readonly TrialDraft[] = [
   },
   {
     toolId: 'mayas-flight-lab',
-    toolVersionIdAtCapture: 'tool_version_001',
     designName: 'Dart',
     distanceM: 6.1,
     obstruction: false,
@@ -44,7 +40,6 @@ export const FLIGHT_LAB_TRIAL_DRAFTS: readonly TrialDraft[] = [
   },
   {
     toolId: 'mayas-flight-lab',
-    toolVersionIdAtCapture: 'tool_version_001',
     designName: 'Dart',
     distanceM: 8.9,
     obstruction: true,

@@ -1,12 +1,10 @@
 import { createScriptedTeachingSource } from '../../src/adapters/teaching/scripted';
 import { createMemoryPersistence } from '../../src/adapters/persistence';
 import { transition, type OrchestratorEvent, type OrchestratorState } from '../../src/core/orchestrator';
-import { foldApprovedEvents } from '../../src/core/ledger/fold';
 import { createFixedClock } from '../../src/core/ports/clock';
 import { createSequentialIdFactory } from '../../src/core/ports/ids';
 import type { Repositories } from '../../src/core/ports/repositories';
 import { ChildProfile } from '../../src/core/schema/childProfile';
-import { ToolDefinition } from '../../src/core/schema/toolDefinition';
 import type { EventId } from '../../src/core/schema/primitives';
 import type { ToolVersionBody } from '../../src/core/schema/toolVersion';
 import { executeIntents, type CandidateDraft, type TrialDraft } from '../../src/ui/flows/executeIntents';
@@ -24,7 +22,6 @@ import {
   FLIGHT_LAB_TEACHING_SCRIPT,
   FLIGHT_LAB_TOOL_ID,
   FLIGHT_LAB_TRIAL_DRAFTS,
-  FLIGHT_LAB_VERSION_PLACEHOLDER,
   NOTE_INPUT,
   OBSTRUCTION_SUGGESTION,
 } from '../fixtures/script/flightLab';
@@ -40,6 +37,11 @@ interface DispatchContext {
   readonly candidate?: CandidateDraft;
   readonly trial?: TrialDraft;
 }
+
+const TOOL_DRAFT = {
+  ownerChildId: 'child_local_01' as const,
+  displayName: "Maya's Flight Lab",
+};
 
 async function dispatch(
   state: OrchestratorState,
@@ -74,6 +76,7 @@ async function dispatch(
     pendingCandidateId,
     candidate: context.candidate,
     trial: context.trial,
+    toolDraft: TOOL_DRAFT,
   });
 
   return {
@@ -86,25 +89,17 @@ async function dispatch(
 
 export async function runScriptedFlightLabJourney(options: {
   readonly approveCorrection: boolean;
+  readonly repositories?: Repositories;
+  readonly ids?: ReturnType<typeof createSequentialIdFactory>;
+  readonly clock?: ReturnType<typeof createFixedClock>;
 }): Promise<ScriptedJourneyResult> {
-  const persistence = createMemoryPersistence();
-  const repositories = persistence.repositories;
-  const ids = createSequentialIdFactory();
-  const clock = createFixedClock('2026-08-18T10:13:00Z');
+  const repositories = options.repositories ?? createMemoryPersistence().repositories;
+  const ids = options.ids ?? createSequentialIdFactory();
+  const clock = options.clock ?? createFixedClock('2026-08-18T10:13:00Z');
   const teaching = createScriptedTeachingSource(FLIGHT_LAB_TEACHING_SCRIPT);
   let teachingInvoked = 0;
 
   await repositories.profiles.save(ChildProfile.parse(childProfileJson));
-  await repositories.tools.save(
-    ToolDefinition.parse({
-      toolId: FLIGHT_LAB_TOOL_ID,
-      ownerChildId: 'child_local_01',
-      displayName: "Maya's Flight Lab",
-      kind: 'experiment_comparator',
-      currentVersionId: FLIGHT_LAB_VERSION_PLACEHOLDER,
-      createdAt: '2026-08-18T10:12:00Z',
-    }),
-  );
 
   let state: OrchestratorState = 'IMAGINE';
   let pendingCandidateId: EventId | null = null;
@@ -266,10 +261,6 @@ export async function runScriptedFlightLabJourney(options: {
     await go({ kind: 'runner_opened' });
   } else {
     await go({ kind: 'candidate_rejected' });
-  }
-
-  if (compiledBody === null && options.approveCorrection) {
-    compiledBody = foldApprovedEvents(await repositories.ledger.listByTool(FLIGHT_LAB_TOOL_ID));
   }
 
   return { state, repositories, compiledBody, teachingInvoked };

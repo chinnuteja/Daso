@@ -2,7 +2,7 @@
 
 **Owner:** Technical architect / build orchestrator
 **Normative source:** `TEACH_DASO_PRODUCT_AND_ARCHITECTURE.md`
-**Status:** Phases 1–4 implemented. Phases 5–8 outlined; Phase 5 specified next.
+**Status:** Phases 1–4 implemented. Phase 5 is fully specified in `docs/phases/PHASE_05.md`; Phases 6–8 remain outlined and must be specified after their dependencies freeze.
 
 This document is subordinate to the product and architecture definition. Where this
 document and the specification disagree, the specification wins and this document is

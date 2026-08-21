@@ -2,7 +2,7 @@
 
 **Maintained by:** technical architect / build orchestrator
 **Normative source:** `TEACH_DASO_PRODUCT_AND_ARCHITECTURE.md`
-**Last updated:** 2026-08-20. Phase 4 implemented; Phase 5 unblocked. INV-01–INV-19 and INV-26–INV-56 passing; INV-20–INV-25 pending by specification.
+**Last updated:** 2026-08-21. Phase 4 implemented; Phase 5 specified and ready for implementation. INV-01–INV-19 and INV-26–INV-56 passing; INV-20–INV-25 pending by specification.
 
 This file is the single source of truth for what is built, what is proven, and what has
 drifted. A phase is not complete because it runs. It is complete when its acceptance tests
@@ -18,7 +18,7 @@ are named here and passing, and no undeclared deviation exists.
 | P2 | Persistence & Inspection | M2 | **Implemented — gates green** | 2026-08-20 |
 | P3 | Orchestrator & Tablet Shell | M1 | **Implemented — gates green** | 2026-08-20 |
 | P4 | Teaching Agent & Approval Gate | M3 | **Implemented — gates green** | 2026-08-20 |
-| P5 | Compiler & Deterministic Runtime | M4 | Unblocked | — |
+| P5 | Compiler & Deterministic Runtime | M4 | **Specified — ready for implementation** | — |
 | P6 | Keep & Reuse | M5 | Blocked on P5 | — |
 | P7 | Parent Evidence & Data Rights | M6 | Blocked on P5 | — |
 | P8 | Founder-Facing Polish | M7 | Blocked on all | — |
@@ -58,6 +58,8 @@ P3 also asserts INV-39 (scripted journey), INV-40 (authorship visible), INV-42 (
 
 P4 also asserts INV-18 (validation is code), INV-47 (agent cannot approve), INV-48 (single model path), INV-49 (server-side response validation), INV-50 (prompt-injection fixtures), INV-51 (§11.2 minimality), INV-52 (no client credential), INV-53 (provenance before append), INV-54 (resource limits), INV-55 (capability allowlist), INV-56 (approval never touches the network).
 
+P5 will promote INV-20 and INV-21 and add INV-57 (atomic compilation commit), INV-58 (no dangling active version), INV-59 (idempotent compilation), INV-60 (immutable version history), INV-61 (pure runtime), INV-62 (exact metric/ranking contract), INV-63 (trial resolves active version), and INV-64 (memory + IndexedDB/reopen milestone proof). These remain unasserted until implementation evidence is reviewed.
+
 ---
 
 ## 3. Deviation register
@@ -67,6 +69,8 @@ P4 also asserts INV-18 (validation is code), INV-47 (agent cannot approve), INV-
 | D-01 | Approval is recorded as a separate child-actor ledger entry referencing a candidate entry, rather than as a boolean the event author writes. §9.4's `childApproved` is preserved as a derived read-model field so stored and exported records match the documented shape. | An append-only ledger (§10) cannot have a field flipped after the fact, and any actor able to write its own approval flag can approve its own mutation, defeating §7.3 and §12. | **Accepted by owner** |
 
 Phase 4 introduces no new deviations from the product specification. D-01 remains the only accepted product-spec deviation.
+
+Phase 5 is specified in `docs/phases/PHASE_05.md`; specification does not itself add a deviation. The required earlier-phase integration corrections (atomic version activation and removal of the dangling placeholder) must be recorded as implementation decisions when completed.
 
 ### Considered and rejected
 

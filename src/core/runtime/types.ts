@@ -5,6 +5,7 @@ import { NonEmptyString, ToolVersionId, TrialId } from '../schema/primitives';
 /**
  * Frozen runtime result for P6/P7. A projection over a specific version and trials:
  * nothing here is persisted, and nothing here is a stored observation.
+ * Median and consistency appear only when that metric is active on the version.
  */
 export const TrialProjection = z.strictObject({
   trialId: TrialId,
@@ -15,16 +16,16 @@ export type TrialProjection = z.infer<typeof TrialProjection>;
 export const DesignMetrics = z.strictObject({
   designName: NonEmptyString,
   validTrialCount: z.number().int().nonnegative(),
-  medianDistanceMm: z.number(),
-  consistencyMm: z.number(),
+  medianDistanceMm: z.number().optional(),
+  consistencyMm: z.number().optional(),
 });
 export type DesignMetrics = z.infer<typeof DesignMetrics>;
 
 export const RankingEntry = z.strictObject({
   rank: z.number().int().positive(),
   designName: NonEmptyString,
-  medianDistanceMm: z.number(),
-  consistencyMm: z.number(),
+  medianDistanceMm: z.number().optional(),
+  consistencyMm: z.number().optional(),
 });
 export type RankingEntry = z.infer<typeof RankingEntry>;
 

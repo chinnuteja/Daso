@@ -18,12 +18,17 @@ import { flightLabLedger } from '../fixtures/ledger/flightLab';
  * INV-57 — atomic compilation commit against memory and IndexedDB.
  */
 
-const VERSION = compileToolVersion(
+const V1 = compileToolVersion(
   flightLabLedger.filter((entry) => entry.sequence <= 10),
   { versionId: 'tool_version_001', compiledAt: '2026-08-18T10:21:00Z' },
 );
 
-const DEFINITION = ToolDefinition.parse({
+const V2 = compileToolVersion(flightLabLedger, {
+  versionId: 'tool_version_002',
+  compiledAt: '2026-08-18T10:31:00Z',
+});
+
+const DEFINITION_V1 = ToolDefinition.parse({
   toolId: 'mayas-flight-lab',
   ownerChildId: 'child_local_01',
   displayName: "Maya's Flight Lab",
@@ -37,37 +42,42 @@ afterEach(() => {
 });
 
 async function assertAtomic(repositories: Repositories): Promise<void> {
-  await repositories.versions.saveAndActivate(VERSION, DEFINITION);
-  expect(await repositories.versions.get(VERSION.versionId)).not.toBeNull();
-  expect((await repositories.tools.get(DEFINITION.toolId))?.currentVersionId).toBe(VERSION.versionId);
+  await repositories.versions.saveAndActivate(V1, DEFINITION_V1);
+  expect(await repositories.versions.get(V1.versionId)).not.toBeNull();
+  expect((await repositories.tools.get(DEFINITION_V1.toolId))?.currentVersionId).toBe(V1.versionId);
 }
 
-async function assertInjectedFailure(repositories: Repositories): Promise<void> {
+async function assertInjectedFailureDuringV2(repositories: Repositories): Promise<void> {
+  await repositories.versions.saveAndActivate(V1, DEFINITION_V1);
   setFailAfterVersionWrite(true);
-  await expect(repositories.versions.saveAndActivate(VERSION, DEFINITION)).rejects.toThrow(
-    /injected compilation failure/u,
-  );
-  expect(await repositories.versions.get(VERSION.versionId)).toBeNull();
-  expect(await repositories.tools.get(DEFINITION.toolId)).toBeNull();
+  await expect(
+    repositories.versions.saveAndActivate(V2, {
+      ...DEFINITION_V1,
+      currentVersionId: V2.versionId,
+    }),
+  ).rejects.toThrow(/injected compilation failure/u);
+  expect((await repositories.tools.get(DEFINITION_V1.toolId))?.currentVersionId).toBe(V1.versionId);
+  expect(await repositories.versions.get(V1.versionId)).not.toBeNull();
+  expect(await repositories.versions.get(V2.versionId)).toBeNull();
   setFailAfterVersionWrite(false);
 }
 
 async function assertDuplicate(repositories: Repositories): Promise<void> {
-  await repositories.versions.saveAndActivate(VERSION, DEFINITION);
-  await expect(repositories.versions.saveAndActivate(VERSION, DEFINITION)).rejects.toBeInstanceOf(
+  await repositories.versions.saveAndActivate(V1, DEFINITION_V1);
+  await expect(repositories.versions.saveAndActivate(V1, DEFINITION_V1)).rejects.toBeInstanceOf(
     PersistenceError,
   );
-  expect((await repositories.tools.get(DEFINITION.toolId))?.currentVersionId).toBe(VERSION.versionId);
+  expect((await repositories.tools.get(DEFINITION_V1.toolId))?.currentVersionId).toBe(V1.versionId);
 }
 
 describe('INV-57 — atomic compilation commit', () => {
-  it('INV-57: memory commit, injected failure, and duplicate leave no partial version', async () => {
+  it('INV-57: memory commit, v2 injected failure, and duplicate leave v1 active', async () => {
     await assertAtomic(createMemoryRepositories());
-    await assertInjectedFailure(createMemoryRepositories());
+    await assertInjectedFailureDuringV2(createMemoryRepositories());
     await assertDuplicate(createMemoryRepositories());
   });
 
-  it('INV-57: IndexedDB commit, injected failure, and duplicate leave no partial version', async () => {
+  it('INV-57: IndexedDB commit, v2 injected failure, and duplicate leave v1 active', async () => {
     const name = 'teach-daso-inv-57';
     await deleteDB(name);
     const first = await openIndexedDbRepositories(name);
@@ -76,7 +86,7 @@ describe('INV-57 — atomic compilation commit', () => {
 
     await deleteDB(name);
     const second = await openIndexedDbRepositories(name);
-    await assertInjectedFailure(second.repositories);
+    await assertInjectedFailureDuringV2(second.repositories);
     second.database.close();
 
     await deleteDB(name);

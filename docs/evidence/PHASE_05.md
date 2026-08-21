@@ -4,7 +4,7 @@
 **Spec:** `docs/phases/PHASE_05.md` section D.4
 **Build ledger:** `docs/BUILD_STATE.md`
 **Branch:** `orchestration/phase-05-plan`
-**Status:** Implemented and gated. Not architecturally accepted.
+**Status:** Review blockers addressed and gated. Not architecturally accepted.
 
 ---
 
@@ -16,10 +16,10 @@ No command called a live model.
 ### Targeted invariant files (D.3)
 
 ```
-npx vitest run tests/invariants/inv-20-replay-pending.test.ts tests/invariants/inv-21-obstructed-ranking-pending.test.ts tests/invariants/inv-57-atomic-compilation.test.ts tests/invariants/inv-58-no-dangling-active-version.test.ts tests/invariants/inv-59-idempotent-compilation.test.ts tests/invariants/inv-60-version-history-immutable.test.ts tests/invariants/inv-61-runtime-pure.test.ts tests/invariants/inv-62-metric-ranking-contract.test.ts tests/invariants/inv-63-trial-resolves-active-version.test.ts tests/invariants/inv-64-phase-05-reload-proof.test.ts
+npx vitest run tests/invariants/inv-20-replay.test.ts tests/invariants/inv-21-obstructed-ranking.test.ts tests/invariants/inv-57-atomic-compilation.test.ts tests/invariants/inv-58-no-dangling-active-version.test.ts tests/invariants/inv-59-idempotent-compilation.test.ts tests/invariants/inv-60-version-history-immutable.test.ts tests/invariants/inv-61-runtime-pure.test.ts tests/invariants/inv-62-metric-ranking-contract.test.ts tests/invariants/inv-63-trial-resolves-active-version.test.ts tests/invariants/inv-64-phase-05-reload-proof.test.ts
 
  Test Files  10 passed (10)
-      Tests  20 passed (20)
+      Tests  23 passed (23)
 ```
 
 Exit 0.
@@ -44,7 +44,7 @@ Exit 0. No errors, no warnings.
 
 ```
  Test Files  65 passed | 4 skipped (69)
-      Tests  199 passed | 4 todo (203)
+      Tests  207 passed | 4 todo (211)
 ```
 
 Exit 0.
@@ -81,13 +81,13 @@ Exit 0. No evidence route. No new model path.
 | INV-21 | **Asserted** | trial_004 valid and Dart first under v1; only trial_004 becomes invalid under v2; Dart 6.1 m; Falcon 7.4 m and first; stored trials unchanged |
 | INV-22 … INV-25 | **Pending** | P6/P7 |
 | INV-26 … INV-56 | **Asserted** | Unchanged from Phase 4 except INV-39/INV-45 journey expectations noted below |
-| INV-57 | **Asserted** | Memory and IndexedDB `saveAndActivate`; injected failure and duplicate leave no partial version and do not move the pointer |
+| INV-57 | **Asserted** | Memory and IndexedDB: commit v1, then injected failure while activating v2 leaves v1 active and v2 absent; duplicate of v1 does not move the pointer |
 | INV-58 | **Asserted** | No placeholder in `src/ui/**`; journey stores no tool before v1; reopen resolves `currentVersionId` to same-tool v2 |
 | INV-59 | **Asserted** | Second compile of an unchanged ledger: zero id calls, zero clock calls, zero writes; version bytes unchanged |
 | INV-60 | **Asserted** | After v2, v1 nested mutation throws; definition points at v2; both versions readable |
 | INV-61 | **Asserted** | Compiler/runtime import scan is core-only; replay writes no repository and mutates nothing |
-| INV-62 | **Asserted** | Odd/even median, millimetre rounding, spread, median/consistency/lexical ties, zero-valid exclusion, empty input |
-| INV-63 | **Asserted** | Capture stamps repository-resolved `tool_version_001`; missing/dangling/cross-tool rejected before save; UI sites do not mention `toolVersionIdAtCapture` |
+| INV-62 | **Asserted** | Odd/even median, millimetre rounding, spread, both-metric order, median-only, consistency-only, no-metrics (no ranking/winner), inactive metric omitted from output and ranking |
+| INV-63 | **Asserted** | Capture stamps repository-resolved `tool_version_001`; missing/dangling/cross-tool rejected before save via mocked `tools.get`; UI sites do not mention `toolVersionIdAtCapture` |
 | INV-64 | **Asserted** | Memory and IndexedDB/reopen: v1, four trials, v2, both rankings, unmodified ledger/trials |
 
 INV-39 still reaches `RUN` with a fold equal to the §9.3 body; it now also expects two stored versions.
@@ -124,19 +124,24 @@ REPLAY_V2 {"insufficient":[],"metrics":[{"consistencyMm":0,"designName":"Falcon"
 
 Dart median 7500 mm = 7.5 m under v1; 6100 mm = 6.1 m under v2. Falcon remains 7400 mm = 7.4 m.
 
+Flight Lab versions include both metrics, so both fields appear. INV-62 also proves: median-only omits `consistencyMm` and ranks by median then name; consistency-only omits `medianDistanceMm` and ranks by spread then name; no metrics yields empty ranking and no winner.
+
 ---
 
 ## 5. Atomic failure / rollback
 
 Observed against both memory and IndexedDB (INV-57 and repository conformance):
 
-| Step | Before | After injected failure | After duplicate of existing v1 |
+| Step | After v1 commit | After injected failure while activating v2 | After duplicate of existing v1 |
 |---|---|---|---|
-| `toolVersions[tool_version_001]` | absent | still absent | present (the original v1) |
-| `tools.currentVersionId` | absent / still `tool_version_001` after first commit | absent (no definition created) | still `tool_version_001` |
+| `toolVersions[tool_version_001]` | present | still present | present |
+| `toolVersions[tool_version_002]` | absent | still absent | absent |
+| `tools.currentVersionId` | `tool_version_001` | still `tool_version_001` | still `tool_version_001` |
 | error | — | `injected compilation failure after version write` | `PersistenceError` duplicate version |
 
-The IndexedDB path uses one read-write transaction over `toolVersions` and `tools`. Abort awaits `tx.done` so the rollback is not an unhandled `AbortError`.
+`tools.save` also rejects a missing version and a version owned by another tool; the previous definition bytes are unchanged. IndexedDB validates the pointer inside the same read-write transaction as the put.
+
+The IndexedDB compilation path uses one read-write transaction over `toolVersions` and `tools`. Abort awaits `tx.done` so the rollback is not an unhandled `AbortError`.
 
 ---
 
@@ -193,6 +198,7 @@ src/core/runtime/metrics.ts
 src/core/runtime/replay.ts
 src/core/runtime/index.ts
 src/adapters/persistence/atomicCommit.ts
+src/adapters/persistence/definitionPointer.ts
 tests/unit/compiler/compile.test.ts
 tests/unit/runtime/metrics.test.ts
 tests/unit/runtime/rules.test.ts
@@ -206,6 +212,8 @@ tests/invariants/inv-62-metric-ranking-contract.test.ts
 tests/invariants/inv-63-trial-resolves-active-version.test.ts
 tests/invariants/inv-64-phase-05-reload-proof.test.ts
 docs/evidence/PHASE_05.md
+docs/evidence/assets/phase-05-compile-preview-v2.png
+docs/evidence/assets/capture-compile-preview.mjs
 ```
 
 Amended (owned or decision-logged):
@@ -215,6 +223,9 @@ src/core/ports/repositories.ts
 src/adapters/persistence/memory/versions.ts
 src/adapters/persistence/indexedDb/versions.ts
 src/adapters/persistence/index.ts
+src/adapters/persistence/memory/tools.ts
+src/adapters/persistence/indexedDb/tools.ts
+src/adapters/persistence/indexedDb/access.ts
 src/core/orchestrator/transition.ts
 src/ui/flows/executeIntents.ts
 src/ui/flows/JourneyFlow.tsx
@@ -223,8 +234,8 @@ src/adapters/teaching/scripted.ts
 tests/conformance/repositories.ts
 tests/fixtures/script/flightLab.ts
 tests/journey/runScriptedJourney.ts
-tests/invariants/inv-20-replay-pending.test.ts
-tests/invariants/inv-21-obstructed-ranking-pending.test.ts
+tests/invariants/inv-20-replay.test.ts
+tests/invariants/inv-21-obstructed-ranking.test.ts
 tests/invariants/inv-39-scripted-journey.test.ts
 tests/invariants/inv-45-no-version-write.test.ts
 docs/BUILD_STATE.md
@@ -232,30 +243,38 @@ docs/BUILD_STATE.md
 
 `atomicCommit.ts` is an extra persistence path: a test-only abort switch so INV-57 can fail after the version row is written. Production callers never set it.
 
+`definitionPointer.ts` is the shared missing/cross-tool check used by both `tools.save` implementations. IndexedDB `tools.save` reads `toolVersions` and writes `tools` in one transaction.
+
+`persistGraph` saves versions before tools so a valid pointer can exist at definition write time.
+
 Compiler imports (all `src/core`): `ledger/fold`, `ledger/types`, `schema/primitives`, `schema/toolVersion`, `serialization/canonicalJson`, `serialization/deepFreeze`.
 
 Runtime imports: `zod` (types only), `schema/experimentTrial`, `schema/toolVersion`, `schema/vocabulary`, `schema/primitives`, plus sibling runtime modules. INV-61 scan found no adapter, app, UI, browser, Node I/O, clock, or randomness seam.
 
 ---
 
-## 9. Compile preview v1→v2 explanation
+## 9. Compile preview v1→v2 visual evidence (D.4.9)
 
-`CompilePreviewScreen` renders `version.versionId` and `runtime` / `previousRuntime` from `executeIntents`, not fixture copy. After the approved obstruction correction the application values are:
+The real browser journey was driven through definition, four trials, obstruction correction, and v2 compile. Screenshot (not expected text):
 
-```
-Saved version: tool_version_002
-Inputs: design_name, distance_m, obstruction
-Comparisons: median_distance, consistency
-Rules: exclude_obstructed_flight
-Winner now: Falcon
-Ranking: 1. Falcon — 7.4 m; 2. Dart — 6.1 m; 3. Glider — 5.8 m
-After this correction, trial_004 changed validity. Before, Dart was first. Now Falcon is first.
-```
+![Compile preview after v2](assets/phase-05-compile-preview-v2.png)
 
-Authorship remains the existing `WhyPanel` projection. No P6 runner tile or fork UI was added. Executable proof: `tests/integration/phase-05-compile-replay.test.ts` and INV-21/INV-64.
+The captured frame shows, together:
+
+- `Saved version: tool_version_002`
+- `Rules: exclude_obstructed_flight`
+- `Winner now: Falcon`
+- `After this correction, trial_004 changed validity. Before, Dart was first. Now Falcon is first.`
+- ranking `1. Falcon — 7.4 m; 2. Dart — 6.1 m; 3. Glider — 5.8 m`
+
+Reproduction (not a product path; Playwright is not a `package.json` dependency):
+
+`docs/evidence/assets/capture-compile-preview.mjs` against `npm run dev` on `http://localhost:3000/journey`, scripted teaching source, fresh Edge profile.
+
+`CompilePreviewScreen` still renders `version.versionId` and `runtime` / `previousRuntime` from `executeIntents`. Authorship remains the existing `WhyPanel` projection. No P6 runner tile or fork UI was added.
 
 ---
 
 ## 10. Deviations
 
-No undeclared deviations.
+No undeclared deviations. This packet does not claim architectural acceptance.

@@ -31,11 +31,12 @@ export async function persistGraph(
   graph: PersistableGraph,
 ): Promise<void> {
   await repositories.profiles.save(ChildProfile.parse(graph.profile));
-  for (const tool of graph.tools) {
-    await repositories.tools.save(ToolDefinition.parse(tool));
-  }
+  // Versions first: tools.save rejects a pointer to a missing or other-tool version.
   for (const version of graph.versions) {
     await repositories.versions.save(ToolVersion.parse(version));
+  }
+  for (const tool of graph.tools) {
+    await repositories.tools.save(ToolDefinition.parse(tool));
   }
   for (const entry of graph.entries) {
     await repositories.ledger.append(entry);

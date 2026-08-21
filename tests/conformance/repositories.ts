@@ -224,6 +224,44 @@ export function defineRepositoryConformance(
       expect(await harness.repositories.versions.get(second.versionId)).toBeNull();
     });
 
+    it('leaves the previous definition unchanged when the pointer is missing or belongs to another tool', async () => {
+      const graph = flightLabGraph();
+      const version = graph.versions[0];
+      const definition = graph.tools[0];
+      expect(version).toBeDefined();
+      expect(definition).toBeDefined();
+      if (version === undefined || definition === undefined) {
+        return;
+      }
+      await harness.repositories.versions.saveAndActivate(version, {
+        ...definition,
+        currentVersionId: version.versionId,
+      });
+      await harness.repositories.versions.save({
+        versionId: 'tool_version_101',
+        toolId: 'other-paper-lab',
+        version: 1,
+        inputs: ['design_name'],
+        metrics: ['median_distance'],
+        rules: [],
+        compiledAt: '2026-08-18T12:01:00Z',
+      });
+      const before = canonicalJson(await harness.repositories.tools.get(definition.toolId));
+      await expect(
+        harness.repositories.tools.save({
+          ...definition,
+          currentVersionId: 'tool_version_999',
+        }),
+      ).rejects.toThrow(/missing version/u);
+      await expect(
+        harness.repositories.tools.save({
+          ...definition,
+          currentVersionId: 'tool_version_101',
+        }),
+      ).rejects.toThrow(/owned by/u);
+      expect(canonicalJson(await harness.repositories.tools.get(definition.toolId))).toBe(before);
+    });
+
     it('deleteByTool removes that tool stream and leaves get returning null', async () => {
       const graph = flightLabGraph();
       await persistGraph(harness.repositories, graph);

@@ -4,6 +4,8 @@ import { SRC_ROOT, listSourceFiles } from '../support/sourceTree';
 import { createMemoryRepositories } from '../../src/adapters/persistence';
 import { createFixedClock } from '../../src/core/ports/clock';
 import { createSequentialIdFactory } from '../../src/core/ports/ids';
+import type { Repositories } from '../../src/core/ports/repositories';
+import type { ToolDefinition } from '../../src/core/schema/toolDefinition';
 import { executeIntents, IntentExecutionError } from '../../src/ui/flows/executeIntents';
 import { FLIGHT_LAB_TOOL_ID, FLIGHT_LAB_TRIAL_DRAFTS } from '../fixtures/script/flightLab';
 import { runScriptedFlightLabJourney } from '../journey/runScriptedJourney';
@@ -13,6 +15,27 @@ import { runScriptedFlightLabJourney } from '../journey/runScriptedJourney';
  */
 
 const DRAFT = FLIGHT_LAB_TRIAL_DRAFTS[0];
+
+const FLIGHT_LAB_DEFINITION: ToolDefinition = {
+  toolId: FLIGHT_LAB_TOOL_ID,
+  ownerChildId: 'child_local_01',
+  displayName: "Maya's Flight Lab",
+  kind: 'experiment_comparator',
+  currentVersionId: 'tool_version_001',
+  createdAt: '2026-08-18T10:12:00Z',
+};
+
+function withMockedToolGet(base: Repositories, get: Repositories['tools']['get']): Repositories {
+  return {
+    ...base,
+    tools: {
+      get,
+      listByOwner: (childId) => base.tools.listByOwner(childId),
+      save: (definition) => base.tools.save(definition),
+      deleteByTool: (toolId) => base.tools.deleteByTool(toolId),
+    },
+  };
+}
 
 describe('INV-63 — trial capture resolves the active version', () => {
   it('INV-63: UI call sites cannot supply a capture version id', () => {
@@ -35,6 +58,7 @@ describe('INV-63 — trial capture resolves the active version', () => {
     if (DRAFT === undefined) {
       throw new Error('fixture draft missing');
     }
+
     const missing = createMemoryRepositories();
     await expect(
       executeIntents({
@@ -49,15 +73,8 @@ describe('INV-63 — trial capture resolves the active version', () => {
     ).rejects.toBeInstanceOf(IntentExecutionError);
     expect(await missing.trials.listByTool(FLIGHT_LAB_TOOL_ID)).toEqual([]);
 
-    const dangling = createMemoryRepositories();
-    await dangling.tools.save({
-      toolId: FLIGHT_LAB_TOOL_ID,
-      ownerChildId: 'child_local_01',
-      displayName: "Maya's Flight Lab",
-      kind: 'experiment_comparator',
-      currentVersionId: 'tool_version_001',
-      createdAt: '2026-08-18T10:12:00Z',
-    });
+    const danglingBase = createMemoryRepositories();
+    const dangling = withMockedToolGet(danglingBase, async () => FLIGHT_LAB_DEFINITION);
     await expect(
       executeIntents({
         intents: ['record_trial'],
@@ -71,16 +88,8 @@ describe('INV-63 — trial capture resolves the active version', () => {
     ).rejects.toBeInstanceOf(IntentExecutionError);
     expect(await dangling.trials.listByTool(FLIGHT_LAB_TOOL_ID)).toEqual([]);
 
-    const crossed = createMemoryRepositories();
-    await crossed.tools.save({
-      toolId: FLIGHT_LAB_TOOL_ID,
-      ownerChildId: 'child_local_01',
-      displayName: "Maya's Flight Lab",
-      kind: 'experiment_comparator',
-      currentVersionId: 'tool_version_101',
-      createdAt: '2026-08-18T10:12:00Z',
-    });
-    await crossed.versions.save({
+    const crossedBase = createMemoryRepositories();
+    await crossedBase.versions.save({
       versionId: 'tool_version_101',
       toolId: 'other-paper-lab',
       version: 1,
@@ -89,6 +98,10 @@ describe('INV-63 — trial capture resolves the active version', () => {
       rules: [],
       compiledAt: '2026-08-18T12:01:00Z',
     });
+    const crossed = withMockedToolGet(crossedBase, async () => ({
+      ...FLIGHT_LAB_DEFINITION,
+      currentVersionId: 'tool_version_101',
+    }));
     await expect(
       executeIntents({
         intents: ['record_trial'],

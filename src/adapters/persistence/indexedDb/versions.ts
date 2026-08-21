@@ -5,7 +5,7 @@ import { ToolVersion } from '../../../core/schema/toolVersion';
 import { deepFreeze } from '../../../core/serialization/deepFreeze';
 import { shouldFailAfterVersionWrite } from '../atomicCommit';
 import { PersistenceError, STORE, type TeachDasoDatabase } from '../database';
-import { getParsed, listByToolIndex } from './access';
+import { abortTransaction, getParsed, listByToolIndex } from './access';
 
 export function createIndexedDbVersionRepository(
   database: TeachDasoDatabase,
@@ -49,11 +49,14 @@ export function createIndexedDbVersionRepository(
       const toolStore = tx.objectStore(STORE.tools);
       const existing = await versionStore.get(parsedVersion.versionId);
       if (existing !== undefined) {
-        await abortCompilation(tx, `version ${parsedVersion.versionId} already exists; compiled versions are immutable`);
+        await abortTransaction(
+          tx,
+          `version ${parsedVersion.versionId} already exists; compiled versions are immutable`,
+        );
       }
       await versionStore.put(parsedVersion);
       if (shouldFailAfterVersionWrite()) {
-        await abortCompilation(tx, 'injected compilation failure after version write');
+        await abortTransaction(tx, 'injected compilation failure after version write');
       }
       await toolStore.put(parsedDefinition);
       await tx.done;
@@ -68,14 +71,4 @@ export function createIndexedDbVersionRepository(
       await tx.done;
     },
   };
-}
-
-async function abortCompilation(
-  tx: { abort(): void; done: Promise<void> },
-  message: string,
-): Promise<never> {
-  const settled = tx.done.catch(() => undefined);
-  tx.abort();
-  await settled;
-  throw new PersistenceError(message);
 }

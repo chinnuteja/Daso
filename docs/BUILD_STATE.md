@@ -2,7 +2,7 @@
 
 **Maintained by:** technical architect / build orchestrator
 **Normative source:** `TEACH_DASO_PRODUCT_AND_ARCHITECTURE.md`
-**Last updated:** 2026-08-21. Phase 5 implemented on `orchestration/phase-05-plan`; awaiting orchestrator review. INV-01–INV-21 and INV-26–INV-64 passing; INV-22–INV-25 pending by specification.
+**Last updated:** 2026-08-21. Phase 5 review blockers addressed on `orchestration/phase-05-plan`; still awaiting orchestrator review. INV-01–INV-21 and INV-26–INV-64 passing; INV-22–INV-25 pending by specification.
 
 This file is the single source of truth for what is built, what is proven, and what has
 drifted. A phase is not complete because it runs. It is complete when its acceptance tests
@@ -70,7 +70,7 @@ P5 asserts INV-20 and INV-21 and adds INV-57 (atomic compilation commit), INV-58
 
 Phase 4 introduces no new deviations from the product specification. D-01 remains the only accepted product-spec deviation.
 
-Phase 5 introduces no new product-spec deviations. The required earlier-phase integration corrections (atomic version activation and removal of the dangling placeholder) are recorded as implementation decisions 24–30. D-01 remains the only accepted product-spec deviation.
+Phase 5 introduces no new product-spec deviations. Ranking now omits inactive metric fields on `RuntimeResult` (decision 31); that is a P5 shape correction, not a spec deviation. `tools.save` pointer validation (decision 32) is the required C.2 enforcement. D-01 remains the only accepted product-spec deviation.
 
 ### Considered and rejected
 
@@ -120,6 +120,8 @@ Phase 5 introduces no new product-spec deviations. The required earlier-phase in
 | 28 | Freeze `RuntimeResult` in `src/core/runtime/types.ts` | PHASE_05 C.7: P6/P7 consume this shape. It is not a §9 object and is not persisted |
 | 29 | Add `src/adapters/persistence/atomicCommit.ts` as a test-only abort switch | INV-57 must inject failure after the version row is written. Production callers never set it |
 | 30 | Amend INV-39 and INV-45 journey expectations so compiled versions are stored | Durable properties remain: fold equals §9.3; the orchestrator still contains no `versions`/`ToolVersion`/`save`. Composition now writes v1 and v2 |
+| 31 | Ranking and `RuntimeResult` metric fields follow `ToolVersion.metrics`; inactive metrics are omitted | Architectural review: replay must not compute or expose a comparison the child did not approve. Shape correction is allowed because P5 is not accepted |
+| 32 | `tools.save` rejects a missing or other-tool `currentVersionId` in the same write; `persistGraph` saves versions before tools | Architectural review: a stored definition may not point at an absent or foreign version. INV-63 corrupt-state setup uses a mocked `tools.get` |
 
 ---
 
@@ -150,14 +152,14 @@ Phase 3 D.4 packet: `docs/evidence/PHASE_03.md`.
 Phase 4 D.4 packet: `docs/evidence/PHASE_04.md`.
 Phase 5 D.4 packet: `docs/evidence/PHASE_05.md`.
 
-Gate commands on 2026-08-21 (Phase 5 implementation, not yet accepted):
+Gate commands on 2026-08-21 (Phase 5 review-blocker fix, not yet accepted):
 
 | Command | Exit |
 |---|---|
-| targeted INV-20/21/57–64 | 0 — **20 passed** |
+| targeted INV-20/21/57–64 | 0 — **23 passed** |
 | `npm run typecheck` | 0 |
 | `npm run lint` | 0 |
-| `npm test` | 0 — **199 passed, 4 todo** |
+| `npm test` | 0 — **207 passed, 4 todo** |
 | `npm run build` | 0 — routes `/`, `/inspect`, `/journey`, `/run`, `ƒ /api/agents/teaching` |
 
 INV-01 … INV-21 and INV-26 … INV-64 passing. INV-22 … INV-25 todo/pending.

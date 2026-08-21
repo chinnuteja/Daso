@@ -3,6 +3,8 @@ export { projectTrial } from './rules';
 export {
   compareRanking,
   consistencySpreadMm,
+  hasConsistency,
+  hasMedianDistance,
   medianMillimetres,
   metresToMillimetres,
   millimetresToMetres,

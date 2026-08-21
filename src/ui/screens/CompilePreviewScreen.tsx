@@ -46,12 +46,7 @@ function RankingPanel(props: {
   readonly previous: RuntimeResult | null;
 }) {
   const winner = props.runtime.winner ?? 'none yet';
-  const ranking = props.runtime.ranking
-    .map(
-      (entry) =>
-        `${entry.rank}. ${entry.designName} — ${String(millimetresToMetres(entry.medianDistanceMm))} m`,
-    )
-    .join('; ');
+  const ranking = props.runtime.ranking.map((entry) => rankingCaption(entry)).join('; ');
   const changed = props.previous === null ? [] : validityChanges(props.previous, props.runtime);
   const previousWinner = props.previous?.winner;
 
@@ -68,4 +63,14 @@ function RankingPanel(props: {
       ) : null}
     </section>
   );
+}
+
+function rankingCaption(entry: RuntimeResult['ranking'][number]): string {
+  if (entry.medianDistanceMm !== undefined) {
+    return `${entry.rank}. ${entry.designName} — ${String(millimetresToMetres(entry.medianDistanceMm))} m`;
+  }
+  if (entry.consistencyMm !== undefined) {
+    return `${entry.rank}. ${entry.designName} — spread ${String(entry.consistencyMm)} mm`;
+  }
+  return `${entry.rank}. ${entry.designName}`;
 }

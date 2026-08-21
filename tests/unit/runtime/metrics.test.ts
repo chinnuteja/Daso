@@ -9,12 +9,22 @@ import {
 } from '../../../src/core/runtime';
 import { compileToolVersion } from '../../../src/core/compiler';
 import type { ExperimentTrial } from '../../../src/core/schema/experimentTrial';
+import { ToolVersion } from '../../../src/core/schema/toolVersion';
+import type { MetricId } from '../../../src/core/schema/vocabulary';
+import { canonicalJson } from '../../../src/core/serialization/canonicalJson';
 import { flightLabLedger } from '../../fixtures/ledger/flightLab';
 
 const EMPTY_VERSION = compileToolVersion(
   flightLabLedger.filter((entry) => entry.sequence <= 10),
   { versionId: 'tool_version_001', compiledAt: '2026-08-18T10:21:00Z' },
 );
+
+function withMetrics(base: ToolVersion, metrics: readonly MetricId[]): ToolVersion {
+  return ToolVersion.parse({
+    ...base,
+    metrics: [...metrics],
+  });
+}
 
 function trial(
   trialId: ExperimentTrial['trialId'],
@@ -62,6 +72,7 @@ describe('runtime metric contract', () => {
       compareRanking(
         { designName: 'A', medianDistanceMm: 7000, consistencyMm: 200 },
         { designName: 'B', medianDistanceMm: 7000, consistencyMm: 50 },
+        ['median_distance', 'consistency'],
       ),
     ).toBeGreaterThan(0);
   });
@@ -71,6 +82,7 @@ describe('runtime metric contract', () => {
       compareRanking(
         { designName: 'Dart', medianDistanceMm: 7000, consistencyMm: 0 },
         { designName: 'Falcon', medianDistanceMm: 7000, consistencyMm: 0 },
+        ['median_distance', 'consistency'],
       ),
     ).toBeLessThan(0);
   });
@@ -91,5 +103,37 @@ describe('runtime metric contract', () => {
     expect(result.winner).toBeUndefined();
     expect(result.insufficient).toEqual([]);
     expect(result.projections).toEqual([]);
+  });
+
+  it('ranks by median only when consistency is not an active metric', () => {
+    const trials = [
+      trial('trial_001', 'Dart', 6.0),
+      trial('trial_002', 'Dart', 8.0),
+      trial('trial_003', 'Falcon', 6.9),
+      trial('trial_004', 'Falcon', 7.1),
+    ];
+    expect(replay(EMPTY_VERSION, trials).winner).toBe('Falcon');
+    const medianOnly = replay(withMetrics(EMPTY_VERSION, ['median_distance']), trials);
+    expect(medianOnly.winner).toBe('Dart');
+    expect(canonicalJson(medianOnly)).not.toContain('consistencyMm');
+  });
+
+  it('ranks by consistency only when median is not an active metric', () => {
+    const trials = [
+      trial('trial_001', 'Dart', 10.0),
+      trial('trial_002', 'Dart', 8.0),
+      trial('trial_003', 'Falcon', 7.0),
+      trial('trial_004', 'Falcon', 7.0),
+    ];
+    expect(replay(EMPTY_VERSION, trials).winner).toBe('Dart');
+    const consistencyOnly = replay(withMetrics(EMPTY_VERSION, ['consistency']), trials);
+    expect(consistencyOnly.winner).toBe('Falcon');
+    expect(canonicalJson(consistencyOnly)).not.toContain('medianDistanceMm');
+  });
+
+  it('produces no ranking when the version has no metrics', () => {
+    const none = replay(withMetrics(EMPTY_VERSION, []), [trial('trial_001', 'Falcon', 7.4)]);
+    expect(none.ranking).toEqual([]);
+    expect(none.winner).toBeUndefined();
   });
 });

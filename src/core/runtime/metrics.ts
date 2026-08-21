@@ -1,3 +1,5 @@
+import type { MetricId } from '../schema/vocabulary';
+
 /**
  * Distance arithmetic is integer millimetres. Metres are converted once with rounding so
  * ranking never depends on binary floating-point accident.
@@ -8,6 +10,14 @@ export function metresToMillimetres(distanceM: number): number {
 
 export function millimetresToMetres(distanceMm: number): number {
   return distanceMm / 1000;
+}
+
+export function hasMedianDistance(metrics: readonly MetricId[]): boolean {
+  return metrics.includes('median_distance');
+}
+
+export function hasConsistency(metrics: readonly MetricId[]): boolean {
+  return metrics.includes('consistency');
 }
 
 /** Odd count: the middle value. Even count: arithmetic mean of the two middle integers. */
@@ -40,19 +50,37 @@ export function consistencySpreadMm(sortedAscending: readonly number[]): number 
   return last - first;
 }
 
+export interface RankingComparable {
+  readonly designName: string;
+  readonly medianDistanceMm?: number;
+  readonly consistencyMm?: number;
+}
+
 /**
- * Total ordering: median descending, consistency ascending, designName by code-point.
+ * Total order over the version's active metrics only.
+ * Both: median descending, consistency ascending, designName code-point.
+ * Median only: median descending, then designName.
+ * Consistency only: consistency ascending, then designName.
  * Does not rely on sort stability.
  */
 export function compareRanking(
-  left: { readonly designName: string; readonly medianDistanceMm: number; readonly consistencyMm: number },
-  right: { readonly designName: string; readonly medianDistanceMm: number; readonly consistencyMm: number },
+  left: RankingComparable,
+  right: RankingComparable,
+  activeMetrics: readonly MetricId[],
 ): number {
-  if (left.medianDistanceMm !== right.medianDistanceMm) {
-    return right.medianDistanceMm - left.medianDistanceMm;
+  if (hasMedianDistance(activeMetrics)) {
+    const leftMedian = requireMetric(left.medianDistanceMm, 'medianDistanceMm');
+    const rightMedian = requireMetric(right.medianDistanceMm, 'medianDistanceMm');
+    if (leftMedian !== rightMedian) {
+      return rightMedian - leftMedian;
+    }
   }
-  if (left.consistencyMm !== right.consistencyMm) {
-    return left.consistencyMm - right.consistencyMm;
+  if (hasConsistency(activeMetrics)) {
+    const leftSpread = requireMetric(left.consistencyMm, 'consistencyMm');
+    const rightSpread = requireMetric(right.consistencyMm, 'consistencyMm');
+    if (leftSpread !== rightSpread) {
+      return leftSpread - rightSpread;
+    }
   }
   if (left.designName < right.designName) {
     return -1;
@@ -61,4 +89,11 @@ export function compareRanking(
     return 1;
   }
   return 0;
+}
+
+function requireMetric(value: number | undefined, label: string): number {
+  if (value === undefined) {
+    throw new RangeError(`${label} is required when that metric is active`);
+  }
+  return value;
 }

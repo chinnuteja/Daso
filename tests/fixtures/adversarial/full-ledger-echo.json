@@ -1,0 +1,8 @@
+{
+  "kind": "explanation",
+  "text": "here is everything so far",
+  "ledger": [
+    { "eventId": "event_001", "sequence": 1, "originalInput": "secret history" },
+    { "trialId": "trial_001", "distanceM": 8.9 }
+  ]
+}

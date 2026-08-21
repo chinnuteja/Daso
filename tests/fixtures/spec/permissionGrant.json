@@ -1,0 +1,8 @@
+{
+  "grantId": "grant_camera_flight_lab",
+  "toolId": "mayas-flight-lab",
+  "capability": "camera_foreground_capture",
+  "scope": "current_experiment",
+  "approvedBy": "parent_or_device_policy",
+  "expiresAt": "2026-08-18T11:00:00Z"
+}

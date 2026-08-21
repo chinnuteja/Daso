@@ -1,0 +1,32 @@
+:root {
+  --ink: #141414;
+  --paper: #f4efe6;
+  --panel: #fffdf8;
+  --line: #2b2b2b;
+  --accent: #0f4c81;
+  --child: #1b5e3b;
+  --suggest: #6b3a1f;
+  --target: 3.5rem;
+  --gap: 1rem;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: "Segoe UI", system-ui, sans-serif;
+  font-size: 1.125rem;
+  line-height: 1.45;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+a {
+  color: var(--accent);
+}

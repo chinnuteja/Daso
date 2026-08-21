@@ -1,0 +1,16 @@
+{
+  "versionId": "tool_version_002",
+  "toolId": "mayas-flight-lab",
+  "version": 2,
+  "inputs": ["design_name", "distance_m", "obstruction"],
+  "metrics": ["median_distance", "consistency"],
+  "rules": [
+    {
+      "ruleId": "exclude_obstructed_flight",
+      "when": { "field": "obstruction", "equals": true },
+      "effect": { "set": "trial.valid", "value": false },
+      "sourceEventId": "event_014"
+    }
+  ],
+  "compiledAt": "2026-08-18T10:31:00Z"
+}

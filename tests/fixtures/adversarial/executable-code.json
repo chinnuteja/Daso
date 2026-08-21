@@ -1,0 +1,8 @@
+{
+  "operation": "add_rule",
+  "rule": {
+    "ruleId": "executable_field",
+    "when": { "field": "note", "equals": "function(){ return true }" },
+    "effect": { "set": "trial.valid", "value": false }
+  }
+}

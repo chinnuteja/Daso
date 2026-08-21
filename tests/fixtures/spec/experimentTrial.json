@@ -1,0 +1,11 @@
+{
+  "trialId": "trial_004",
+  "toolId": "mayas-flight-lab",
+  "toolVersionIdAtCapture": "tool_version_001",
+  "designName": "Dart",
+  "distanceM": 8.9,
+  "obstruction": true,
+  "validAtCapture": true,
+  "validUnderCurrentVersion": false,
+  "createdAt": "2026-08-18T10:26:00Z"
+}

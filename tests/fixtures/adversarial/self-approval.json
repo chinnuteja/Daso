@@ -1,0 +1,6 @@
+{
+  "kind": "approval",
+  "actor": "ai",
+  "approves": "event_001",
+  "append_approval": true
+}

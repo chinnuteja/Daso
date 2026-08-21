@@ -1,0 +1,13 @@
+{
+  "eventId": "event_014",
+  "toolId": "mayas-flight-lab",
+  "actor": "child",
+  "type": "rule_correction",
+  "originalInput": "That one shouldn't count because it hit the chair",
+  "candidateMutation": {
+    "operation": "add_rule",
+    "rule": "exclude_obstructed_flight"
+  },
+  "childApproved": true,
+  "createdAt": "2026-08-18T10:30:00Z"
+}

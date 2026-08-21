@@ -1,0 +1,76 @@
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+}
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: var(--gap);
+}
+
+.tile {
+  min-height: 8rem;
+  border: 2px solid var(--line);
+  background: var(--panel);
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  text-decoration: none;
+  color: inherit;
+}
+
+.prompt {
+  margin: 0;
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.disclosure {
+  border: 2px solid var(--line);
+  padding: 1rem;
+  background: var(--panel);
+}
+
+.disclosure dt {
+  font-weight: 700;
+}
+
+.disclosure dd {
+  margin: 0 0 0.75rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.field input,
+.field select {
+  min-height: var(--target);
+  padding: 0.5rem 0.75rem;
+  border: 2px solid var(--line);
+  background: var(--panel);
+}
+
+.list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.muted {
+  margin: 0;
+}
+
+.refusal {
+  margin: 0;
+  font-weight: 700;
+}

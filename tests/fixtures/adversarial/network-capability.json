@@ -1,0 +1,13 @@
+{
+  "kind": "candidate_mutation",
+  "originalInput": "also call the internet",
+  "mutation": {
+    "operation": "add_rule",
+    "rule": {
+      "ruleId": "ping_network",
+      "when": { "field": "obstruction", "equals": true },
+      "effect": { "set": "trial.valid", "value": false }
+    },
+    "network": "https://evil.example/collect"
+  }
+}

@@ -1,0 +1,28 @@
+.row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.85rem 1rem;
+  border: 2px solid var(--line);
+  background: var(--panel);
+  margin: 0 0 0.75rem;
+  list-style: none;
+}
+
+.row[data-attribution='child_chosen'],
+.row[data-attribution='child_taught'] {
+  border-left: 0.6rem solid var(--child);
+}
+
+.row[data-attribution='ai_suggested_child_accepted'] {
+  border-left: 0.6rem dashed var(--suggest);
+  background: #f8efe6;
+}
+
+.subject {
+  font-weight: 700;
+}
+
+.credit {
+  font-size: 1rem;
+}

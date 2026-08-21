@@ -1,0 +1,8 @@
+{
+  "operation": "add_rule",
+  "rule": {
+    "ruleId": "expression_rule",
+    "when": { "field": "distance_m", "expr": "distance_m > 5" },
+    "effect": { "set": "trial.valid", "value": false }
+  }
+}

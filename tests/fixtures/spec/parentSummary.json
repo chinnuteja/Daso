@@ -1,0 +1,8 @@
+{
+  "summaryId": "summary_001",
+  "childId": "child_local_01",
+  "toolId": "mayas-flight-lab",
+  "text": "Maya noticed that an obstructed throw was not a fair measurement and taught her tool to exclude similar trials.",
+  "evidenceEventIds": ["trial_004", "event_014", "tool_version_002"],
+  "createdAt": "2026-08-18T10:36:00Z"
+}

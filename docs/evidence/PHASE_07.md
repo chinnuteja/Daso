@@ -7,6 +7,7 @@
 **Base commit:** `213c03d74c8e471ab8d4e3c60d9e65e70215d409`
 **Implementation commit:** `3cb3bfc4b8665f4b13e5489975cd597db1dd2b68`
 **Privacy-fix commit:** `f804381de37143bedf380110cba12b6eb471e8f7`
+**Deletion-proof recapture commit:** `576801accb3569a67cbf71c0eb24bade3dd22fc7`
 **Status:** Implemented — gates green. P1 privacy/attribution fix applied on this branch. Deletion-proof screenshot recaptured from that privacy-fixed tree. Not architecturally accepted. The PR was not merged.
 
 ---
@@ -288,7 +289,7 @@ No new package, store, schema field, orchestrator state, or tool kind.
 
 - Browser: Chrome (`channel: 'chrome'`), viewport **1024×1366**, `http://localhost:3000`.
 - `docs/evidence/assets/phase-07-parent-evidence.png`: real `/parent` after a scripted journey. Grounded clauses, `event_001` / `event_014` / `tool_version_002` / `trial_004`, conversation prompt, local-delivery disclosure.
-- `docs/evidence/assets/phase-07-deletion-proof.png`: recaptured 2026-08-24 from the privacy-fixed branch `orchestration/phase-07-plan` at `f804381de37143bedf380110cba12b6eb471e8f7` via `docs/evidence/assets/capture-phase-07.mjs` (Chrome, viewport **1024×1366**, `http://localhost:3000`). Home after confirming Maya profile deletion and reload. Maya's tile gone. Visible copy is “A copied tool”, “Created by Leo”, and “Inherited from a profile that was deleted”. No visible “Maya”.
+- `docs/evidence/assets/phase-07-deletion-proof.png`: recaptured 2026-08-24 from the privacy-fixed branch `orchestration/phase-07-plan` at `f804381de37143bedf380110cba12b6eb471e8f7` (evidence commit `576801accb3569a67cbf71c0eb24bade3dd22fc7`) via `docs/evidence/assets/capture-phase-07.mjs` (Chrome, viewport **1024×1366**, `http://localhost:3000`). Home after confirming Maya profile deletion and reload. Maya's tile gone. Visible copy is “A copied tool”, “Created by Leo”, and “Inherited from a profile that was deleted”. No visible “Maya”.
 - Capture tooling: `docs/evidence/assets/capture-phase-07.mjs` only. Playwright is not a `package.json` dependency.
 
 Next.js 16 `/parent` wraps `useSearchParams()` in `<Suspense>` (`node_modules/next/dist/docs/01-app/03-api-reference/04-functions/use-search-params.md`). Query: `/parent?tool=<ToolId>`.

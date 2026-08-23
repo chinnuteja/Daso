@@ -2,7 +2,7 @@
 
 **Maintained by:** technical architect / build orchestrator
 **Normative source:** `TEACH_DASO_PRODUCT_AND_ARCHITECTURE.md`
-**Last updated:** 2026-08-21. Phase 5 review blockers addressed on `orchestration/phase-05-plan`; still awaiting orchestrator review. INV-01–INV-21 and INV-26–INV-64 passing; INV-22–INV-25 pending by specification.
+**Last updated:** 2026-08-23. Phase 5 architecturally accepted at `ac4892a3964930b75b8ab40245d9ff1f65119627`. INV-01–INV-21 and INV-26–INV-64 passing; INV-22–INV-25 pending by specification.
 
 This file is the single source of truth for what is built, what is proven, and what has
 drifted. A phase is not complete because it runs. It is complete when its acceptance tests
@@ -18,13 +18,13 @@ are named here and passing, and no undeclared deviation exists.
 | P2 | Persistence & Inspection | M2 | **Implemented — gates green** | 2026-08-20 |
 | P3 | Orchestrator & Tablet Shell | M1 | **Implemented — gates green** | 2026-08-20 |
 | P4 | Teaching Agent & Approval Gate | M3 | **Implemented — gates green** | 2026-08-20 |
-| P5 | Compiler & Deterministic Runtime | M4 | **Implemented — gates green; not architecturally accepted** | — |
-| P6 | Keep & Reuse | M5 | Blocked on P5 | — |
-| P7 | Parent Evidence & Data Rights | M6 | Blocked on P5 | — |
-| P8 | Founder-Facing Polish | M7 | Blocked on all | — |
+| P5 | Compiler & Deterministic Runtime | M4 | **Architecturally accepted — gates green** | 2026-08-23 |
+| P6 | Keep & Reuse | M5 | Unblocked | — |
+| P7 | Parent Evidence & Data Rights | M6 | Unblocked | — |
+| P8 | Founder-Facing Polish | M7 | Blocked on P6/P7 | — |
 
-Parallel-safe sets once unblocked: `{P4, P5}`, `{P6, P7}`. P3 froze the orchestrator state set
-that P4 and P6 consume. P5 may proceed against synthetic ledgers in storage.
+P5 is frozen. P6 and P7 are now parallel-safe against its accepted compiler, runtime-result,
+version-activation, and replay contracts. P8 waits for both product surfaces.
 
 ---
 
@@ -120,8 +120,9 @@ Phase 5 introduces no new product-spec deviations. Ranking now omits inactive me
 | 28 | Freeze `RuntimeResult` in `src/core/runtime/types.ts` | PHASE_05 C.7: P6/P7 consume this shape. It is not a §9 object and is not persisted |
 | 29 | Add `src/adapters/persistence/atomicCommit.ts` as a test-only abort switch | INV-57 must inject failure after the version row is written. Production callers never set it |
 | 30 | Amend INV-39 and INV-45 journey expectations so compiled versions are stored | Durable properties remain: fold equals §9.3; the orchestrator still contains no `versions`/`ToolVersion`/`save`. Composition now writes v1 and v2 |
-| 31 | Ranking and `RuntimeResult` metric fields follow `ToolVersion.metrics`; inactive metrics are omitted | Architectural review: replay must not compute or expose a comparison the child did not approve. Shape correction is allowed because P5 is not accepted |
+| 31 | Ranking and `RuntimeResult` metric fields follow `ToolVersion.metrics`; inactive metrics are omitted | Architectural review before P5 acceptance: replay must not compute or expose a comparison the child did not approve |
 | 32 | `tools.save` rejects a missing or other-tool `currentVersionId` in the same write; `persistGraph` saves versions before tools | Architectural review: a stored definition may not point at an absent or foreign version. INV-63 corrupt-state setup uses a mocked `tools.get` |
+| 33 | Accept Phase 5 at commit `ac4892a3964930b75b8ab40245d9ff1f65119627` | Independent review reran INV-20/21/57–64, typecheck, lint, full suite, and build; inspected the real v2 compile-preview artifact; and found no remaining automatic rejection condition |
 
 ---
 
@@ -152,7 +153,7 @@ Phase 3 D.4 packet: `docs/evidence/PHASE_03.md`.
 Phase 4 D.4 packet: `docs/evidence/PHASE_04.md`.
 Phase 5 D.4 packet: `docs/evidence/PHASE_05.md`.
 
-Gate commands on 2026-08-21 (Phase 5 review-blocker fix, not yet accepted):
+Gate commands independently rerun on 2026-08-23 for Phase 5 architectural acceptance:
 
 | Command | Exit |
 |---|---|
@@ -164,4 +165,4 @@ Gate commands on 2026-08-21 (Phase 5 review-blocker fix, not yet accepted):
 
 INV-01 … INV-21 and INV-26 … INV-64 passing. INV-22 … INV-25 todo/pending.
 
-No undeclared deviations. D-01 remains the only accepted product-spec deviation. This update does not claim architectural acceptance.
+No undeclared deviations. D-01 remains the only accepted product-spec deviation. Phase 5 is architecturally accepted at commit `ac4892a3964930b75b8ab40245d9ff1f65119627`.

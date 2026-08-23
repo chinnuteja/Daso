@@ -3,6 +3,7 @@ import { ChildProfile } from '../../../core/schema/childProfile';
 import type { ChildId } from '../../../core/schema/primitives';
 import { STORE, type TeachDasoDatabase } from '../database';
 import { getParsed } from './access';
+import { deleteIndexedDbProfileGraph } from './deleteGraph';
 
 export function createIndexedDbProfileRepository(database: TeachDasoDatabase): ChildProfileRepository {
   return {
@@ -16,6 +17,10 @@ export function createIndexedDbProfileRepository(database: TeachDasoDatabase): C
 
     async deleteProfile(childId: ChildId): Promise<void> {
       await database.delete(STORE.childProfiles, childId);
+    },
+
+    async deleteProfileGraph(childId: ChildId): Promise<void> {
+      await deleteIndexedDbProfileGraph(database, childId);
     },
   };
 }

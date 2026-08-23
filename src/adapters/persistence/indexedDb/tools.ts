@@ -6,6 +6,7 @@ import { requireActiveVersion } from '../definitionPointer';
 import { rejectLineageOnDirectWrite } from '../forkCommit';
 import { STORE, type TeachDasoDatabase } from '../database';
 import { abortTransaction, getParsed } from './access';
+import { deleteIndexedDbToolGraph } from './deleteGraph';
 
 export function createIndexedDbToolRepository(database: TeachDasoDatabase): ToolDefinitionRepository {
   return {
@@ -42,6 +43,10 @@ export function createIndexedDbToolRepository(database: TeachDasoDatabase): Tool
 
     async deleteByTool(toolId: ToolId): Promise<void> {
       await database.delete(STORE.tools, toolId);
+    },
+
+    async deleteToolGraph(toolId: ToolId): Promise<void> {
+      await deleteIndexedDbToolGraph(database, toolId);
     },
   };
 }

@@ -67,5 +67,8 @@ describe('INV-38 — two TeachingSource implementations; Runner Mode reaches nei
     expect(paths).not.toContain('src/adapters/teaching/scripted.ts');
     expect(paths).not.toContain('src/adapters/agents/teaching.ts');
     expect(paths).not.toContain('src/core/ports/teaching.ts');
+    expect(paths).not.toContain('src/adapters/evidence/scripted.ts');
+    expect(paths).not.toContain('src/adapters/agents/evidence.ts');
+    expect(paths).not.toContain('src/core/ports/evidence.ts');
   });
 });

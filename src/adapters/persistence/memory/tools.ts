@@ -4,6 +4,7 @@ import { ToolDefinition } from '../../../core/schema/toolDefinition';
 import { ToolVersion } from '../../../core/schema/toolVersion';
 import { requireActiveVersion } from '../definitionPointer';
 import { rejectLineageOnDirectWrite } from '../forkCommit';
+import { deleteMemoryToolGraph } from './deleteGraph';
 import type { MemoryRecords } from './store';
 
 export function createMemoryToolRepository(records: MemoryRecords): ToolDefinitionRepository {
@@ -46,6 +47,10 @@ export function createMemoryToolRepository(records: MemoryRecords): ToolDefiniti
 
     async deleteByTool(toolId: ToolId): Promise<void> {
       records.tools.delete(toolId);
+    },
+
+    async deleteToolGraph(toolId: ToolId): Promise<void> {
+      deleteMemoryToolGraph(records, toolId);
     },
   };
 }

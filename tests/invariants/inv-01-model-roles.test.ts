@@ -5,9 +5,8 @@ import { SRC_ROOT, listSourceFiles } from '../support/sourceTree';
 /**
  * INV-01 — only two model-driven roles (specification section 8).
  *
- * Model access is permitted at exactly two file paths (ruling R3). Phase 4 creates the
- * teaching route; the evidence route remains uncreated. The scan must still fail for a
- * model reference anywhere else.
+ * Model access is permitted at exactly two file paths (ruling R3). Phase 7 creates the
+ * evidence route. The scan must still fail for a model reference anywhere else.
  */
 
 const TEACHING_ROUTE = 'src/app/api/agents/teaching/route.ts';
@@ -33,17 +32,17 @@ describe('INV-01 — only the Teaching Agent and the Evidence Agent may be model
     expect(sources.length).toBeGreaterThan(0);
   });
 
-  it('INV-01: exactly the teaching route exists; the evidence route does not', () => {
+  it('INV-01: exactly the teaching and evidence routes exist', () => {
     const present = sources
       .map((file) => file.path)
       .filter((path) => path === TEACHING_ROUTE || path === EVIDENCE_ROUTE);
 
-    expect(present).toEqual([TEACHING_ROUTE]);
+    expect(present.sort()).toEqual([EVIDENCE_ROUTE, TEACHING_ROUTE].sort());
   });
 
-  it('INV-01: no file outside the teaching route references a model SDK, host or API key', () => {
+  it('INV-01: no file outside the two permitted routes references a model SDK, host or API key', () => {
     const offenders = sources
-      .filter((file) => file.path !== TEACHING_ROUTE)
+      .filter((file) => file.path !== TEACHING_ROUTE && file.path !== EVIDENCE_ROUTE)
       .flatMap((file) =>
         FORBIDDEN_MODEL_REFERENCES.filter((forbidden) => forbidden.pattern.test(file.text)).map(
           (forbidden) => `${file.path} references ${forbidden.label}`,

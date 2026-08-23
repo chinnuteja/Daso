@@ -54,6 +54,8 @@ describe('INV-70 — day-two inherited rule', () => {
     );
     expect(projected?.validUnderCurrentVersion).toBe(false);
     expect(loaded.view.sourceAuthor?.displayName).toBe('Maya');
+    expect(loaded.view.creditName).toBe('Maya');
+    expect(loaded.view.sourceDeleted).toBe(false);
     expect(
       loaded.view.explanation.some(
         (entry) => entry.attribution === 'child_taught' && entry.subject.kind === 'rule',

@@ -1,8 +1,8 @@
 import { TeachingMove, TeachingRequest } from '../../../../core/ports/teaching';
 
 /**
- * Ruling R3's first permitted model file. This is the only path from which a model
- * may be reached in Phase 4. The evidence route does not exist yet.
+ * Ruling R3's first permitted model file. The evidence route is the second and
+ * final permitted path.
  *
  * The transport is a seam: tests stub it; production fetches the configured provider.
  * An unparsed model response never leaves this module.

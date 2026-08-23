@@ -1,6 +1,7 @@
 import type { ChildProfileRepository } from '../../../core/ports/repositories';
 import { ChildProfile } from '../../../core/schema/childProfile';
 import type { ChildId } from '../../../core/schema/primitives';
+import { deleteMemoryProfileGraph } from './deleteGraph';
 import type { MemoryRecords } from './store';
 
 export function createMemoryProfileRepository(records: MemoryRecords): ChildProfileRepository {
@@ -20,6 +21,10 @@ export function createMemoryProfileRepository(records: MemoryRecords): ChildProf
 
     async deleteProfile(childId: ChildId): Promise<void> {
       records.profiles.delete(childId);
+    },
+
+    async deleteProfileGraph(childId: ChildId): Promise<void> {
+      deleteMemoryProfileGraph(records, childId);
     },
   };
 }

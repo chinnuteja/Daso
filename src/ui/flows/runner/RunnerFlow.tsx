@@ -66,16 +66,13 @@ export function RunnerFlow() {
   }, [refresh]);
 
   const ready = load.status === 'ready' ? load.view : null;
-  const creditName = ready?.sourceDeleted
-    ? ready.owner.displayName
-    : (ready?.sourceAuthor?.displayName ?? ready?.owner.displayName ?? '');
 
   return (
     <TabletShell title="Runner Mode">
       <RunnerScreen
         status={load.status}
         integrityMessage={load.status === 'integrity_error' ? load.message : RUNNER_INTEGRITY_COPY}
-        title={ready?.tool.displayName ?? 'Runner Mode'}
+        title={ready?.visibleTitle ?? 'Runner Mode'}
         ownerName={ready?.owner.displayName ?? ''}
         sourceAuthorName={ready?.sourceAuthor?.displayName ?? null}
         sourceDeleted={ready?.sourceDeleted ?? false}
@@ -84,7 +81,7 @@ export function RunnerFlow() {
         lastTrial={lastTrial}
         explanation={ready?.explanation ?? []}
         readingBand={ready?.viewer.readingBand ?? 'developing'}
-        creditName={creditName}
+        creditName={ready?.creditName ?? ''}
         canCapture={ready?.canCapture ?? false}
         needsCopy={ready?.needsCopy ?? false}
         onMakeCopy={() => {

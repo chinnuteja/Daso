@@ -6,7 +6,7 @@ import {
   setFailAfterForkWrite,
   setFailAfterVersionWrite,
 } from '../../src/adapters/persistence';
-import { allocateTargetToolId, buildForkSnapshot } from '../../src/core/reuse';
+import { allocateTargetToolId, buildForkSnapshot, ORPHANED_FORK_DISPLAY_NAME } from '../../src/core/reuse';
 import { EventId } from '../../src/core/schema/primitives';
 import { LEO_PROFILE } from '../../src/ui/flows/runner/secondChild';
 import {
@@ -456,7 +456,11 @@ export function defineRepositoryConformance(
       await harness.repositories.profiles.deleteProfileGraph(graph.profile.childId);
       expect(await harness.repositories.profiles.get(graph.profile.childId)).toBeNull();
       expect(await harness.repositories.tools.get(source.toolId)).toBeNull();
-      expect(await harness.repositories.tools.get(snapshot.definition.toolId)).not.toBeNull();
+      const surviving = await harness.repositories.tools.get(snapshot.definition.toolId);
+      expect(surviving).not.toBeNull();
+      expect(surviving?.displayName).toBe(ORPHANED_FORK_DISPLAY_NAME);
+      expect(surviving?.forkedFrom).toEqual(snapshot.definition.forkedFrom);
+      expect(await harness.repositories.summaries.listByTool(snapshot.definition.toolId)).toEqual([]);
       expect(await harness.repositories.profiles.get(LEO_PROFILE.childId)).not.toBeNull();
     });
   });

@@ -6,7 +6,7 @@
 **Branch:** `orchestration/phase-07-plan`
 **Base commit:** `213c03d74c8e471ab8d4e3c60d9e65e70215d409`
 **Implementation commit:** `3cb3bfc4b8665f4b13e5489975cd597db1dd2b68`
-**Status:** Implemented — gates green. Not architecturally accepted. The PR was not merged.
+**Status:** Implemented — gates green. P1 privacy/attribution fix applied on this branch. Not architecturally accepted. The PR was not merged.
 
 ---
 
@@ -16,6 +16,8 @@ Changed files (implementation + tests + evidence). Next.js-generated `AGENTS.md`
 `CLAUDE.md` are not included.
 
 ### Core and ports
+- `src/core/reuse/orphanedFork.ts`
+- `src/core/reuse/index.ts`
 - `src/core/evidence/schema.ts`
 - `src/core/evidence/project.ts`
 - `src/core/evidence/validate.ts`
@@ -80,6 +82,7 @@ Changed files (implementation + tests + evidence). Next.js-generated `AGENTS.md`
 - `tests/unit/dataRights/exportTool.test.ts`
 - `tests/unit/adapters/evidence.test.ts`
 - `tests/integration/phase-07-generate-export-delete.test.ts`
+- `tests/integration/phase-07-orphaned-attribution.test.ts`
 - `tests/support/evidenceGraph.ts`
 
 ### Evidence
@@ -101,7 +104,7 @@ All commands ran serially. No command called a live model.
 npx vitest run tests/invariants/inv-01-model-roles.test.ts tests/invariants/inv-24-summary-grounding.test.ts tests/invariants/inv-25-deletion.test.ts tests/invariants/inv-48-single-model-path.test.ts tests/invariants/inv-52-no-client-credential.test.ts tests/invariants/inv-73-evidence-projection.test.ts tests/invariants/inv-74-evidence-route.test.ts tests/invariants/inv-75-export.test.ts tests/invariants/inv-76-atomic-delete.test.ts tests/invariants/inv-77-orphaned-fork.test.ts tests/invariants/inv-78-parent-evidence-flow.test.ts tests/invariants/inv-79-runner-no-evidence.test.ts
 
  Test Files  12 passed (12)
-      Tests  25 passed (25)
+      Tests  26 passed (26)
 ```
 
 Exit 0.
@@ -125,8 +128,8 @@ Exit 0. No errors, no warnings.
 ### `npm test` (before build)
 
 ```
- Test Files  92 passed (92)
-      Tests  265 passed (265)
+ Test Files  93 passed (93)
+      Tests  268 passed (268)
 ```
 
 Exit 0. No `todo`. INV-24 and INV-25 are asserting tests.
@@ -150,8 +153,8 @@ Exit 0. Exactly two model routes.
 ### `npm test` (after build — acceptance result)
 
 ```
- Test Files  92 passed (92)
-      Tests  265 passed (265)
+ Test Files  93 passed (93)
+      Tests  268 passed (268)
 ```
 
 Exit 0. INV-52 walked the settled `.next/static` tree.
@@ -210,6 +213,17 @@ Excluded: `ChildProfile`, `meta` / id counters, credentials, raw media, `other-p
 
 Browser download uses `canonicalJson` → `Blob` in `src/ui/**` only, filename `{toolId}.json`, object URL revoked.
 
+### Orphaned-fork export (decision 49)
+
+After Maya's profile is deleted, Leo's independently owned fork remains exportable.
+
+- **`displayName` is redacted** in the same `deleteProfileGraph` snapshot/transaction as the source deletion (`A copied tool`). Parent Evidence also emits that anonymous title if a stale row is still present. The copied title `Leo's copy of Maya's Flight Lab` is not written back through `tools.save`.
+- **`forkedFrom` is kept** (`toolId`, `versionId`, `ownerChildId`). These are identifiers, not a profile record. The profile that bound `child_local_01` to the display name Maya is gone, so the identifiers cannot be resolved to a person in product UI. Product UI never prints `forkedFrom.toolId`.
+- **Parent summaries on the surviving fork are deleted** in that same commit, then regenerated with anonymous teacher wording. Export therefore cannot retain “Maya chose…” / “Leo chose…” text from a pre-deletion summary.
+- Parent Evidence shows `ORPHANED_EXPORT_COPY` when `sourceDeleted`: the file is the complete stored graph; the on-screen title is anonymous; lineage identifiers remain as historical provenance and are not shown in the product UI.
+
+This is explicit: Maya can still appear in an orphaned-fork export only as an unresolvable identifier inside `forkedFrom` (for example `mayas-flight-lab` / `child_local_01`), never as a display name or as parent-summary prose.
+
 ---
 
 ## 6. Atomic deletion failure matrix
@@ -233,7 +247,9 @@ Deleting Maya's profile:
 - Leo's independently owned `mayas-flight-lab-copy` remains with its own re-keyed ledger and version.
 - `loadRunner` on Leo's tool is `ready`.
 - `sourceAuthor` is null; `sourceDeleted` is true.
+- Home and Runner titles are `A copied tool`, not the stored copied title if it named Maya.
 - Copy: “Inherited from a profile that was deleted”. No guessed name.
+- Parent Evidence attributes inherited `event_001` / `event_014` to “A deleted profile”, never to Maya or Leo.
 - The source tool is not read as a fallback.
 - INV-70 still passes: when Maya's profile is present, the fork still credits Maya.
 
@@ -258,6 +274,7 @@ P3 never persisted which design Maya predicted. P7 does not invent one. The pare
 
 | Path | Why |
 |---|---|
+| `src/core/reuse/orphanedFork.ts` | Anonymous title/teacher after source-profile deletion; shared by Home, Runner, Parent Evidence, and coordinated redaction |
 | `src/adapters/evidence/scripted.ts` | Deterministic local `EvidenceSource` required by C.2 |
 | `src/adapters/persistence/memory/deleteGraph.ts` | Shared all-or-nothing memory delete |
 | `src/adapters/persistence/indexedDb/deleteGraph.ts` | Shared all-or-nothing IndexedDB transaction |
@@ -270,7 +287,7 @@ No new package, store, schema field, orchestrator state, or tool kind.
 
 - Browser: Chrome (`channel: 'chrome'`), viewport **1024×1366**, `http://localhost:3000`.
 - `docs/evidence/assets/phase-07-parent-evidence.png`: real `/parent` after a scripted journey. Grounded clauses, `event_001` / `event_014` / `tool_version_002` / `trial_004`, conversation prompt, local-delivery disclosure.
-- `docs/evidence/assets/phase-07-deletion-proof.png`: Home after confirming Maya profile deletion and reload. Maya's tile gone. Leo's copy remains with “Inherited from a profile that was deleted”.
+- `docs/evidence/assets/phase-07-deletion-proof.png`: Home after confirming Maya profile deletion and reload. Maya's tile gone. Leo's copy remains as “A copied tool” with “Inherited from a profile that was deleted”.
 - Capture tooling: `docs/evidence/assets/capture-phase-07.mjs` only. Playwright is not a `package.json` dependency.
 
 Next.js 16 `/parent` wraps `useSearchParams()` in `<Suspense>` (`node_modules/next/dist/docs/01-app/03-api-reference/04-functions/use-search-params.md`). Query: `/parent?tool=<ToolId>`.

@@ -1,4 +1,5 @@
 import { LedgerEntry } from '../../../core/ledger/types';
+import { redactOrphanedForkDefinition } from '../../../core/reuse/orphanedFork';
 import type { ChildId, ToolId } from '../../../core/schema/primitives';
 import { ParentSummary } from '../../../core/schema/parentSummary';
 import { PermissionGrant } from '../../../core/schema/permissionGrant';
@@ -21,10 +22,9 @@ interface MemorySnapshot {
 
 type StoreName = Exclude<keyof MemoryRecords, 'meta'>;
 
-interface ScheduledDelete {
-  readonly store: StoreName;
-  readonly key: string;
-}
+type ScheduledMutation =
+  | { readonly kind: 'delete'; readonly store: StoreName; readonly key: string }
+  | { readonly kind: 'put'; readonly store: 'tools'; readonly value: ToolDefinition };
 
 function snapshotRecords(records: MemoryRecords): MemorySnapshot {
   return {
@@ -56,40 +56,71 @@ function restoreRecords(records: MemoryRecords, snapshot: MemorySnapshot): void 
   }
 }
 
-function scheduleToolGraph(records: MemoryRecords, toolId: ToolId): ScheduledDelete[] {
-  const scheduled: ScheduledDelete[] = [];
+function applyMutation(records: MemoryRecords, mutation: ScheduledMutation): void {
+  if (mutation.kind === 'delete') {
+    records[mutation.store].delete(mutation.key);
+    return;
+  }
+  records.tools.set(mutation.value.toolId, mutation.value);
+}
+
+function scheduleToolGraph(records: MemoryRecords, toolId: ToolId): ScheduledMutation[] {
+  const scheduled: ScheduledMutation[] = [];
   if (records.tools.has(toolId)) {
-    scheduled.push({ store: 'tools', key: toolId });
+    scheduled.push({ kind: 'delete', store: 'tools', key: toolId });
   }
   for (const [versionId, raw] of records.versions.entries()) {
     if (ToolVersion.parse(raw).toolId === toolId) {
-      scheduled.push({ store: 'versions', key: versionId });
+      scheduled.push({ kind: 'delete', store: 'versions', key: versionId });
     }
   }
   for (const [eventId, raw] of records.ledger.entries()) {
     if (LedgerEntry.parse(raw).toolId === toolId) {
-      scheduled.push({ store: 'ledger', key: eventId });
+      scheduled.push({ kind: 'delete', store: 'ledger', key: eventId });
     }
   }
   for (const [trialId, raw] of records.trials.entries()) {
     if (ExperimentTrial.parse(raw).toolId === toolId) {
-      scheduled.push({ store: 'trials', key: trialId });
+      scheduled.push({ kind: 'delete', store: 'trials', key: trialId });
     }
   }
   for (const [grantId, raw] of records.grants.entries()) {
     if (PermissionGrant.parse(raw).toolId === toolId) {
-      scheduled.push({ store: 'grants', key: grantId });
+      scheduled.push({ kind: 'delete', store: 'grants', key: grantId });
     }
   }
   for (const [summaryId, raw] of records.summaries.entries()) {
     if (ParentSummary.parse(raw).toolId === toolId) {
-      scheduled.push({ store: 'summaries', key: summaryId });
+      scheduled.push({ kind: 'delete', store: 'summaries', key: summaryId });
     }
   }
   return scheduled;
 }
 
-function applyScheduled(records: MemoryRecords, scheduled: readonly ScheduledDelete[]): void {
+function scheduleSurvivingForkRedaction(
+  records: MemoryRecords,
+  deletedChildId: ChildId,
+): ScheduledMutation[] {
+  const scheduled: ScheduledMutation[] = [];
+  for (const raw of records.tools.values()) {
+    const parsed = ToolDefinition.parse(raw);
+    if (parsed.forkedFrom === undefined || parsed.forkedFrom.ownerChildId !== deletedChildId) {
+      continue;
+    }
+    if (parsed.ownerChildId === deletedChildId) {
+      continue;
+    }
+    scheduled.push({ kind: 'put', store: 'tools', value: redactOrphanedForkDefinition(parsed) });
+    for (const [summaryId, summaryRaw] of records.summaries.entries()) {
+      if (ParentSummary.parse(summaryRaw).toolId === parsed.toolId) {
+        scheduled.push({ kind: 'delete', store: 'summaries', key: summaryId });
+      }
+    }
+  }
+  return scheduled;
+}
+
+function applyScheduled(records: MemoryRecords, scheduled: readonly ScheduledMutation[]): void {
   if (scheduled.length === 0) {
     return;
   }
@@ -99,12 +130,12 @@ function applyScheduled(records: MemoryRecords, scheduled: readonly ScheduledDel
     if (first === undefined) {
       return;
     }
-    records[first.store].delete(first.key);
+    applyMutation(records, first);
     if (shouldFailAfterDeleteWrite()) {
       throw new PersistenceError('injected delete failure after store mutation');
     }
     for (const next of scheduled.slice(1)) {
-      records[next.store].delete(next.key);
+      applyMutation(records, next);
     }
   } catch (error) {
     restoreRecords(records, snapshot);
@@ -124,12 +155,13 @@ export function deleteMemoryProfileGraph(records: MemoryRecords, childId: ChildI
       owned.push(parsed.toolId);
     }
   }
-  const scheduled: ScheduledDelete[] = [];
+  const scheduled: ScheduledMutation[] = [];
   for (const toolId of owned) {
     scheduled.push(...scheduleToolGraph(records, toolId));
   }
   if (records.profiles.has(childId)) {
-    scheduled.push({ store: 'profiles', key: childId });
+    scheduled.push({ kind: 'delete', store: 'profiles', key: childId });
   }
+  scheduled.push(...scheduleSurvivingForkRedaction(records, childId));
   applyScheduled(records, scheduled);
 }

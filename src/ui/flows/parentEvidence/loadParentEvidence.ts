@@ -4,8 +4,10 @@ import {
   buildEvidenceProjection,
   buildParentSummary,
   renderParentClauses,
+  renderParentSummaryText,
   validateEvidenceSelection,
   type ParentClauses,
+  type ParentRenderAttribution,
 } from '../../../core/evidence';
 import { foldApprovedEvents } from '../../../core/ledger/fold';
 import type { LedgerEntry } from '../../../core/ledger/types';
@@ -13,9 +15,10 @@ import type { Clock } from '../../../core/ports/clock';
 import type { EvidenceSource } from '../../../core/ports/evidence';
 import type { IdFactory } from '../../../core/ports/ids';
 import type { Repositories } from '../../../core/ports/repositories';
+import { redactOrphanedForkDefinition, resolveForkAttribution } from '../../../core/reuse';
 import type { ChildProfile } from '../../../core/schema/childProfile';
 import type { ExperimentTrial } from '../../../core/schema/experimentTrial';
-import type { ParentSummary } from '../../../core/schema/parentSummary';
+import { ParentSummary } from '../../../core/schema/parentSummary';
 import type { PermissionGrant } from '../../../core/schema/permissionGrant';
 import { ChildId, ToolId } from '../../../core/schema/primitives';
 import type { ToolDefinition } from '../../../core/schema/toolDefinition';
@@ -37,6 +40,9 @@ export interface ParentEvidenceView {
   readonly version: ToolVersion;
   readonly summary: ParentSummary;
   readonly clauses: ParentClauses;
+  readonly sourceDeleted: boolean;
+  readonly visibleTitle: string;
+  readonly teacherDisplayName: string;
   readonly exportGraph: ToolExport;
   readonly stored: StoredGraphView;
 }
@@ -82,9 +88,25 @@ export async function loadParentEvidence(input: {
     return { status: 'integrity_error', message: PARENT_INTEGRITY_COPY };
   }
 
-  const projection = buildEvidenceProjection({
-    tool,
+  const sourceAuthor =
+    tool.forkedFrom === undefined
+      ? null
+      : await input.repositories.profiles.get(tool.forkedFrom.ownerChildId);
+  const attribution = resolveForkAttribution({
+    displayName: tool.displayName,
     ownerDisplayName: owner.displayName,
+    isFork: tool.forkedFrom !== undefined,
+    sourceAuthorDisplayName: sourceAuthor?.displayName ?? null,
+  });
+  const renderAttribution: ParentRenderAttribution = {
+    teacherDisplayName: attribution.teacherDisplayName,
+    toolDisplayName: attribution.visibleTitle,
+    sourceDeleted: attribution.sourceDeleted,
+  };
+
+  const projection = buildEvidenceProjection({
+    tool: attribution.sourceDeleted ? redactOrphanedForkDefinition(tool) : tool,
+    ownerDisplayName: attribution.teacherDisplayName,
     version,
     ledger,
     trials,
@@ -96,20 +118,35 @@ export async function loadParentEvidence(input: {
   }
 
   let summary = existing;
-  if (summary === null || !selectionStillValid(projection, summary.evidenceEventIds)) {
+  if (
+    summary === null ||
+    !selectionStillValid(projection, summary.evidenceEventIds) ||
+    (attribution.sourceDeleted &&
+      summary.text !==
+        renderParentSummaryText(projection, { evidenceEventIds: summary.evidenceEventIds }, renderAttribution))
+  ) {
     const selection = await input.evidence.select({ projection });
     try {
       validateEvidenceSelection(projection, selection);
     } catch {
       return { status: 'integrity_error', message: PARENT_INTEGRITY_COPY };
     }
-    summary = buildParentSummary({
+    const built = buildParentSummary({
       projection,
       selection,
       childId: ChildId.parse(owner.childId),
       ids: input.ids,
       clock: input.clock,
+      attribution: renderAttribution,
     });
+    summary =
+      existing !== null && attribution.sourceDeleted
+        ? ParentSummary.parse({
+            ...built,
+            summaryId: existing.summaryId,
+            createdAt: existing.createdAt,
+          })
+        : built;
     await input.repositories.summaries.save(summary);
   }
 
@@ -117,13 +154,16 @@ export async function loadParentEvidence(input: {
   return {
     status: 'ready',
     view: {
-      tool,
+      tool: attribution.sourceDeleted ? redactOrphanedForkDefinition(tool) : tool,
       owner,
       version,
       summary,
-      clauses: renderParentClauses(projection, { evidenceEventIds: summary.evidenceEventIds }),
+      clauses: renderParentClauses(projection, { evidenceEventIds: summary.evidenceEventIds }, renderAttribution),
+      sourceDeleted: attribution.sourceDeleted,
+      visibleTitle: attribution.visibleTitle,
+      teacherDisplayName: attribution.teacherDisplayName,
       exportGraph: exportToolGraph({
-        tool,
+        tool: attribution.sourceDeleted ? redactOrphanedForkDefinition(tool) : tool,
         versions,
         ledger,
         trials,

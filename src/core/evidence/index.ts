@@ -3,8 +3,10 @@ export { buildParentSummary } from './buildParentSummary';
 export {
   renderParentClauses,
   renderParentSummaryText,
+  ANONYMOUS_CONVERSATION,
   SUGGESTED_CONVERSATION,
   type ParentClauses,
+  type ParentRenderAttribution,
   type ParentSupportRow,
 } from './render';
 export {

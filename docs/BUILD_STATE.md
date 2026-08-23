@@ -2,7 +2,7 @@
 
 **Maintained by:** technical architect / build orchestrator
 **Normative source:** `TEACH_DASO_PRODUCT_AND_ARCHITECTURE.md`
-**Last updated:** 2026-08-23. Phase 7 implemented at `3cb3bfc4b8665f4b13e5489975cd597db1dd2b68` on `orchestration/phase-07-plan`; gates green. Not architecturally accepted. INV-01–INV-79 asserted; no remaining todo invariants.
+**Last updated:** 2026-08-23. Phase 7 P1 privacy/attribution fix on `orchestration/phase-07-plan`; not architecturally accepted. INV-01–INV-79 asserted; no remaining todo invariants.
 
 This file is the single source of truth for what is built, what is proven, and what has
 drifted. A phase is not complete because it runs. It is complete when its acceptance tests
@@ -61,7 +61,7 @@ P5 asserts INV-20 and INV-21 and adds INV-57 (atomic compilation commit), INV-58
 
 P6 promotes INV-22 and INV-23 and adds INV-65 (saved-tile grounding), INV-66 (fork provenance), INV-67 (atomic fork), INV-68 (fork idempotency), INV-69 (runner active version), INV-70 (Day-2 inherited rule), INV-71 (IndexedDB reopen of source and fork), and INV-72 (runner integrity failure). Phase 6 is architecturally accepted.
 
-P7 promotes INV-24 and INV-25 and adds INV-73 (evidence projection / two-route R3), INV-74 (evidence route validation), INV-75 (canonical export), INV-76 (atomic delete), INV-77 (orphaned fork), INV-78 (parent evidence flow), and INV-79 (runner reaches no evidence). Phase 7 is implemented and gated; it is not architecturally accepted.
+P7 promotes INV-24 and INV-25 and adds INV-73 (evidence projection / two-route R3), INV-74 (evidence route validation), INV-75 (canonical export), INV-76 (atomic delete), INV-77 (orphaned fork), INV-78 (parent evidence flow), and INV-79 (runner reaches no evidence). Phase 7 is implemented and gated; it is not architecturally accepted. After source-profile deletion, Home/Runner/Parent Evidence use an anonymous title and teacher; inherited decisions are not attributed to the surviving fork owner. Orphaned-fork export redacts `displayName` and keeps `forkedFrom` as unresolvable provenance (decision 49).
 
 ---
 
@@ -144,6 +144,7 @@ Phase 7 proposes D-02. It is not owner-accepted.
 | 46 | A fork whose source profile is missing is a valid Runner `ready` state and uses anonymous deleted-source copy | PHASE_07 C.5. P6 source-present Day-2 behaviour is unchanged. The runner does not read the source tool as a fallback. |
 | 47 | Browser `Blob` download stays in `src/ui/flows/parentEvidence/downloadExport.ts` | PHASE_07 C.4. `src/core` remains Blob-free. |
 | 48 | INV-52 client-chunk walk timeout raised to 60s | Walking `.next/static` on this Windows machine exceeded Vitest's 5s default. The assertion is unchanged. |
+| 49 | Coordinated `deleteProfileGraph` redacts a surviving fork's `displayName` to `A copied tool` and deletes that fork's parent summaries in the same snapshot/transaction; `forkedFrom` is kept. Product UI never prints lineage identifiers. | P7 P1 privacy/attribution: the copied title and a Leo-owned projection would otherwise show Maya or credit inherited `event_001`/`event_014` to Leo after Maya is deleted. `tools.save` still rejects `forkedFrom`; redaction is a coordinated store put, not a lineage write. |
 
 ---
 
@@ -217,6 +218,17 @@ Phase 7 implementation gates on `orchestration/phase-07-plan` (not an acceptance
 | `npm test` | 0 — **265 passed** |
 | `npm run build` | 0 — routes `/`, `/inspect`, `/journey`, `/parent`, `/run`, `ƒ /api/agents/teaching`, `ƒ /api/agents/evidence` |
 | `npm test` (after build) | 0 — **265 passed** |
+
+Phase 7 P1 privacy/attribution fix gates on the same branch (not an acceptance run):
+
+| Command | Exit |
+|---|---|
+| targeted INV-01/24/25/48/52/73–79 | 0 — **26 passed** |
+| `npm run typecheck` | 0 |
+| `npm run lint` | 0 |
+| `npm test` | 0 — **268 passed** |
+| `npm run build` | 0 — routes `/`, `/inspect`, `/journey`, `/parent`, `/run`, `ƒ /api/agents/teaching`, `ƒ /api/agents/evidence` |
+| `npm test` (after build) | 0 — **268 passed** |
 
 INV-01 … INV-79 passing. No remaining todo invariants.
 

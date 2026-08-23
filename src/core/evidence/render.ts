@@ -1,7 +1,15 @@
 import { EvidenceProjection } from './schema';
 import { validateEvidenceSelection } from './validate';
+import { DELETED_PROFILE_TEACHER } from '../reuse/orphanedFork';
 
 export const SUGGESTED_CONVERSATION = 'Ask Maya what made that throw unfair.';
+export const ANONYMOUS_CONVERSATION = 'Ask what made that throw unfair.';
+
+export interface ParentRenderAttribution {
+  readonly teacherDisplayName?: string;
+  readonly toolDisplayName?: string;
+  readonly sourceDeleted?: boolean;
+}
 
 export interface ParentSupportRow {
   readonly label: string;
@@ -21,6 +29,7 @@ export interface ParentClauses {
 export function renderParentClauses(
   projection: EvidenceProjection,
   selection: unknown,
+  attribution: ParentRenderAttribution = {},
 ): ParentClauses {
   const parsed = EvidenceProjection.parse(projection);
   const validated = validateEvidenceSelection(parsed, selection);
@@ -49,16 +58,22 @@ export function renderParentClauses(
     throw new Error('validated selection lost a required item');
   }
 
+  const teacher = attribution.teacherDisplayName ?? parsed.ownerDisplayName;
+  const toolName = attribution.toolDisplayName ?? parsed.toolDisplayName;
+  const sourceDeleted = attribution.sourceDeleted === true;
   const counted = observation.validUnderCurrentVersion ? 'counted' : 'not counted';
   return {
-    heading: `What ${parsed.ownerDisplayName} taught ${parsed.toolDisplayName}`,
-    question: `${parsed.ownerDisplayName} chose to investigate this: ${question.originalInput}`,
+    heading: `What ${teacher} taught ${toolName}`,
+    question: `${teacher} chose to investigate this: ${question.originalInput}`,
     observation: `An observed ${observation.designName} throw ${
       observation.obstruction ? 'touched something' : 'did not touch anything'
     }.`,
-    rule: `${parsed.ownerDisplayName} taught this: ${rule.originalInput}`,
+    rule: `${teacher} taught this: ${rule.originalInput}`,
     result: `The saved version now treats that ${observation.designName} throw as ${counted}.`,
-    conversation: SUGGESTED_CONVERSATION,
+    conversation:
+      sourceDeleted || teacher === DELETED_PROFILE_TEACHER
+        ? ANONYMOUS_CONVERSATION
+        : `Ask ${teacher} what made that throw unfair.`,
     supporting: validated.evidenceEventIds.map((id) => {
       const item = byId.get(id);
       if (item === undefined) {
@@ -81,8 +96,9 @@ export function renderParentClauses(
 export function renderParentSummaryText(
   projection: EvidenceProjection,
   selection: unknown,
+  attribution: ParentRenderAttribution = {},
 ): string {
-  const clauses = renderParentClauses(projection, selection);
+  const clauses = renderParentClauses(projection, selection, attribution);
   return [clauses.question, clauses.observation, clauses.rule, clauses.result, clauses.conversation].join(
     ' ',
   );

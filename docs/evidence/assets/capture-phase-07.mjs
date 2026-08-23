@@ -113,11 +113,11 @@ try {
   await click(page, 'Delete Maya’s local profile');
   await click(page, 'Confirm delete Maya’s local profile');
   await page.getByText('That local profile and every tool it owned were removed from this tablet.').waitFor();
-  await page.getByText("Leo's copy of Maya's Flight Lab").waitFor();
+  await page.getByText('A copied tool').waitFor();
   await page.getByText('Inherited from a profile that was deleted', { exact: true }).waitFor();
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.getByText('That local profile and every tool it owned were removed from this tablet.').waitFor();
-  await page.getByText("Leo's copy of Maya's Flight Lab").waitFor();
+  await page.getByText('A copied tool').waitFor();
   await page.getByText('Inherited from a profile that was deleted', { exact: true }).waitFor();
 
   await page.addStyleTag({

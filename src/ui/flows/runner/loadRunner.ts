@@ -3,6 +3,7 @@ import { bodyFromVersion } from '../../../core/compiler';
 import { foldApprovedEvents } from '../../../core/ledger/fold';
 import type { LedgerEntry } from '../../../core/ledger/types';
 import type { Repositories } from '../../../core/ports/repositories';
+import { resolveForkAttribution } from '../../../core/reuse';
 import { replay, type RuntimeResult } from '../../../core/runtime';
 import { ChildId, ToolId } from '../../../core/schema/primitives';
 import type { ChildProfile } from '../../../core/schema/childProfile';
@@ -20,6 +21,8 @@ export interface RunnerView {
   readonly owner: ChildProfile;
   readonly sourceAuthor: ChildProfile | null;
   readonly sourceDeleted: boolean;
+  readonly visibleTitle: string;
+  readonly creditName: string;
   readonly ledger: readonly LedgerEntry[];
   readonly trials: readonly ExperimentTrial[];
   readonly runtime: RuntimeResult;
@@ -72,11 +75,15 @@ export async function loadRunner(
   }
 
   let sourceAuthor: ChildProfile | null = null;
-  let sourceDeleted = false;
   if (tool.forkedFrom !== undefined) {
     sourceAuthor = await repositories.profiles.get(tool.forkedFrom.ownerChildId);
-    sourceDeleted = sourceAuthor === null;
   }
+  const attribution = resolveForkAttribution({
+    displayName: tool.displayName,
+    ownerDisplayName: owner.displayName,
+    isFork: tool.forkedFrom !== undefined,
+    sourceAuthorDisplayName: sourceAuthor?.displayName ?? null,
+  });
 
   const ownsTool = viewer.childId === tool.ownerChildId;
   return {
@@ -87,7 +94,9 @@ export async function loadRunner(
       viewer,
       owner,
       sourceAuthor,
-      sourceDeleted,
+      sourceDeleted: attribution.sourceDeleted,
+      visibleTitle: attribution.visibleTitle,
+      creditName: attribution.teacherDisplayName,
       ledger,
       trials,
       runtime: replay(version, trials),

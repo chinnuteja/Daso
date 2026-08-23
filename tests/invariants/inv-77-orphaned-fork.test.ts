@@ -54,6 +54,9 @@ describe('INV-77 — orphaned fork after source-profile deletion', () => {
     expect(loaded.view.owner.displayName).toBe('Leo');
     expect(loaded.view.sourceAuthor).toBeNull();
     expect(loaded.view.sourceDeleted).toBe(true);
+    expect(loaded.view.visibleTitle).toBe('A copied tool');
+    expect(loaded.view.creditName).toBe('A deleted profile');
+    expect(loaded.view.tool.displayName).toBe('A copied tool');
     expect(loaded.view.tool.forkedFrom?.ownerChildId).toBe('child_local_01');
     expect(loaded.view.version.versionId).toBe(fork.snapshot.version.versionId);
     expect(JSON.stringify(loaded.view)).not.toMatch(/"displayName":"Maya"/u);

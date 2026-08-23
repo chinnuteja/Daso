@@ -13,3 +13,6 @@ export const PROFILE_DELETED_COPY =
 
 export const EXPORT_COPY =
   'This file is the complete local graph for this one tool. It does not include a child’s profile, other tools, id counters, credentials, or raw recordings.';
+
+export const ORPHANED_EXPORT_COPY =
+  'This file is the complete local graph for this one tool. It does not include a child’s profile, other tools, id counters, credentials, or raw recordings. The on-screen title is anonymous. Stored lineage identifiers remain as historical provenance and are not shown in the product UI; they cannot be resolved to a display name after the source profile was deleted.';

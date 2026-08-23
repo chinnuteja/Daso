@@ -1,5 +1,5 @@
 import { disclosuresForSurface } from '../copy/disclosures';
-import { EXPORT_COPY } from '../copy/parent';
+import { EXPORT_COPY, ORPHANED_EXPORT_COPY } from '../copy/parent';
 import type { ParentEvidenceView } from '../flows/parentEvidence';
 import { ChoiceButton } from '../components/ChoiceButton';
 
@@ -22,7 +22,7 @@ export function ParentEvidenceScreen(props: {
 }) {
   const disclosures = disclosuresForSurface('in_product_parent_view');
   const ownerName = props.view?.owner.displayName ?? 'this child';
-  const toolName = props.view?.tool.displayName ?? 'this tool';
+  const toolName = props.view?.visibleTitle ?? props.view?.tool.displayName ?? 'this tool';
 
   return (
     <div className={styles.stack}>
@@ -79,7 +79,9 @@ export function ParentEvidenceScreen(props: {
               <p>Parent summaries: {props.view.stored.summaryIds.join(', ') || 'none'}</p>
             </section>
           ) : null}
-          <p className={styles.muted}>{EXPORT_COPY}</p>
+          <p className={styles.muted}>
+            {props.view.sourceDeleted ? ORPHANED_EXPORT_COPY : EXPORT_COPY}
+          </p>
           {props.deleteError !== null ? <p className={styles.refusal}>{props.deleteError}</p> : null}
           {props.confirmDelete === 'tool' ? (
             <section className={styles.tile}>

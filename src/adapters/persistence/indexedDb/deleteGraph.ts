@@ -1,6 +1,7 @@
 import type { IDBPTransaction } from 'idb';
 
 import { LedgerEntry } from '../../../core/ledger/types';
+import { redactOrphanedForkDefinition } from '../../../core/reuse/orphanedFork';
 import type { ChildId, ToolId } from '../../../core/schema/primitives';
 import { ExperimentTrial } from '../../../core/schema/experimentTrial';
 import { ParentSummary } from '../../../core/schema/parentSummary';
@@ -23,41 +24,79 @@ const PROFILE_GRAPH_STORES = [
 
 type DeleteTx = IDBPTransaction<TeachDasoDb, (typeof PROFILE_GRAPH_STORES)[number][], 'readwrite'>;
 
-interface ScheduledDelete {
-  readonly store: (typeof PROFILE_GRAPH_STORES)[number];
-  readonly key: string;
-}
+type ScheduledMutation =
+  | { readonly kind: 'delete'; readonly store: (typeof PROFILE_GRAPH_STORES)[number]; readonly key: string }
+  | { readonly kind: 'put'; readonly store: typeof STORE.tools; readonly value: ToolDefinition };
 
-async function scheduleToolGraph(tx: DeleteTx, toolId: ToolId): Promise<ScheduledDelete[]> {
-  const scheduled: ScheduledDelete[] = [];
+async function scheduleToolGraph(tx: DeleteTx, toolId: ToolId): Promise<ScheduledMutation[]> {
+  const scheduled: ScheduledMutation[] = [];
   const tool = await tx.objectStore(STORE.tools).get(toolId);
   if (tool !== undefined) {
-    scheduled.push({ store: STORE.tools, key: toolId });
+    scheduled.push({ kind: 'delete', store: STORE.tools, key: toolId });
   }
   const versions = await tx.objectStore(STORE.toolVersions).index('toolId').getAll(toolId);
   for (const raw of versions) {
-    scheduled.push({ store: STORE.toolVersions, key: ToolVersion.parse(raw).versionId });
+    scheduled.push({ kind: 'delete', store: STORE.toolVersions, key: ToolVersion.parse(raw).versionId });
   }
   const entries = await tx.objectStore(STORE.ledgerEntries).index('toolId').getAll(toolId);
   for (const raw of entries) {
-    scheduled.push({ store: STORE.ledgerEntries, key: LedgerEntry.parse(raw).eventId });
+    scheduled.push({ kind: 'delete', store: STORE.ledgerEntries, key: LedgerEntry.parse(raw).eventId });
   }
   const trials = await tx.objectStore(STORE.trials).index('toolId').getAll(toolId);
   for (const raw of trials) {
-    scheduled.push({ store: STORE.trials, key: ExperimentTrial.parse(raw).trialId });
+    scheduled.push({ kind: 'delete', store: STORE.trials, key: ExperimentTrial.parse(raw).trialId });
   }
   const grants = await tx.objectStore(STORE.grants).index('toolId').getAll(toolId);
   for (const raw of grants) {
-    scheduled.push({ store: STORE.grants, key: PermissionGrant.parse(raw).grantId });
+    scheduled.push({ kind: 'delete', store: STORE.grants, key: PermissionGrant.parse(raw).grantId });
   }
   const summaries = await tx.objectStore(STORE.summaries).index('toolId').getAll(toolId);
   for (const raw of summaries) {
-    scheduled.push({ store: STORE.summaries, key: ParentSummary.parse(raw).summaryId });
+    scheduled.push({ kind: 'delete', store: STORE.summaries, key: ParentSummary.parse(raw).summaryId });
   }
   return scheduled;
 }
 
-async function applyScheduled(tx: DeleteTx, scheduled: readonly ScheduledDelete[]): Promise<void> {
+async function scheduleSurvivingForkRedaction(
+  tx: DeleteTx,
+  deletedChildId: ChildId,
+): Promise<ScheduledMutation[]> {
+  const scheduled: ScheduledMutation[] = [];
+  const allTools = await tx.objectStore(STORE.tools).getAll();
+  for (const raw of allTools) {
+    const parsed = ToolDefinition.parse(raw);
+    if (parsed.forkedFrom === undefined || parsed.forkedFrom.ownerChildId !== deletedChildId) {
+      continue;
+    }
+    if (parsed.ownerChildId === deletedChildId) {
+      continue;
+    }
+    scheduled.push({
+      kind: 'put',
+      store: STORE.tools,
+      value: redactOrphanedForkDefinition(parsed),
+    });
+    const summaries = await tx.objectStore(STORE.summaries).index('toolId').getAll(parsed.toolId);
+    for (const summary of summaries) {
+      scheduled.push({
+        kind: 'delete',
+        store: STORE.summaries,
+        key: ParentSummary.parse(summary).summaryId,
+      });
+    }
+  }
+  return scheduled;
+}
+
+async function applyMutation(tx: DeleteTx, mutation: ScheduledMutation): Promise<void> {
+  if (mutation.kind === 'delete') {
+    await tx.objectStore(mutation.store).delete(mutation.key);
+    return;
+  }
+  await tx.objectStore(STORE.tools).put(mutation.value);
+}
+
+async function applyScheduled(tx: DeleteTx, scheduled: readonly ScheduledMutation[]): Promise<void> {
   if (scheduled.length === 0) {
     await tx.done;
     return;
@@ -67,12 +106,12 @@ async function applyScheduled(tx: DeleteTx, scheduled: readonly ScheduledDelete[
     await tx.done;
     return;
   }
-  await tx.objectStore(first.store).delete(first.key);
+  await applyMutation(tx, first);
   if (shouldFailAfterDeleteWrite()) {
     await abortTransaction(tx, 'injected delete failure after store mutation');
   }
   for (const next of scheduled.slice(1)) {
-    await tx.objectStore(next.store).delete(next.key);
+    await applyMutation(tx, next);
   }
   await tx.done;
 }
@@ -92,14 +131,15 @@ export async function deleteIndexedDbProfileGraph(
 ): Promise<void> {
   const tx = database.transaction([...PROFILE_GRAPH_STORES], 'readwrite');
   const ownedRaw = await tx.objectStore(STORE.tools).index('ownerChildId').getAll(childId);
-  const scheduled: ScheduledDelete[] = [];
+  const scheduled: ScheduledMutation[] = [];
   for (const raw of ownedRaw) {
     const tool = ToolDefinition.parse(raw);
     scheduled.push(...(await scheduleToolGraph(tx, tool.toolId)));
   }
   const profile = await tx.objectStore(STORE.childProfiles).get(childId);
   if (profile !== undefined) {
-    scheduled.push({ store: STORE.childProfiles, key: childId });
+    scheduled.push({ kind: 'delete', store: STORE.childProfiles, key: childId });
   }
+  scheduled.push(...(await scheduleSurvivingForkRedaction(tx, childId)));
   await applyScheduled(tx, scheduled);
 }

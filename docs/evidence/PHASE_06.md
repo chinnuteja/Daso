@@ -4,7 +4,7 @@
 **Spec:** `docs/phases/PHASE_06.md` section E.4
 **Build ledger:** `docs/BUILD_STATE.md`
 **Branch:** `orchestration/phase-06-plan`
-**Commit SHA:** recorded after the implementation commit on this branch
+**Commit SHA:** `2c2960b5ea549b2c592c0e190154c1ff9501997c`
 **Status:** Implemented and gated. Not architecturally accepted.
 
 ---

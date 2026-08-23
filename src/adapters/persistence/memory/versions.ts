@@ -7,7 +7,7 @@ import type { ForkSnapshot } from '../../../core/reuse/types';
 import { LedgerEntry } from '../../../core/ledger/types';
 import { shouldFailAfterForkWrite, shouldFailAfterVersionWrite } from '../atomicCommit';
 import { PersistenceError } from '../database';
-import { assertForkLookup, parseForkSnapshot } from '../forkCommit';
+import { assertForkLookup, parseForkSnapshot, rejectLineageOnDirectWrite } from '../forkCommit';
 import type { MemoryRecords } from './store';
 
 export function createMemoryVersionRepository(records: MemoryRecords): ToolVersionRepository {
@@ -44,6 +44,7 @@ export function createMemoryVersionRepository(records: MemoryRecords): ToolVersi
     async saveAndActivate(version: ToolVersion, definition: ToolDefinition): Promise<void> {
       const parsedVersion = ToolVersion.parse(version);
       const parsedDefinition = ToolDefinition.parse(definition);
+      rejectLineageOnDirectWrite(parsedDefinition);
       if (parsedVersion.toolId !== parsedDefinition.toolId) {
         throw new PersistenceError('version and definition must name the same tool');
       }
@@ -85,11 +86,15 @@ export function createMemoryVersionRepository(records: MemoryRecords): ToolVersi
       }
       const sourceRaw = records.tools.get(lineage.toolId);
       const sourceVersionRaw = records.versions.get(lineage.versionId);
+      const sourceLedger: LedgerEntry[] = [];
       let targetLedgerCount = 0;
       const existingEventIds = new Set<string>();
       for (const raw of records.ledger.values()) {
         const entry = LedgerEntry.parse(raw);
         existingEventIds.add(entry.eventId);
+        if (entry.toolId === lineage.toolId) {
+          sourceLedger.push(entry);
+        }
         if (entry.toolId === parsed.definition.toolId) {
           targetLedgerCount += 1;
         }
@@ -97,6 +102,7 @@ export function createMemoryVersionRepository(records: MemoryRecords): ToolVersi
       assertForkLookup(parsed, {
         sourceDefinition: sourceRaw === undefined ? null : ToolDefinition.parse(sourceRaw),
         sourceVersion: sourceVersionRaw === undefined ? null : ToolVersion.parse(sourceVersionRaw),
+        sourceLedger,
         targetDefinition:
           records.tools.get(parsed.definition.toolId) === undefined
             ? null

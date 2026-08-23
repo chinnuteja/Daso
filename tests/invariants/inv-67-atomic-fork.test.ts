@@ -14,6 +14,13 @@ import type { Repositories } from '../../src/core/ports/repositories';
 import { EventId } from '../../src/core/schema/primitives';
 import { LEO_PROFILE } from '../../src/ui/flows/runner/secondChild';
 import { flightLabGraph } from '../fixtures/persistence/flightLab';
+import {
+  duplicateTargetEventId,
+  gappedTargetSequence,
+  omitUnapprovedAndCompact,
+  sameOwnerFork,
+  validLeoForkSnapshot,
+} from '../support/forkAttacks';
 import { mayaGraphCanonical } from '../support/mayaGraph';
 
 /**
@@ -99,4 +106,63 @@ describe('INV-67 — atomic fork commit', () => {
     failing.database.close();
     await deleteDB(name);
   });
+
+  it('INV-67: memory rejects direct lineage writes and adversarial forks without changing stores', async () => {
+    const repositories = createMemoryRepositories();
+    const before = await seed(repositories);
+    await assertExclusiveAndAdversarial(repositories, before);
+  });
+
+  it('INV-67: IndexedDB rejects direct lineage writes and adversarial forks without changing stores', async () => {
+    const name = 'teach-daso-inv-67-exclusive';
+    await deleteDB(name);
+    const opened = await openIndexedDbRepositories(name);
+    const before = await seed(opened.repositories);
+    await assertExclusiveAndAdversarial(opened.repositories, before);
+    opened.database.close();
+    await deleteDB(name);
+  });
 });
+
+async function expectUntouchedTarget(
+  repositories: Repositories,
+  snapshot: ReturnType<typeof validLeoForkSnapshot>,
+  mayaBefore: string,
+): Promise<void> {
+  expect(await repositories.tools.get(snapshot.definition.toolId)).toBeNull();
+  expect(await repositories.versions.get(snapshot.version.versionId)).toBeNull();
+  expect(await repositories.ledger.listByTool(snapshot.definition.toolId)).toEqual([]);
+  expect(await mayaGraphCanonical(repositories)).toBe(mayaBefore);
+}
+
+async function assertExclusiveAndAdversarial(
+  repositories: Repositories,
+  mayaBefore: string,
+): Promise<void> {
+  const snapshot = validLeoForkSnapshot();
+
+  await expect(repositories.tools.save(snapshot.definition)).rejects.toThrow(/saveForkSnapshot/u);
+  await expectUntouchedTarget(repositories, snapshot, mayaBefore);
+
+  await expect(
+    repositories.versions.saveAndActivate(snapshot.version, snapshot.definition),
+  ).rejects.toThrow(/saveForkSnapshot/u);
+  await expectUntouchedTarget(repositories, snapshot, mayaBefore);
+
+  const attacks = [
+    omitUnapprovedAndCompact(snapshot),
+    duplicateTargetEventId(snapshot),
+    gappedTargetSequence(snapshot),
+    sameOwnerFork(snapshot),
+  ];
+  for (const attack of attacks) {
+    await expect(repositories.versions.saveForkSnapshot(attack)).rejects.toThrow();
+    await expectUntouchedTarget(repositories, snapshot, mayaBefore);
+  }
+
+  await repositories.versions.saveForkSnapshot(snapshot);
+  expect((await repositories.tools.get(snapshot.definition.toolId))?.forkedFrom?.toolId).toBe(
+    'mayas-flight-lab',
+  );
+  expect(await mayaGraphCanonical(repositories)).toBe(mayaBefore);
+}

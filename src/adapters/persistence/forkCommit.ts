@@ -1,6 +1,9 @@
 import { bodyFromVersion } from '../../core/compiler';
+import { appendEntries } from '../../core/ledger/append';
 import { foldApprovedEvents } from '../../core/ledger/fold';
-import { LedgerEntry } from '../../core/ledger/types';
+import { assertLedgerIntegrity } from '../../core/ledger/integrity';
+import { compareEntries, LedgerEntry } from '../../core/ledger/types';
+import { assertRekeyedLedger } from '../../core/reuse/assertRekeyedLedger';
 import type { ForkSnapshot } from '../../core/reuse/types';
 import { ToolDefinition } from '../../core/schema/toolDefinition';
 import { ToolVersion } from '../../core/schema/toolVersion';
@@ -10,10 +13,19 @@ import { PersistenceError } from './database';
 export interface ForkStoreLookup {
   readonly sourceDefinition: ToolDefinition | null;
   readonly sourceVersion: ToolVersion | null;
+  readonly sourceLedger: readonly LedgerEntry[];
   readonly targetDefinition: ToolDefinition | null;
   readonly targetVersion: ToolVersion | null;
   readonly existingEventIds: ReadonlySet<string>;
   readonly targetLedgerCount: number;
+}
+
+export function rejectLineageOnDirectWrite(definition: ToolDefinition): void {
+  if (definition.forkedFrom !== undefined) {
+    throw new PersistenceError(
+      'a definition with forkedFrom can only be written through saveForkSnapshot',
+    );
+  }
 }
 
 export function parseForkSnapshot(snapshot: ForkSnapshot): ForkSnapshot {
@@ -31,6 +43,9 @@ export function parseForkSnapshot(snapshot: ForkSnapshot): ForkSnapshot {
   }
   if (definition.toolId === definition.forkedFrom.toolId) {
     throw new PersistenceError('fork tool id must differ from the source tool id');
+  }
+  if (definition.ownerChildId === definition.forkedFrom.ownerChildId) {
+    throw new PersistenceError('fork owner must differ from the source owner');
   }
   const folded = foldApprovedEvents(ledger);
   if (canonicalJson(folded) !== canonicalJson(bodyFromVersion(version))) {
@@ -78,5 +93,34 @@ export function assertForkLookup(snapshot: ForkSnapshot, lookup: ForkStoreLookup
     if (lookup.existingEventIds.has(entry.eventId)) {
       throw new PersistenceError(`target event ${entry.eventId} already exists`);
     }
+  }
+
+  requireIntactLedger(lookup.sourceLedger, 'source');
+  requireIntactLedger(snapshot.ledger, 'target');
+  if (lookup.sourceVersion === null) {
+    throw new PersistenceError('source version is missing');
+  }
+  try {
+    assertRekeyedLedger({
+      sourceLedger: lookup.sourceLedger,
+      targetLedger: snapshot.ledger,
+      sourceVersion: lookup.sourceVersion,
+      targetVersion: snapshot.version,
+      targetToolId: snapshot.definition.toolId,
+    });
+  } catch (error) {
+    throw new PersistenceError(error instanceof Error ? error.message : 'fork is not a re-keyed source');
+  }
+}
+
+function requireIntactLedger(entries: readonly LedgerEntry[], label: string): void {
+  const ordered = [...entries].sort(compareEntries);
+  try {
+    assertLedgerIntegrity(ordered);
+    appendEntries([], ordered);
+  } catch (error) {
+    throw new PersistenceError(
+      `${label} ledger is not intact: ${error instanceof Error ? error.message : 'invalid'}`,
+    );
   }
 }

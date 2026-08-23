@@ -2,7 +2,7 @@
 
 **Maintained by:** technical architect / build orchestrator
 **Normative source:** `TEACH_DASO_PRODUCT_AND_ARCHITECTURE.md`
-**Last updated:** 2026-08-23. Phase 6 implemented on `orchestration/phase-06-plan` at `2c2960b5ea549b2c592c0e190154c1ff9501997c` (gates green; not architecturally accepted). INV-01–INV-23 and INV-26–INV-72 passing; only INV-24–INV-25 remain pending for P7.
+**Last updated:** 2026-08-23. Phase 6 review blockers fixed on `orchestration/phase-06-plan` (gates green; not architecturally accepted). INV-01–INV-23 and INV-26–INV-72 passing; only INV-24–INV-25 remain pending for P7.
 
 This file is the single source of truth for what is built, what is proven, and what has
 drifted. A phase is not complete because it runs. It is complete when its acceptance tests
@@ -130,6 +130,8 @@ Phase 5 introduces no new product-spec deviations. Ranking now omits inactive me
 | 36 | Extract `captureTrialUnderActiveVersion` so teaching composition and Runner Mode share one active-version stamp | C.5: Runner must not import `executeIntents`; both flows must still reject missing/cross-tool versions before a trial write. |
 | 37 | Day-2 viewer is the `viewer` query parsed as `ChildId`; Leo is persisted through the profile repository | Ownership cannot come from a typed display name. The constrained second child is `child_local_02` / Leo. |
 | 38 | Saved-tile counts come from `authorshipSummaryCounts` over stored trials and approved ledger corrections | C.6 forbids a fixture-only “9 observations · 2 corrections” when the stored demo has 4 / 1. |
+| 39 | `tools.save` and `saveAndActivate` reject any definition with `forkedFrom`; only `saveForkSnapshot` may persist lineage | A P1 review blocker: otherwise a caller can create a lineage-bearing tool without an atomic re-keyed ledger. Ordinary P5 compilation is unchanged. |
+| 40 | `saveForkSnapshot` loads the source ledger in the same atomic operation, checks both ledgers with `assertLedgerIntegrity` plus `appendEntries`, rejects same-owner forks, and requires `assertRekeyedLedger` before the first target write | A P1 review blocker: fold equality alone does not prove the target is a complete remapped copy of the named source snapshot. |
 
 ---
 
@@ -179,6 +181,16 @@ Phase 6 implementation gates on `orchestration/phase-06-plan` (not an acceptance
 | `npm run typecheck` | 0 |
 | `npm run lint` | 0 |
 | `npm test` | 0 — **228 passed, 2 todo** |
+| `npm run build` | 0 — routes `/`, `/inspect`, `/journey`, `/run`, `ƒ /api/agents/teaching` |
+
+Phase 6 P1 review-blocker gates on the same branch (not an acceptance run):
+
+| Command | Exit |
+|---|---|
+| targeted INV-22/23/65–72 | 0 — **14 passed** |
+| `npm run typecheck` | 0 |
+| `npm run lint` | 0 |
+| `npm test` | 0 — **236 passed, 2 todo** |
 | `npm run build` | 0 — routes `/`, `/inspect`, `/journey`, `/run`, `ƒ /api/agents/teaching` |
 
 INV-01 … INV-23 and INV-26 … INV-72 passing. INV-24 and INV-25 remain todo/pending for P7.

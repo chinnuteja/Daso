@@ -3,6 +3,7 @@ import type { ChildId, ToolId } from '../../../core/schema/primitives';
 import { ToolDefinition } from '../../../core/schema/toolDefinition';
 import { ToolVersion } from '../../../core/schema/toolVersion';
 import { requireActiveVersion } from '../definitionPointer';
+import { rejectLineageOnDirectWrite } from '../forkCommit';
 import type { MemoryRecords } from './store';
 
 export function createMemoryToolRepository(records: MemoryRecords): ToolDefinitionRepository {
@@ -28,6 +29,7 @@ export function createMemoryToolRepository(records: MemoryRecords): ToolDefiniti
 
     async save(definition: ToolDefinition): Promise<void> {
       const parsed = ToolDefinition.parse(definition);
+      rejectLineageOnDirectWrite(parsed);
       const previous = records.tools.get(parsed.toolId);
       const rawVersion = records.versions.get(parsed.currentVersionId);
       const version = rawVersion === undefined ? null : ToolVersion.parse(rawVersion);

@@ -4,8 +4,9 @@
 **Spec:** `docs/phases/PHASE_06.md` section E.4
 **Build ledger:** `docs/BUILD_STATE.md`
 **Branch:** `orchestration/phase-06-plan`
-**Commit SHA:** `2c2960b5ea549b2c592c0e190154c1ff9501997c`
-**Status:** Implemented and gated. Not architecturally accepted.
+**Commit SHA:** review-fix SHA recorded after commit on this branch
+**Implementation commit:** `2c2960b5ea549b2c592c0e190154c1ff9501997c`
+**Status:** Review blockers addressed and gated. Not architecturally accepted.
 
 ---
 
@@ -19,12 +20,12 @@ All four exited zero on the submitted tree. No network was required beyond the a
 npx vitest run tests/invariants/inv-22-runner-mode.test.ts tests/invariants/inv-23-fork.test.ts tests/invariants/inv-65-saved-tile-grounding.test.ts tests/invariants/inv-66-fork-provenance.test.ts tests/invariants/inv-67-atomic-fork.test.ts tests/invariants/inv-68-fork-idempotency.test.ts tests/invariants/inv-69-runner-active-version.test.ts tests/invariants/inv-70-day-two-rule.test.ts tests/invariants/inv-71-phase-06-reload-proof.test.ts tests/invariants/inv-72-runner-integrity-failure.test.ts
 
  Test Files  10 passed (10)
-      Tests  12 passed (12)
+      Tests  14 passed (14)
 ```
 
 Exit 0.
 
-Memory and IndexedDB fork success/rollback also ran through `tests/invariants/inv-30-two-implementations.test.ts` (conformance helper `tests/conformance/repositories.ts`): 41 tests across INV-30/38/43/63, exit 0.
+Memory and IndexedDB exclusive-write, re-key, and rollback also ran through `tests/invariants/inv-30-two-implementations.test.ts` (conformance helper `tests/conformance/repositories.ts`).
 
 ### `npm run typecheck`
 
@@ -47,8 +48,8 @@ Exit 0. No errors, no warnings.
 Recorded from the final tree after the production build (INV-52 reads `.next/static`):
 
 ```
- Test Files  78 passed | 2 skipped (80)
-      Tests  228 passed | 2 todo (230)
+ Test Files  79 passed | 2 skipped (81)
+      Tests  236 passed | 2 todo (238)
 ```
 
 Exit 0.
@@ -82,7 +83,7 @@ Exit 0. No evidence route. No new model path.
 | INV-26 … INV-64 | **Asserted** | Unchanged from Phase 5 except INV-63 now allows the extracted capture service to stamp `toolVersionIdAtCapture` |
 | INV-65 | **Asserted** | Tile name/creator/4 observations/1 correction come from stored data; UI has no fixture-only “9/2” |
 | INV-66 | **Asserted** | Complete ledger re-keyed, approvals remapped, version compiled from target fold, lineage exact, no trials copied, source bytes unchanged |
-| INV-67 | **Asserted** | Memory and IndexedDB: success writes one target graph; injected failure after a partial write leaves no target and unchanged Maya bytes |
+| INV-67 | **Asserted** | Memory and IndexedDB: success writes one target graph; injected failure, exclusive-write rejection, and adversarial incomplete/colliding/gapped/same-owner forks leave no target and unchanged Maya bytes |
 | INV-68 | **Asserted** | Second reuse returns the same fork; id/time counters do not advance |
 | INV-69 | **Asserted** | Ready load equals `replay` of stored `tool_version_002`; missing tool is empty |
 | INV-70 | **Asserted** | Obstructed Day-2 trial stamped with the fork version, stored only on the fork, projected invalid, attributed to Maya |
@@ -307,8 +308,23 @@ Additional production/test/evidence paths (justified):
 | `tests/unit/schema/forkLineage.test.ts` | Proves the §9.2 fixture still parses, unknown keys fail, and optional `forkedFrom` is strict. |
 | `docs/evidence/assets/capture-phase-06.mjs` | Evidence-only browser capture. Same pattern as Phase 5. Playwright is not a dependency. |
 | `docs/evidence/assets/dump-phase-06.ts` | Evidence-only canonical dump. Not imported by the app. |
+| `src/core/reuse/assertRekeyedLedger.ts` | Pure re-key proof invoked by both `saveForkSnapshot` implementations before any target write. |
+| `tests/support/forkAttacks.ts` | Adversarial fork fixtures for exclusive-write and re-key rejection tests. |
+| `tests/unit/reuse/assertRekeyedLedger.test.ts` | Unit coverage of a complete remapping and the omitted-unapproved-entry attack. |
 
-`saveAndActivate` is unchanged. No new dependency, repository family, object store, model path, orchestrator vocabulary, tool kind, or schema field beyond C.2 `forkedFrom`.
+`saveAndActivate` still compiles ordinary non-fork tools. A definition carrying `forkedFrom` is rejected on `tools.save` and `saveAndActivate` in both implementations; only `saveForkSnapshot` may persist lineage.
+
+Review-fix additions:
+
+```
+src/core/reuse/assertRekeyedLedger.ts
+tests/unit/reuse/assertRekeyedLedger.test.ts
+tests/support/forkAttacks.ts
+```
+
+`saveForkSnapshot` now loads the source ledger in the same memory snapshot / IndexedDB transaction, runs `assertLedgerIntegrity` plus `appendEntries` on both streams, rejects a same-owner fork, and calls `assertRekeyedLedger` before any target write.
+
+No new dependency, repository family, object store, model path, orchestrator vocabulary, tool kind, or schema field beyond C.2 `forkedFrom`.
 
 ---
 

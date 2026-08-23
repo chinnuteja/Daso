@@ -9,8 +9,16 @@
   cursor: pointer;
 }
 
+.button:hover:not(:disabled) {
+  background: #fff8ee;
+}
+
+.button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
 .button:focus-visible {
-  outline: 3px solid var(--accent);
+  outline: var(--focus-ring);
   outline-offset: 2px;
 }
 
@@ -25,4 +33,16 @@
 
 .suggest {
   border-left: 0.6rem dashed var(--suggest);
+}
+
+.quiet {
+  border-left-width: 0.25rem;
+  color: var(--muted);
+  font-size: 1rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .button:active:not(:disabled) {
+    transform: none;
+  }
 }

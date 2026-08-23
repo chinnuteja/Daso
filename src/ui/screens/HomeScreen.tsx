@@ -17,38 +17,38 @@ export function HomeScreen(props: {
 }) {
   return (
     <div className={styles.stack}>
-      <p className={styles.prompt}>Your tools live on this tablet. Nothing here is a race or a streak.</p>
+      <p className={styles.prompt}>Teach a tool from a real question.</p>
+      <p className={styles.lede}>Your observations become saved rules.</p>
+      <ChoiceButton onClick={props.onStartTeaching}>Start with a question</ChoiceButton>
       {props.deletedToolId !== null ? <p>{TOOL_DELETED_COPY}</p> : null}
       {props.deletedProfileId !== null ? <p>{PROFILE_DELETED_COPY}</p> : null}
       {props.loading ? <p className={styles.muted}>Loading saved tools…</p> : null}
       {!props.loading && props.tiles.length === 0 ? (
-        <p className={styles.muted}>No saved tools yet. Teach one to keep it here.</p>
+        <p className={styles.muted}>No saved tools yet. The question above is the next step.</p>
       ) : null}
-      <div className={styles.tiles}>
-        {props.tiles.map((tile) => (
-          <SavedToolTile
-            key={tile.toolId}
-            tile={tile}
-            onOpenRunner={() => {
-              props.onOpenRunner(tile.toolId, tile.ownerChildId);
-            }}
-            onParentEvidence={() => {
-              props.onParentEvidence(tile.toolId);
-            }}
-            onDayTwo={
-              tile.ownerChildId === MAYA_CHILD_ID
-                ? () => {
-                    props.onDayTwo(tile.toolId);
-                  }
-                : undefined
-            }
-          />
-        ))}
-        <div className={styles.tile}>
-          <strong>Teach a new tool</strong>
-          <ChoiceButton onClick={props.onStartTeaching}>Start with a question</ChoiceButton>
+      {!props.loading && props.tiles.length > 0 ? (
+        <div className={styles.tiles}>
+          {props.tiles.map((tile) => (
+            <SavedToolTile
+              key={tile.toolId}
+              tile={tile}
+              onOpenRunner={() => {
+                props.onOpenRunner(tile.toolId, tile.ownerChildId);
+              }}
+              onParentEvidence={() => {
+                props.onParentEvidence(tile.toolId);
+              }}
+              onDayTwo={
+                tile.ownerChildId === MAYA_CHILD_ID
+                  ? () => {
+                      props.onDayTwo(tile.toolId);
+                    }
+                  : undefined
+              }
+            />
+          ))}
         </div>
-      </div>
+      ) : null}
     </div>
   );
 }

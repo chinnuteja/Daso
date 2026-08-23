@@ -6,6 +6,7 @@ import type { ReadingBand } from '../../core/schema/vocabulary';
 import type { AuthorshipExplanationEntry } from '../../core/inspection/authorshipView';
 import type { ToolVersion } from '../../core/schema/toolVersion';
 import { ChoiceButton } from '../components/ChoiceButton';
+import { disclosureWhatIsReal, disclosuresForSurface } from '../copy/disclosures';
 import { DELETED_SOURCE_COPY } from '../copy/parent';
 import { WhyPanel } from './WhyPanel';
 
@@ -38,7 +39,8 @@ export function RunnerScreen(props: {
   return (
     <div className={styles.stack}>
       <p className={styles.prompt}>{props.title}</p>
-      <p className={styles.muted}>Runs from saved rules — no AI call in Runner Mode.</p>
+      <p className={styles.badge}>Saved rules — works without AI</p>
+      <p className={styles.muted}>This screen works from saved rules, without AI.</p>
       {props.status === 'loading' ? <p className={styles.muted}>Opening the saved tool…</p> : null}
       {props.status === 'empty' ? (
         <p className={styles.muted}>This tool is not saved on this tablet yet.</p>
@@ -75,6 +77,7 @@ export function RunnerScreen(props: {
             readingBand={props.readingBand}
             childName={props.creditName}
           />
+          <RunnerDisclosures sourceDeleted={props.sourceDeleted} />
         </>
       ) : null}
     </div>
@@ -127,6 +130,22 @@ function inheritedRuleCopy(
   );
 }
 
+function RunnerDisclosures(props: { readonly sourceDeleted: boolean }) {
+  const entries = disclosuresForSurface('in_product_runner_mode');
+  return (
+    <aside className={styles.disclosure}>
+      {entries.map((entry) => (
+        <dl key={entry.capability}>
+          <dt>What is simulated</dt>
+          <dd>{entry.whatIsSimulated}</dd>
+          <dt>What is real</dt>
+          <dd>{disclosureWhatIsReal(entry, { sourceDeleted: props.sourceDeleted })}</dd>
+        </dl>
+      ))}
+    </aside>
+  );
+}
+
 function CaptureForm(props: {
   readonly onCapture: (fields: {
     readonly designName: string;
@@ -162,9 +181,9 @@ function CaptureForm(props: {
         Distance in metres
         <input name="distanceM" type="number" min={0} step="0.1" required />
       </label>
-      <label className={styles.field}>
-        <span>Did it touch something?</span>
+      <label className={`${styles.field} ${styles.hit}`}>
         <input name="obstruction" type="checkbox" />
+        <span>Did it touch something?</span>
       </label>
       <ChoiceButton type="submit">Record this throw</ChoiceButton>
     </form>

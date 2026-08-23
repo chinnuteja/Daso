@@ -39,8 +39,11 @@ import type { ToolVersion } from '../../core/schema/toolVersion';
 import type { ExperimentTrial } from '../../core/schema/experimentTrial';
 import type { ReadingBand } from '../../core/schema/vocabulary';
 import type { RuntimeResult } from '../../core/runtime';
+import { ProgressRail } from '../components/ProgressRail';
 import { policyRejectionCopy, validationRejectionCopy } from '../copy/rejections';
+import { progressRailView, whyThisMatters } from '../copy/progressRail';
 import { stateCopy } from '../copy/states';
+import styles from '../screens/screens.module.css';
 import { CaptureTrialScreen } from '../screens/CaptureTrialScreen';
 import { CompilePreviewScreen } from '../screens/CompilePreviewScreen';
 import { DefineInputsScreen } from '../screens/DefineInputsScreen';
@@ -97,6 +100,7 @@ export function JourneyFlow() {
   const [readingBand, setReadingBand] = useState<ReadingBand>(MAYA.readingBand);
   const [childName, setChildName] = useState(MAYA.displayName);
   const [refusal, setRefusal] = useState<string | null>(null);
+  const [approvalRecorded, setApprovalRecorded] = useState(false);
 
   const refresh = useCallback(async (repositories: Repositories) => {
     const stored = await repositories.trials.listByTool(FLIGHT_LAB_TOOL_ID);
@@ -185,6 +189,7 @@ export function JourneyFlow() {
     }
     setRefusal(null);
     await session.saveCounters();
+    setApprovalRecorded(event.kind === 'candidate_approved');
     setState(result.next);
     setPendingCandidateId(executed.pendingCandidateId);
     if (executed.compiledVersion !== null) {
@@ -205,9 +210,14 @@ export function JourneyFlow() {
   const reviewingDefinition = pendingCandidateId !== null && pendingSummary.length > 0 &&
     (state === 'DEFINE_METRICS' || state === 'DEFINE_INPUTS');
 
+  const rail = progressRailView(state);
+
   return (
     <div>
+      <ProgressRail view={rail} />
+      <p className={styles.why}>{whyThisMatters(state)}</p>
       <p>{message}</p>
+      {approvalRecorded ? <p>Saved: you approved that change. Daso did not approve it.</p> : null}
       {refusal !== null ? <p>{refusal}</p> : null}
       {reviewingDefinition || state === 'REVIEW_MUTATION' ? (
         <ReviewMutationScreen

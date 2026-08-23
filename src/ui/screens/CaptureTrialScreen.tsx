@@ -54,6 +54,7 @@ export function CaptureTrialScreen(props: {
   return (
     <div className={styles.stack}>
       <p className={styles.prompt}>{props.prompt}</p>
+      <p className={styles.lede}>Go throw, then come back and write down what happened.</p>
       <CaptureDisclosures />
       <form className={styles.stack} onSubmit={handleSubmit}>
         <label className={styles.field}>
@@ -70,10 +71,14 @@ export function CaptureTrialScreen(props: {
           Distance in metres
           <input name="distanceM" type="number" min={0} step="0.1" required />
         </label>
-        <label className={styles.field}>
-          <span>Did it touch something?</span>
+        <label className={`${styles.field} ${styles.hit}`}>
           <input name="obstruction" type="checkbox" />
+          <span>Did it touch something?</span>
         </label>
+        <p className={styles.muted}>
+          Write the throw even if it touched something. The saved rule decides later whether it
+          counts.
+        </p>
         <label className={styles.field}>
           Optional note
           <input name="note" type="text" autoComplete="off" />

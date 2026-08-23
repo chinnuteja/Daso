@@ -21,9 +21,13 @@ export function SavedToolTile(props: {
         corrections
       </p>
       <ChoiceButton onClick={props.onOpenRunner}>Open in Runner Mode</ChoiceButton>
-      <ChoiceButton onClick={props.onParentEvidence}>Parent evidence</ChoiceButton>
+      <ChoiceButton quiet onClick={props.onParentEvidence}>
+        Parent evidence
+      </ChoiceButton>
       {props.onDayTwo !== undefined ? (
-        <ChoiceButton onClick={props.onDayTwo}>Let Leo try this</ChoiceButton>
+        <ChoiceButton quiet onClick={props.onDayTwo}>
+          Let Leo try this
+        </ChoiceButton>
       ) : null}
     </article>
   );

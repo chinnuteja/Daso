@@ -18,6 +18,14 @@ export function CompilePreviewScreen(props: {
   readonly onAcknowledge: () => void;
   readonly onOpenRunner: () => void;
 }) {
+  const changed =
+    props.previousRuntime === null || props.runtime === null
+      ? []
+      : validityChanges(props.previousRuntime, props.runtime);
+  const taughtRule = props.version?.rules[0];
+  const wordsBecameRule =
+    taughtRule !== undefined && props.previousRuntime !== null && changed.length > 0;
+
   return (
     <div className={styles.stack}>
       <p className={styles.prompt}>{props.prompt}</p>
@@ -25,11 +33,18 @@ export function CompilePreviewScreen(props: {
         <section className={styles.tile}>
           <p>Saved version: {props.version.versionId}</p>
           <p>Inputs: {props.version.inputs.join(', ')}</p>
-          <p>Comparisons: {props.version.metrics.join(', ')}</p>
+          <p>Comparisons: {props.version.metrics.join(', ') || 'none'}</p>
           <p>Rules: {props.version.rules.map((rule) => rule.ruleId).join(', ') || 'none yet'}</p>
         </section>
       ) : null}
-      {props.runtime !== null ? <RankingPanel runtime={props.runtime} previous={props.previousRuntime} /> : null}
+      {props.runtime !== null ? (
+        <RankingPanel runtime={props.runtime} previous={props.previousRuntime} changed={changed} />
+      ) : null}
+      {wordsBecameRule && taughtRule !== undefined ? (
+        <p className={styles.status}>
+          Your words became a rule. {taughtRule.ruleId} now excludes the unfair throw.
+        </p>
+      ) : null}
       <WhyPanel
         explanation={props.explanation}
         readingBand={props.readingBand}
@@ -44,19 +59,32 @@ export function CompilePreviewScreen(props: {
 function RankingPanel(props: {
   readonly runtime: RuntimeResult;
   readonly previous: RuntimeResult | null;
+  readonly changed: readonly string[];
 }) {
   const winner = props.runtime.winner ?? 'none yet';
   const ranking = props.runtime.ranking.map((entry) => rankingCaption(entry)).join('; ');
-  const changed = props.previous === null ? [] : validityChanges(props.previous, props.runtime);
   const previousWinner = props.previous?.winner;
+  const showCompare = previousWinner !== undefined && props.runtime.winner !== undefined;
 
   return (
     <section className={styles.tile}>
+      {showCompare ? (
+        <div className={styles.compare}>
+          <div className={styles.compareBlock}>
+            <strong>Before: {previousWinner} leads</strong>
+            <p>The same stored throws, before the approved rule.</p>
+          </div>
+          <div className={styles.compareBlock}>
+            <strong>Now: {props.runtime.winner} leads</strong>
+            <p>The same stored throws, after the approved rule.</p>
+          </div>
+        </div>
+      ) : null}
       <p>Winner now: {winner}</p>
       <p>Ranking: {ranking || 'not enough valid throws yet'}</p>
-      {changed.length > 0 ? (
+      {props.changed.length > 0 ? (
         <p>
-          After this correction, {changed.join(', ')} changed validity.
+          After this correction, {props.changed.join(', ')} changed validity.
           {previousWinner !== undefined ? ` Before, ${previousWinner} was first.` : ''}
           {props.runtime.winner !== undefined ? ` Now ${props.runtime.winner} is first.` : ''}
         </p>

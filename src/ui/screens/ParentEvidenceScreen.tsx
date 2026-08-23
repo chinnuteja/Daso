@@ -33,6 +33,9 @@ export function ParentEvidenceScreen(props: {
         <>
           <p className={styles.prompt}>{props.view.clauses.heading}</p>
           <section className={styles.tile}>
+            <p>
+              <strong>What was noticed and taught</strong>
+            </p>
             <p>{props.view.clauses.question}</p>
             <p>{props.view.clauses.observation}</p>
             <p>{props.view.clauses.rule}</p>
@@ -79,9 +82,14 @@ export function ParentEvidenceScreen(props: {
               <p>Parent summaries: {props.view.stored.summaryIds.join(', ') || 'none'}</p>
             </section>
           ) : null}
-          <p className={styles.muted}>
-            {props.view.sourceDeleted ? ORPHANED_EXPORT_COPY : EXPORT_COPY}
-          </p>
+          <section className={styles.quietBlock}>
+            <p>
+              <strong>Data rights</strong>
+            </p>
+            <p className={styles.muted}>
+              {props.view.sourceDeleted ? ORPHANED_EXPORT_COPY : EXPORT_COPY}
+            </p>
+          </section>
           {props.deleteError !== null ? <p className={styles.refusal}>{props.deleteError}</p> : null}
           {props.confirmDelete === 'tool' ? (
             <section className={styles.tile}>

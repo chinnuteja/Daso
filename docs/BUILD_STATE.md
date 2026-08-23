@@ -2,7 +2,7 @@
 
 **Maintained by:** technical architect / build orchestrator
 **Normative source:** `TEACH_DASO_PRODUCT_AND_ARCHITECTURE.md`
-**Last updated:** 2026-08-23. Phase 6 review blockers fixed on `orchestration/phase-06-plan` (gates green; not architecturally accepted). INV-01–INV-23 and INV-26–INV-72 passing; only INV-24–INV-25 remain pending for P7.
+**Last updated:** 2026-08-23. Phase 6 review blockers fixed on `orchestration/phase-06-plan` at `e242f190c8db40d54a89d5f3d19e2d8f2196c187` (gates green; not architecturally accepted). INV-01–INV-23 and INV-26–INV-72 passing; only INV-24–INV-25 remain pending for P7.
 
 This file is the single source of truth for what is built, what is proven, and what has
 drifted. A phase is not complete because it runs. It is complete when its acceptance tests

@@ -4,7 +4,7 @@
 **Spec:** `docs/phases/PHASE_06.md` section E.4
 **Build ledger:** `docs/BUILD_STATE.md`
 **Branch:** `orchestration/phase-06-plan`
-**Commit SHA:** review-fix SHA recorded after commit on this branch
+**Commit SHA:** `e242f190c8db40d54a89d5f3d19e2d8f2196c187`
 **Implementation commit:** `2c2960b5ea549b2c592c0e190154c1ff9501997c`
 **Status:** Review blockers addressed and gated. Not architecturally accepted.
 

@@ -42,10 +42,11 @@ describe('INV-63 — trial capture resolves the active version', () => {
     const uiFiles = listSourceFiles(`${SRC_ROOT}/ui`);
     const supplied = uiFiles.filter(
       (file) =>
-        file.path !== 'src/ui/flows/executeIntents.ts' && file.text.includes('toolVersionIdAtCapture'),
+        file.path !== 'src/ui/flows/runner/captureTrial.ts' &&
+        file.text.includes('toolVersionIdAtCapture'),
     );
     expect(supplied.map((file) => file.path)).toEqual([]);
-    expect(uiFiles.some((file) => file.path === 'src/ui/flows/executeIntents.ts')).toBe(true);
+    expect(uiFiles.some((file) => file.path === 'src/ui/flows/runner/captureTrial.ts')).toBe(true);
   });
 
   it('INV-63: a captured trial is stamped with the stored active version', async () => {

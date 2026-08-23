@@ -1,23 +1,39 @@
-import Link from 'next/link';
-
-import type { ToolDefinition } from '../../core/schema/toolDefinition';
+import { SavedToolTile } from '../components/SavedToolTile';
 import { ChoiceButton } from '../components/ChoiceButton';
+import { MAYA_CHILD_ID, type SavedToolTileView } from '../flows/runner';
 
 import styles from './screens.module.css';
 
 export function HomeScreen(props: {
-  readonly tools: readonly ToolDefinition[];
+  readonly tiles: readonly SavedToolTileView[];
+  readonly loading: boolean;
   readonly onStartTeaching: () => void;
+  readonly onOpenRunner: (toolId: string, viewerChildId: string) => void;
+  readonly onDayTwo: (toolId: string) => void;
 }) {
   return (
     <div className={styles.stack}>
       <p className={styles.prompt}>Your tools live on this tablet. Nothing here is a race or a streak.</p>
+      {props.loading ? <p className={styles.muted}>Loading saved tools…</p> : null}
+      {!props.loading && props.tiles.length === 0 ? (
+        <p className={styles.muted}>No saved tools yet. Teach one to keep it here.</p>
+      ) : null}
       <div className={styles.tiles}>
-        {props.tools.map((tool) => (
-          <Link key={tool.toolId} className={styles.tile} href={`/run?tool=${tool.toolId}`}>
-            <strong>{tool.displayName}</strong>
-            <span>Open in Runner Mode</span>
-          </Link>
+        {props.tiles.map((tile) => (
+          <SavedToolTile
+            key={tile.toolId}
+            tile={tile}
+            onOpenRunner={() => {
+              props.onOpenRunner(tile.toolId, tile.ownerChildId);
+            }}
+            onDayTwo={
+              tile.ownerChildId === MAYA_CHILD_ID
+                ? () => {
+                    props.onDayTwo(tile.toolId);
+                  }
+                : undefined
+            }
+          />
         ))}
         <div className={styles.tile}>
           <strong>Teach a new tool</strong>

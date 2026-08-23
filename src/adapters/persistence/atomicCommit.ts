@@ -11,3 +11,13 @@ export function setFailAfterVersionWrite(value: boolean): void {
 export function shouldFailAfterVersionWrite(): boolean {
   return failAfterVersionWrite;
 }
+
+let failAfterForkWrite = false;
+
+export function setFailAfterForkWrite(value: boolean): void {
+  failAfterForkWrite = value;
+}
+
+export function shouldFailAfterForkWrite(): boolean {
+  return failAfterForkWrite;
+}

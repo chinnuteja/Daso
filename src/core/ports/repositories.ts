@@ -4,6 +4,7 @@ import type { ExperimentTrial } from '../schema/experimentTrial';
 import type { PermissionGrant } from '../schema/permissionGrant';
 import type { ParentSummary } from '../schema/parentSummary';
 import type { ChildId, GrantId, ToolId, ToolVersionId, TrialId } from '../schema/primitives';
+import type { ForkSnapshot } from '../reuse/types';
 import type { ToolDefinition } from '../schema/toolDefinition';
 import type { ToolVersion } from '../schema/toolVersion';
 import type { LedgerEntry } from '../ledger/types';
@@ -41,6 +42,11 @@ export interface ToolVersionRepository {
    * tool definition. Does not add an eighth repository family.
    */
   saveAndActivate(version: ToolVersion, definition: ToolDefinition): Promise<void>;
+  /**
+   * One all-or-nothing commit of a second-child fork: target ledger, immutable
+   * version, and definition. Does not add an eighth repository family.
+   */
+  saveForkSnapshot(snapshot: ForkSnapshot): Promise<void>;
   deleteByTool(toolId: ToolId): Promise<void>;
 }
 

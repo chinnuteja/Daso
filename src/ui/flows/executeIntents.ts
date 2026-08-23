@@ -8,6 +8,10 @@ import type { LedgerEntry } from '../../core/ledger/types';
 import { evaluatePolicy, inspectPolicySubject, type PolicyVerdict } from '../../core/policy';
 import { replay, type RuntimeResult } from '../../core/runtime';
 import { ExperimentTrial } from '../../core/schema/experimentTrial';
+import {
+  ActiveVersionCaptureError,
+  captureTrialUnderActiveVersion,
+} from './runner/captureTrial';
 import type { CandidateMutation } from '../../core/schema/mutation';
 import {
   EventId,
@@ -191,33 +195,19 @@ async function recordResolvedTrial(input: IntentExecutionInput): Promise<Experim
   if (input.trial === undefined) {
     throw new IntentExecutionError('record_trial requires a structured trial draft');
   }
-  const definition = await input.repositories.tools.get(input.trial.toolId);
-  if (definition === null) {
-    throw new IntentExecutionError(`tool ${input.trial.toolId} does not exist; capture is rejected`);
+  try {
+    return await captureTrialUnderActiveVersion({
+      repositories: input.repositories,
+      ids: input.ids,
+      clock: input.clock,
+      trial: input.trial,
+    });
+  } catch (error) {
+    if (error instanceof ActiveVersionCaptureError) {
+      throw new IntentExecutionError(error.message);
+    }
+    throw error;
   }
-  const version = await input.repositories.versions.get(definition.currentVersionId);
-  if (version === null) {
-    throw new IntentExecutionError(
-      `active version ${definition.currentVersionId} is missing; capture is rejected`,
-    );
-  }
-  if (version.toolId !== definition.toolId) {
-    throw new IntentExecutionError('active version belongs to a different tool; capture is rejected');
-  }
-  const trial = ExperimentTrial.parse({
-    trialId: input.ids.next('trial'),
-    toolId: input.trial.toolId,
-    toolVersionIdAtCapture: version.versionId,
-    designName: input.trial.designName,
-    distanceM: input.trial.distanceM,
-    obstruction: input.trial.obstruction,
-    validAtCapture: input.trial.validAtCapture,
-    validUnderCurrentVersion: input.trial.validAtCapture,
-    createdAt: input.clock.now(),
-    ...(input.trial.note === undefined ? {} : { note: input.trial.note }),
-  });
-  await input.repositories.trials.save(trial);
-  return trial;
 }
 
 async function compileAndActivate(input: IntentExecutionInput): Promise<{

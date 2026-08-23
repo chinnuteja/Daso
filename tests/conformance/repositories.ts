@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { persistGraph, setFailAfterVersionWrite } from '../../src/adapters/persistence';
+import { persistGraph, setFailAfterForkWrite, setFailAfterVersionWrite } from '../../src/adapters/persistence';
+import { allocateTargetToolId, buildForkSnapshot } from '../../src/core/reuse';
+import { EventId } from '../../src/core/schema/primitives';
+import { LEO_PROFILE } from '../../src/ui/flows/runner/secondChild';
 import { PersistenceError } from '../../src/adapters/persistence/database';
 import type { Repositories } from '../../src/core/ports/repositories';
 import { ExperimentTrial } from '../../src/core/schema/experimentTrial';
@@ -32,6 +35,7 @@ export function defineRepositoryConformance(
 
     afterEach(async () => {
       setFailAfterVersionWrite(false);
+      setFailAfterForkWrite(false);
       await harness.teardown();
     });
 
@@ -260,6 +264,53 @@ export function defineRepositoryConformance(
         }),
       ).rejects.toThrow(/owned by/u);
       expect(canonicalJson(await harness.repositories.tools.get(definition.toolId))).toBe(before);
+    });
+
+    it('commits a fork snapshot and rolls back an injected fork failure', async () => {
+      const graph = flightLabGraph();
+      await persistGraph(harness.repositories, graph);
+      await harness.repositories.profiles.save(LEO_PROFILE);
+      const source = graph.tools[0];
+      const sourceVersion = graph.versions[1];
+      expect(source).toBeDefined();
+      expect(sourceVersion).toBeDefined();
+      if (source === undefined || sourceVersion === undefined) {
+        return;
+      }
+      const sourceBefore = canonicalJson(await harness.repositories.tools.get(source.toolId));
+      const snapshot = buildForkSnapshot({
+        sourceDefinition: source,
+        sourceVersion,
+        sourceLedger: graph.entries,
+        targetToolId: allocateTargetToolId(source.toolId, []),
+        targetOwnerChildId: LEO_PROFILE.childId,
+        targetDisplayName: "Leo's copy of Maya's Flight Lab",
+        replacementEventIds: graph.entries.map((_, index) =>
+          EventId.parse(`event_${String(200 + index).padStart(3, '0')}`),
+        ),
+        targetVersionId: 'tool_version_200',
+        forkedAt: '2026-08-21T09:05:00Z',
+      });
+
+      setFailAfterForkWrite(true);
+      await expect(harness.repositories.versions.saveForkSnapshot(snapshot)).rejects.toThrow(
+        /injected fork failure/u,
+      );
+      expect(await harness.repositories.tools.get(snapshot.definition.toolId)).toBeNull();
+      expect(await harness.repositories.versions.get(snapshot.version.versionId)).toBeNull();
+      expect(await harness.repositories.ledger.listByTool(snapshot.definition.toolId)).toEqual([]);
+      expect(canonicalJson(await harness.repositories.tools.get(source.toolId))).toBe(sourceBefore);
+      setFailAfterForkWrite(false);
+
+      await harness.repositories.versions.saveForkSnapshot(snapshot);
+      expect((await harness.repositories.tools.get(snapshot.definition.toolId))?.ownerChildId).toBe(
+        LEO_PROFILE.childId,
+      );
+      expect(await harness.repositories.versions.get(snapshot.version.versionId)).not.toBeNull();
+      expect((await harness.repositories.ledger.listByTool(snapshot.definition.toolId)).length).toBe(
+        graph.entries.length,
+      );
+      expect(await harness.repositories.trials.listByTool(snapshot.definition.toolId)).toEqual([]);
     });
 
     it('deleteByTool removes that tool stream and leaves get returning null', async () => {

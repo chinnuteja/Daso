@@ -1,0 +1,14 @@
+.tile {
+  min-height: 8rem;
+  border: 2px solid var(--line);
+  background: var(--panel);
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  color: inherit;
+}
+
+.tile p {
+  margin: 0;
+}

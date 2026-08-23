@@ -2,7 +2,7 @@
 
 **Maintained by:** technical architect / build orchestrator
 **Normative source:** `TEACH_DASO_PRODUCT_AND_ARCHITECTURE.md`
-**Last updated:** 2026-08-23. Phase 5 architecturally accepted at `ac4892a3964930b75b8ab40245d9ff1f65119627`. INV-01–INV-21 and INV-26–INV-64 passing; INV-22–INV-25 pending by specification.
+**Last updated:** 2026-08-23. Phase 6 architecturally accepted at `e242f190c8db40d54a89d5f3d19e2d8f2196c187` after independent review. INV-01–INV-23 and INV-26–INV-72 passing; only INV-24–INV-25 remain pending for P7.
 
 This file is the single source of truth for what is built, what is proven, and what has
 drifted. A phase is not complete because it runs. It is complete when its acceptance tests
@@ -19,7 +19,7 @@ are named here and passing, and no undeclared deviation exists.
 | P3 | Orchestrator & Tablet Shell | M1 | **Implemented — gates green** | 2026-08-20 |
 | P4 | Teaching Agent & Approval Gate | M3 | **Implemented — gates green** | 2026-08-20 |
 | P5 | Compiler & Deterministic Runtime | M4 | **Architecturally accepted — gates green** | 2026-08-23 |
-| P6 | Keep & Reuse | M5 | Unblocked | — |
+| P6 | Keep & Reuse | M5 | **Architecturally accepted — gates green** | 2026-08-23 |
 | P7 | Parent Evidence & Data Rights | M6 | Unblocked | — |
 | P8 | Founder-Facing Polish | M7 | Blocked on P6/P7 | — |
 
@@ -40,7 +40,7 @@ currently exists. "Asserted" means a named test passes. Nothing else counts.
 | AI cannot approve its own mutations | §7.3, §12 | INV-10, INV-41, INV-47 | P1, P3, P4 | **Asserted** |
 | Every material compiled behavior has provenance | §4.1, §7.6 | INV-09, INV-11 | P1 | **Asserted** |
 | ToolVersion objects are immutable | §9.3, §12 | INV-13 | P1 | **Asserted** (also on versions read from storage) |
-| Runner Mode makes no model calls | §7.5, §14 | INV-43, INV-22 | P3, P6 | **INV-43 asserted** (static precursor). INV-22 pending P6 |
+| Runner Mode makes no model calls | §7.5, §14 | INV-43, INV-22 | P3, P6 | **Asserted** (INV-43 precursor remains; INV-22 promoted) |
 | Identical version + trial data yields identical results | §17 | INV-03, INV-14, INV-15, INV-20 | P1, P5 | **Asserted** (INV-20 promoted in P5) |
 | Child data is local-first | §11.1 | INV-26 | P2 | **Asserted** (`inv-26-local-first.test.ts`) |
 | Parent summaries cite supporting evidence events | §7.8, §12 | INV-24 | P7 | Pending |
@@ -49,7 +49,7 @@ currently exists. "Asserted" means a named test passes. Nothing else counts.
 | Flight Lab is the only implemented tool kind | §15, §20 | INV-05 | P1 | **Asserted** |
 | Domain remains portable to native Android | §13 | INV-02, INV-34 | P1, P2 | **Asserted** |
 | Safety policy boundaries are enforced in code | §7.5 | INV-19 | P4 | **Asserted** |
-| Reuse forks rather than mutating the original | §12 | INV-23 | P6 | Pending |
+| Reuse forks rather than mutating the original | §12 | INV-23 | P6 | **Asserted** |
 | Deletion is real, not decorative | §11.4 | INV-31, INV-25 | P2, P7 | **INV-31 asserted** (storage-level). INV-25 pending P7 |
 
 P2 also asserts INV-27 (reload), INV-28 (no event edit), INV-29 (integrity), INV-30 (two implementations), INV-32 (no media), INV-33 (id counters), INV-35 (inspection is a projection).
@@ -58,7 +58,9 @@ P3 also asserts INV-39 (scripted journey), INV-40 (authorship visible), INV-42 (
 
 P4 also asserts INV-18 (validation is code), INV-47 (agent cannot approve), INV-48 (single model path), INV-49 (server-side response validation), INV-50 (prompt-injection fixtures), INV-51 (§11.2 minimality), INV-52 (no client credential), INV-53 (provenance before append), INV-54 (resource limits), INV-55 (capability allowlist), INV-56 (approval never touches the network).
 
-P5 asserts INV-20 and INV-21 and adds INV-57 (atomic compilation commit), INV-58 (no dangling active version), INV-59 (idempotent compilation), INV-60 (immutable version history), INV-61 (pure runtime), INV-62 (exact metric/ranking contract), INV-63 (trial resolves active version), and INV-64 (memory + IndexedDB/reopen milestone proof). INV-22–INV-25 remain pending for P6/P7.
+P5 asserts INV-20 and INV-21 and adds INV-57 (atomic compilation commit), INV-58 (no dangling active version), INV-59 (idempotent compilation), INV-60 (immutable version history), INV-61 (pure runtime), INV-62 (exact metric/ranking contract), INV-63 (trial resolves active version), and INV-64 (memory + IndexedDB/reopen milestone proof).
+
+P6 promotes INV-22 and INV-23 and adds INV-65 (saved-tile grounding), INV-66 (fork provenance), INV-67 (atomic fork), INV-68 (fork idempotency), INV-69 (runner active version), INV-70 (Day-2 inherited rule), INV-71 (IndexedDB reopen of source and fork), and INV-72 (runner integrity failure). Only INV-24 and INV-25 remain pending for P7. Phase 6 is architecturally accepted.
 
 ---
 
@@ -123,6 +125,14 @@ Phase 5 introduces no new product-spec deviations. Ranking now omits inactive me
 | 31 | Ranking and `RuntimeResult` metric fields follow `ToolVersion.metrics`; inactive metrics are omitted | Architectural review before P5 acceptance: replay must not compute or expose a comparison the child did not approve |
 | 32 | `tools.save` rejects a missing or other-tool `currentVersionId` in the same write; `persistGraph` saves versions before tools | Architectural review: a stored definition may not point at an absent or foreign version. INV-63 corrupt-state setup uses a mocked `tools.get` |
 | 33 | Accept Phase 5 at commit `ac4892a3964930b75b8ab40245d9ff1f65119627` | Independent review reran INV-20/21/57–64, typecheck, lint, full suite, and build; inspected the real v2 compile-preview artifact; and found no remaining automatic rejection condition |
+| 34 | P6 adds optional strict `ToolDefinition.forkedFrom { toolId, versionId, ownerChildId }` | A second-child-owned fork and durable “Maya taught this” attribution are both normative. Existing fields cannot persist both facts; one optional lineage object is the smallest sufficient correction and preserves the §9.2 fixture. |
+| 35 | Extend `ToolVersionRepository` with one atomic fork-snapshot commit rather than adding an eighth repository family | The fork's ledger, immutable version, and definition must appear together or not at all in memory and IndexedDB. |
+| 36 | Extract `captureTrialUnderActiveVersion` so teaching composition and Runner Mode share one active-version stamp | C.5: Runner must not import `executeIntents`; both flows must still reject missing/cross-tool versions before a trial write. |
+| 37 | Day-2 viewer is the `viewer` query parsed as `ChildId`; Leo is persisted through the profile repository | Ownership cannot come from a typed display name. The constrained second child is `child_local_02` / Leo. |
+| 38 | Saved-tile counts come from `authorshipSummaryCounts` over stored trials and approved ledger corrections | C.6 forbids a fixture-only “9 observations · 2 corrections” when the stored demo has 4 / 1. |
+| 39 | `tools.save` and `saveAndActivate` reject any definition with `forkedFrom`; only `saveForkSnapshot` may persist lineage | A P1 review blocker: otherwise a caller can create a lineage-bearing tool without an atomic re-keyed ledger. Ordinary P5 compilation is unchanged. |
+| 40 | `saveForkSnapshot` loads the source ledger in the same atomic operation, checks both ledgers with `assertLedgerIntegrity` plus `appendEntries`, rejects same-owner forks, and requires `assertRekeyedLedger` before the first target write | A P1 review blocker: fold equality alone does not prove the target is a complete remapped copy of the named source snapshot. |
+| 41 | Accept Phase 6 at commit `e242f190c8db40d54a89d5f3d19e2d8f2196c187` | Independent review inspected the atomic re-key proof and direct-write rejection paths, inspected the real Day-2 evidence, and reran 14 targeted tests, typecheck, lint, the full suite, and production build. |
 
 ---
 
@@ -152,6 +162,7 @@ Phase 2 D.4 packet: `docs/evidence/PHASE_02.md`.
 Phase 3 D.4 packet: `docs/evidence/PHASE_03.md`.
 Phase 4 D.4 packet: `docs/evidence/PHASE_04.md`.
 Phase 5 D.4 packet: `docs/evidence/PHASE_05.md`.
+Phase 6 E.4 packet: `docs/evidence/PHASE_06.md`. Phase 6 is implemented and gated; it is not architecturally accepted.
 
 Gate commands independently rerun on 2026-08-23 for Phase 5 architectural acceptance:
 
@@ -163,6 +174,26 @@ Gate commands independently rerun on 2026-08-23 for Phase 5 architectural accept
 | `npm test` | 0 — **207 passed, 4 todo** |
 | `npm run build` | 0 — routes `/`, `/inspect`, `/journey`, `/run`, `ƒ /api/agents/teaching` |
 
-INV-01 … INV-21 and INV-26 … INV-64 passing. INV-22 … INV-25 todo/pending.
+Phase 6 implementation gates on `orchestration/phase-06-plan` (not an acceptance run):
 
-No undeclared deviations. D-01 remains the only accepted product-spec deviation. Phase 5 is architecturally accepted at commit `ac4892a3964930b75b8ab40245d9ff1f65119627`.
+| Command | Exit |
+|---|---|
+| targeted INV-22/23/65–72 | 0 — **12 passed** |
+| `npm run typecheck` | 0 |
+| `npm run lint` | 0 |
+| `npm test` | 0 — **228 passed, 2 todo** |
+| `npm run build` | 0 — routes `/`, `/inspect`, `/journey`, `/run`, `ƒ /api/agents/teaching` |
+
+Phase 6 independent architectural-acceptance gates on the same branch:
+
+| Command | Exit |
+|---|---|
+| targeted INV-22/23/65–72 | 0 — **14 passed** |
+| `npm run typecheck` | 0 |
+| `npm run lint` | 0 |
+| `npm test` | 0 — **236 passed, 2 todo** |
+| `npm run build` | 0 — routes `/`, `/inspect`, `/journey`, `/run`, `ƒ /api/agents/teaching` |
+
+INV-01 … INV-23 and INV-26 … INV-72 passing. INV-24 and INV-25 remain todo/pending for P7.
+
+No undeclared deviations. D-01 remains the only accepted product-spec deviation. Phase 5 remains architecturally accepted at commit `ac4892a3964930b75b8ab40245d9ff1f65119627`; Phase 6 is architecturally accepted at commit `e242f190c8db40d54a89d5f3d19e2d8f2196c187`.

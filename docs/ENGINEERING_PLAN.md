@@ -2,7 +2,7 @@
 
 **Owner:** Technical architect / build orchestrator
 **Normative source:** `TEACH_DASO_PRODUCT_AND_ARCHITECTURE.md`
-**Status:** Phases 1–4 implemented. Phase 5 is fully specified in `docs/phases/PHASE_05.md`; Phases 6–8 remain outlined and must be specified after their dependencies freeze.
+**Status:** Phases 1–5 architecturally accepted. Phase 6 is implemented on `orchestration/phase-06-plan` with gates green; it is not architecturally accepted. Phase 7 remains unblocked and outlined, and Phase 8 waits for P6/P7 acceptance.
 
 This document is subordinate to the product and architecture definition. Where this
 document and the specification disagree, the specification wins and this document is
@@ -64,6 +64,7 @@ teach-daso/
 │  │  ├─ policy/                    safety policy engine                      (Phase 4)
 │  │  ├─ compiler/                  ToolVersion compilation                   (Phase 5)
 │  │  ├─ runtime/                   deterministic evaluator + replay          (Phase 5)
+│  │  ├─ reuse/                     one-generation fork snapshot builder      (Phase 6)
 │  │  ├─ orchestrator/              teaching state machine                    (Phase 3)
 │  │  ├─ evidence/                  grounding validator for summaries         (Phase 7)
 │  │  └─ disclosure/                registry of honestly simulated capabilities

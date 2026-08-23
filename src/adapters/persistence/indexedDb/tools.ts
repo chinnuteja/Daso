@@ -3,6 +3,7 @@ import type { ChildId, ToolId } from '../../../core/schema/primitives';
 import { ToolDefinition } from '../../../core/schema/toolDefinition';
 import { ToolVersion } from '../../../core/schema/toolVersion';
 import { requireActiveVersion } from '../definitionPointer';
+import { rejectLineageOnDirectWrite } from '../forkCommit';
 import { STORE, type TeachDasoDatabase } from '../database';
 import { abortTransaction, getParsed } from './access';
 
@@ -21,6 +22,7 @@ export function createIndexedDbToolRepository(database: TeachDasoDatabase): Tool
 
     async save(definition: ToolDefinition): Promise<void> {
       const parsed = ToolDefinition.parse(definition);
+      rejectLineageOnDirectWrite(parsed);
       const tx = database.transaction([STORE.tools, STORE.toolVersions], 'readwrite');
       const toolStore = tx.objectStore(STORE.tools);
       const versionStore = tx.objectStore(STORE.toolVersions);

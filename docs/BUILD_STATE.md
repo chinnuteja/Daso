@@ -2,7 +2,7 @@
 
 **Maintained by:** technical architect / build orchestrator
 **Normative source:** `TEACH_DASO_PRODUCT_AND_ARCHITECTURE.md`
-**Last updated:** 2026-08-23. Phase 7 implemented on `orchestration/phase-07-plan`; gates green. Not architecturally accepted. INV-01–INV-79 asserted; no remaining todo invariants.
+**Last updated:** 2026-08-23. Phase 7 implemented at `3cb3bfc4b8665f4b13e5489975cd597db1dd2b68` on `orchestration/phase-07-plan`; gates green. Not architecturally accepted. INV-01–INV-79 asserted; no remaining todo invariants.
 
 This file is the single source of truth for what is built, what is proven, and what has
 drifted. A phase is not complete because it runs. It is complete when its acceptance tests

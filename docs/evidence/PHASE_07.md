@@ -5,10 +5,8 @@
 **Build ledger:** `docs/BUILD_STATE.md`
 **Branch:** `orchestration/phase-07-plan`
 **Base commit:** `213c03d74c8e471ab8d4e3c60d9e65e70215d409`
+**Implementation commit:** `3cb3bfc4b8665f4b13e5489975cd597db1dd2b68`
 **Status:** Implemented — gates green. Not architecturally accepted. The PR was not merged.
-
-The implementation commit SHA is the commit that adds this packet. It is recorded in
-`docs/BUILD_STATE.md` after `git rev-parse HEAD`.
 
 ---
 

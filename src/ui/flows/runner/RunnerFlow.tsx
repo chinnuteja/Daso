@@ -66,7 +66,9 @@ export function RunnerFlow() {
   }, [refresh]);
 
   const ready = load.status === 'ready' ? load.view : null;
-  const creditName = ready?.sourceAuthor?.displayName ?? ready?.owner.displayName ?? 'Maya';
+  const creditName = ready?.sourceDeleted
+    ? ready.owner.displayName
+    : (ready?.sourceAuthor?.displayName ?? ready?.owner.displayName ?? '');
 
   return (
     <TabletShell title="Runner Mode">
@@ -76,6 +78,7 @@ export function RunnerFlow() {
         title={ready?.tool.displayName ?? 'Runner Mode'}
         ownerName={ready?.owner.displayName ?? ''}
         sourceAuthorName={ready?.sourceAuthor?.displayName ?? null}
+        sourceDeleted={ready?.sourceDeleted ?? false}
         version={ready?.version ?? null}
         runtime={ready?.runtime ?? null}
         lastTrial={lastTrial}

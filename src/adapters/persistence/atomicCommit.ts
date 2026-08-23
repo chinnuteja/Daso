@@ -21,3 +21,13 @@ export function setFailAfterForkWrite(value: boolean): void {
 export function shouldFailAfterForkWrite(): boolean {
   return failAfterForkWrite;
 }
+
+let failAfterDeleteWrite = false;
+
+export function setFailAfterDeleteWrite(value: boolean): void {
+  failAfterDeleteWrite = value;
+}
+
+export function shouldFailAfterDeleteWrite(): boolean {
+  return failAfterDeleteWrite;
+}

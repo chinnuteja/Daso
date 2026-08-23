@@ -23,6 +23,11 @@ export interface ChildProfileRepository {
   get(childId: ChildId): Promise<ChildProfile | null>;
   save(profile: ChildProfile): Promise<void>;
   deleteProfile(childId: ChildId): Promise<void>;
+  /**
+   * One all-or-nothing commit: every owned tool graph plus this profile.
+   * Does not add an eighth repository family.
+   */
+  deleteProfileGraph(childId: ChildId): Promise<void>;
 }
 
 export interface ToolDefinitionRepository {
@@ -30,6 +35,11 @@ export interface ToolDefinitionRepository {
   listByOwner(childId: ChildId): Promise<readonly ToolDefinition[]>;
   save(definition: ToolDefinition): Promise<void>;
   deleteByTool(toolId: ToolId): Promise<void>;
+  /**
+   * One all-or-nothing commit of the complete tool graph. Does not add an
+   * eighth repository family. Never deletes the owner profile.
+   */
+  deleteToolGraph(toolId: ToolId): Promise<void>;
 }
 
 export interface ToolVersionRepository {

@@ -2,7 +2,7 @@
 
 **Maintained by:** technical architect / build orchestrator
 **Normative source:** `TEACH_DASO_PRODUCT_AND_ARCHITECTURE.md`
-**Last updated:** 2026-08-23. Phase 6 architecturally accepted at `e242f190c8db40d54a89d5f3d19e2d8f2196c187` after independent review. INV-01–INV-23 and INV-26–INV-72 passing; only INV-24–INV-25 remain pending for P7.
+**Last updated:** 2026-08-23. Phase 7 implemented on `orchestration/phase-07-plan`; gates green. Not architecturally accepted. INV-01–INV-79 asserted; no remaining todo invariants.
 
 This file is the single source of truth for what is built, what is proven, and what has
 drifted. A phase is not complete because it runs. It is complete when its acceptance tests
@@ -20,11 +20,10 @@ are named here and passing, and no undeclared deviation exists.
 | P4 | Teaching Agent & Approval Gate | M3 | **Implemented — gates green** | 2026-08-20 |
 | P5 | Compiler & Deterministic Runtime | M4 | **Architecturally accepted — gates green** | 2026-08-23 |
 | P6 | Keep & Reuse | M5 | **Architecturally accepted — gates green** | 2026-08-23 |
-| P7 | Parent Evidence & Data Rights | M6 | Unblocked | — |
+| P7 | Parent Evidence & Data Rights | M6 | **Implemented — gates green; not architecturally accepted** | — |
 | P8 | Founder-Facing Polish | M7 | Blocked on P6/P7 | — |
 
-P5 is frozen. P6 and P7 are now parallel-safe against its accepted compiler, runtime-result,
-version-activation, and replay contracts. P8 waits for both product surfaces.
+P5 is frozen. P6 is architecturally accepted. P7 is implemented and gated; it is not architecturally accepted. P8 waits for P7 acceptance.
 
 ---
 
@@ -35,7 +34,7 @@ currently exists. "Asserted" means a named test passes. Nothing else counts.
 
 | Invariant | Spec ref | Enforcing test | Phase | State |
 |---|---|---|---|---|
-| Only Teaching Agent and Evidence Agent are model-driven | §8 | INV-01, INV-38, INV-48 | P1, P3, P4 | **Asserted** (INV-01 and INV-38 amended in P4; INV-48 is the P4 path count) |
+| Only Teaching Agent and Evidence Agent are model-driven | §8 | INV-01, INV-38, INV-48, INV-73 | P1, P3, P4, P7 | **Asserted** (INV-01/48/52 amended in P7 for the second permitted route; INV-38 tightened so Runner reaches no evidence source) |
 | Teaching Orchestrator is deterministic / state-machine driven | §7.2 | INV-17, INV-36, INV-37 | P3 | **Asserted** |
 | AI cannot approve its own mutations | §7.3, §12 | INV-10, INV-41, INV-47 | P1, P3, P4 | **Asserted** |
 | Every material compiled behavior has provenance | §4.1, §7.6 | INV-09, INV-11 | P1 | **Asserted** |
@@ -43,14 +42,14 @@ currently exists. "Asserted" means a named test passes. Nothing else counts.
 | Runner Mode makes no model calls | §7.5, §14 | INV-43, INV-22 | P3, P6 | **Asserted** (INV-43 precursor remains; INV-22 promoted) |
 | Identical version + trial data yields identical results | §17 | INV-03, INV-14, INV-15, INV-20 | P1, P5 | **Asserted** (INV-20 promoted in P5) |
 | Child data is local-first | §11.1 | INV-26 | P2 | **Asserted** (`inv-26-local-first.test.ts`) |
-| Parent summaries cite supporting evidence events | §7.8, §12 | INV-24 | P7 | Pending |
+| Parent summaries cite supporting evidence events | §7.8, §12 | INV-24 | P7 | **Asserted** |
 | Generated tools never execute arbitrary generated code | §5, §7.5 | INV-04, INV-08 | P1 | **Asserted** |
 | Simulated capabilities are explicitly disclosed | §15 | INV-16, INV-46 | P1, P3 | **Asserted** (capture-screen surface rendered) |
 | Flight Lab is the only implemented tool kind | §15, §20 | INV-05 | P1 | **Asserted** |
 | Domain remains portable to native Android | §13 | INV-02, INV-34 | P1, P2 | **Asserted** |
 | Safety policy boundaries are enforced in code | §7.5 | INV-19 | P4 | **Asserted** |
 | Reuse forks rather than mutating the original | §12 | INV-23 | P6 | **Asserted** |
-| Deletion is real, not decorative | §11.4 | INV-31, INV-25 | P2, P7 | **INV-31 asserted** (storage-level). INV-25 pending P7 |
+| Deletion is real, not decorative | §11.4 | INV-31, INV-25 | P2, P7 | **Asserted** |
 
 P2 also asserts INV-27 (reload), INV-28 (no event edit), INV-29 (integrity), INV-30 (two implementations), INV-32 (no media), INV-33 (id counters), INV-35 (inspection is a projection).
 
@@ -60,7 +59,9 @@ P4 also asserts INV-18 (validation is code), INV-47 (agent cannot approve), INV-
 
 P5 asserts INV-20 and INV-21 and adds INV-57 (atomic compilation commit), INV-58 (no dangling active version), INV-59 (idempotent compilation), INV-60 (immutable version history), INV-61 (pure runtime), INV-62 (exact metric/ranking contract), INV-63 (trial resolves active version), and INV-64 (memory + IndexedDB/reopen milestone proof).
 
-P6 promotes INV-22 and INV-23 and adds INV-65 (saved-tile grounding), INV-66 (fork provenance), INV-67 (atomic fork), INV-68 (fork idempotency), INV-69 (runner active version), INV-70 (Day-2 inherited rule), INV-71 (IndexedDB reopen of source and fork), and INV-72 (runner integrity failure). Only INV-24 and INV-25 remain pending for P7. Phase 6 is architecturally accepted.
+P6 promotes INV-22 and INV-23 and adds INV-65 (saved-tile grounding), INV-66 (fork provenance), INV-67 (atomic fork), INV-68 (fork idempotency), INV-69 (runner active version), INV-70 (Day-2 inherited rule), INV-71 (IndexedDB reopen of source and fork), and INV-72 (runner integrity failure). Phase 6 is architecturally accepted.
+
+P7 promotes INV-24 and INV-25 and adds INV-73 (evidence projection / two-route R3), INV-74 (evidence route validation), INV-75 (canonical export), INV-76 (atomic delete), INV-77 (orphaned fork), INV-78 (parent evidence flow), and INV-79 (runner reaches no evidence). Phase 7 is implemented and gated; it is not architecturally accepted.
 
 ---
 
@@ -69,10 +70,13 @@ P6 promotes INV-22 and INV-23 and adds INV-65 (saved-tile grounding), INV-66 (fo
 | ID | Deviation | Rationale | Status |
 |---|---|---|---|
 | D-01 | Approval is recorded as a separate child-actor ledger entry referencing a candidate entry, rather than as a boolean the event author writes. §9.4's `childApproved` is preserved as a derived read-model field so stored and exported records match the documented shape. | An append-only ledger (§10) cannot have a field flipped after the fact, and any actor able to write its own approval flag can approve its own mutation, defeating §7.3 and §12. | **Accepted by owner** |
+| D-02 | Scene 8's parent-summary prediction bullet is not shown. P3 persists only the `prediction_recorded` transition; it does not persist which design Maya predicted or any wording of that prediction. P7 therefore shows the stored question and the suggested conversation, and does not invent a prediction. | Manufacturing a predicted design would be an ungrounded claim. The frozen local data model cannot demonstrate Scene 8's prediction bullet. | **Proposed** |
 
 Phase 4 introduces no new deviations from the product specification. D-01 remains the only accepted product-spec deviation.
 
 Phase 5 introduces no new product-spec deviations. Ranking now omits inactive metric fields on `RuntimeResult` (decision 31); that is a P5 shape correction, not a spec deviation. `tools.save` pointer validation (decision 32) is the required C.2 enforcement. D-01 remains the only accepted product-spec deviation.
+
+Phase 7 proposes D-02. It is not owner-accepted.
 
 ### Considered and rejected
 
@@ -133,6 +137,13 @@ Phase 5 introduces no new product-spec deviations. Ranking now omits inactive me
 | 39 | `tools.save` and `saveAndActivate` reject any definition with `forkedFrom`; only `saveForkSnapshot` may persist lineage | A P1 review blocker: otherwise a caller can create a lineage-bearing tool without an atomic re-keyed ledger. Ordinary P5 compilation is unchanged. |
 | 40 | `saveForkSnapshot` loads the source ledger in the same atomic operation, checks both ledgers with `assertLedgerIntegrity` plus `appendEntries`, rejects same-owner forks, and requires `assertRekeyedLedger` before the first target write | A P1 review blocker: fold equality alone does not prove the target is a complete remapped copy of the named source snapshot. |
 | 41 | Accept Phase 6 at commit `e242f190c8db40d54a89d5f3d19e2d8f2196c187` | Independent review inspected the atomic re-key proof and direct-write rejection paths, inspected the real Day-2 evidence, and reran 14 targeted tests, typecheck, lint, the full suite, and production build. |
+| 42 | Add `src/app/api/agents/evidence/route.ts` as R3's second and final model path | PHASE_07 C.2. Credentials stay server-only. INV-01/48/52 are amended so both named routes exist; a host/credential/SDK anywhere else still fails. |
+| 43 | Evidence Agent returns only `EvidenceSelection { evidenceEventIds }`; `buildParentSummary` renders and parses frozen `ParentSummary` | PHASE_07 C.1. No free-text model claim is stored. `ParentSummary` is not widened. |
+| 44 | Default parent composition uses `createScriptedEvidenceSource`; the remote client exists but is not imported by Journey or Runner | PHASE_07 C.2. The parent flow must work with network disabled. |
+| 45 | Extend existing repository families with `deleteToolGraph` and `deleteProfileGraph` rather than an eighth family or store | PHASE_07 C.5. One memory snapshot / one IndexedDB transaction. `setFailAfterDeleteWrite` is the INV-76 injected-failure switch. |
+| 46 | A fork whose source profile is missing is a valid Runner `ready` state and uses anonymous deleted-source copy | PHASE_07 C.5. P6 source-present Day-2 behaviour is unchanged. The runner does not read the source tool as a fallback. |
+| 47 | Browser `Blob` download stays in `src/ui/flows/parentEvidence/downloadExport.ts` | PHASE_07 C.4. `src/core` remains Blob-free. |
+| 48 | INV-52 client-chunk walk timeout raised to 60s | Walking `.next/static` on this Windows machine exceeded Vitest's 5s default. The assertion is unchanged. |
 
 ---
 
@@ -143,7 +154,7 @@ Phase 5 introduces no new product-spec deviations. Ranking now omits inactive me
 - **E.3 Teaching Agent drifts into a chatbot** — the response union is frozen and validated server-side (INV-49, INV-42, INV-47). An unparsed model response never leaves the route.
 - **E.4 Orchestrator asks the model what to do next** — INV-17 / INV-36 / INV-37: total pure table, no I/O in the kernel. Unchanged in P4.
 - **E.6 Nondeterminism in results** — INV-03/14/15 plus INV-20 and INV-62: millimetre integers, total ranking order, byte-identical replay.
-- **E.10 Model credentials in the client** — INV-52: credential read only in the teaching route; built client chunks have no host or key-shaped string.
+- **E.10 Model credentials in the client** — INV-52: credential read only in the teaching and evidence routes; built client chunks have no host or key-shaped string.
 - **E.11 Persistence drift silently drops events** — INV-29 integrity check on load; unique `[toolId, sequence]` index.
 
 ---
@@ -151,7 +162,8 @@ Phase 5 introduces no new product-spec deviations. Ranking now omits inactive me
 ## 6. Simulation disclosures
 
 Unchanged from Phase 1. Registry at `src/core/disclosure/simulations.ts`. Capture-screen
-entries are rendered by `CaptureDisclosures` (INV-46).
+entries are rendered by `CaptureDisclosures` (INV-46). Parent-view
+`parent_summary_delivery` is rendered on `/parent`.
 
 ---
 
@@ -162,7 +174,8 @@ Phase 2 D.4 packet: `docs/evidence/PHASE_02.md`.
 Phase 3 D.4 packet: `docs/evidence/PHASE_03.md`.
 Phase 4 D.4 packet: `docs/evidence/PHASE_04.md`.
 Phase 5 D.4 packet: `docs/evidence/PHASE_05.md`.
-Phase 6 E.4 packet: `docs/evidence/PHASE_06.md`. Phase 6 is implemented and gated; it is not architecturally accepted.
+Phase 6 E.4 packet: `docs/evidence/PHASE_06.md`. Phase 6 is architecturally accepted.
+Phase 7 E.2 packet: `docs/evidence/PHASE_07.md`. Phase 7 is implemented and gated; it is not architecturally accepted.
 
 Gate commands independently rerun on 2026-08-23 for Phase 5 architectural acceptance:
 
@@ -194,6 +207,17 @@ Phase 6 independent architectural-acceptance gates on the same branch:
 | `npm test` | 0 — **236 passed, 2 todo** |
 | `npm run build` | 0 — routes `/`, `/inspect`, `/journey`, `/run`, `ƒ /api/agents/teaching` |
 
-INV-01 … INV-23 and INV-26 … INV-72 passing. INV-24 and INV-25 remain todo/pending for P7.
+Phase 7 implementation gates on `orchestration/phase-07-plan` (not an acceptance run):
 
-No undeclared deviations. D-01 remains the only accepted product-spec deviation. Phase 5 remains architecturally accepted at commit `ac4892a3964930b75b8ab40245d9ff1f65119627`; Phase 6 is architecturally accepted at commit `e242f190c8db40d54a89d5f3d19e2d8f2196c187`.
+| Command | Exit |
+|---|---|
+| targeted INV-01/24/25/48/52/73–79 | 0 — **25 passed** |
+| `npm run typecheck` | 0 |
+| `npm run lint` | 0 |
+| `npm test` | 0 — **265 passed** |
+| `npm run build` | 0 — routes `/`, `/inspect`, `/journey`, `/parent`, `/run`, `ƒ /api/agents/teaching`, `ƒ /api/agents/evidence` |
+| `npm test` (after build) | 0 — **265 passed** |
+
+INV-01 … INV-79 passing. No remaining todo invariants.
+
+No undeclared deviations. D-01 remains the only accepted product-spec deviation. D-02 is proposed by Phase 7 and is not owner-accepted. Phase 5 remains architecturally accepted at commit `ac4892a3964930b75b8ab40245d9ff1f65119627`; Phase 6 is architecturally accepted at commit `e242f190c8db40d54a89d5f3d19e2d8f2196c187`. Phase 7 is not architecturally accepted.

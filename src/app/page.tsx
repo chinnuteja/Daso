@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 import { openIndexedDbRepositories } from '../adapters/persistence';
 import {
@@ -15,9 +15,26 @@ import { HomeScreen } from '../ui/screens/HomeScreen';
 import { TabletShell } from '../ui/shell/TabletShell';
 
 export default function HomePage() {
+  return (
+    <Suspense
+      fallback={
+        <TabletShell title="Teach Daso">
+          <p>Loading saved tools…</p>
+        </TabletShell>
+      }
+    >
+      <HomeContents />
+    </Suspense>
+  );
+}
+
+function HomeContents() {
   const [tiles, setTiles] = useState<readonly SavedToolTileView[]>([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const deletedToolId = searchParams.get('deleted');
+  const deletedProfileId = searchParams.get('profileDeleted');
 
   useEffect(() => {
     let cancelled = false;
@@ -39,11 +56,16 @@ export default function HomePage() {
       <HomeScreen
         tiles={tiles}
         loading={loading}
+        deletedToolId={deletedToolId}
+        deletedProfileId={deletedProfileId}
         onStartTeaching={() => {
           router.push('/journey');
         }}
         onOpenRunner={(toolId, viewerChildId) => {
           router.push(`/run?tool=${toolId}&viewer=${viewerChildId}`);
+        }}
+        onParentEvidence={(toolId) => {
+          router.push(`/parent?tool=${toolId}`);
         }}
         onDayTwo={(toolId) => {
           void (async () => {

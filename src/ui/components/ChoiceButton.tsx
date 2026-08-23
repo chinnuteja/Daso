@@ -7,6 +7,7 @@ export function ChoiceButton(props: {
   readonly onClick?: () => void;
   readonly type?: 'button' | 'submit';
   readonly kind?: 'child' | 'suggest';
+  readonly disabled?: boolean;
 }) {
   const kindClass = props.kind === 'suggest' ? styles.suggest : styles.child;
   return (
@@ -14,6 +15,7 @@ export function ChoiceButton(props: {
       type={props.type ?? 'button'}
       className={`${styles.button} ${kindClass}`}
       onClick={props.onClick}
+      disabled={props.disabled}
     >
       {props.children}
     </button>

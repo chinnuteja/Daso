@@ -1,6 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { persistGraph, setFailAfterForkWrite, setFailAfterVersionWrite } from '../../src/adapters/persistence';
+import {
+  persistGraph,
+  setFailAfterDeleteWrite,
+  setFailAfterForkWrite,
+  setFailAfterVersionWrite,
+} from '../../src/adapters/persistence';
 import { allocateTargetToolId, buildForkSnapshot } from '../../src/core/reuse';
 import { EventId } from '../../src/core/schema/primitives';
 import { LEO_PROFILE } from '../../src/ui/flows/runner/secondChild';
@@ -42,6 +47,7 @@ export function defineRepositoryConformance(
     afterEach(async () => {
       setFailAfterVersionWrite(false);
       setFailAfterForkWrite(false);
+      setFailAfterDeleteWrite(false);
       await harness.teardown();
     });
 
@@ -406,6 +412,52 @@ export function defineRepositoryConformance(
       expect(await harness.repositories.versions.listByTool('mayas-flight-lab')).toEqual([]);
       expect(await harness.repositories.ledger.listByTool('mayas-flight-lab')).toEqual([]);
       expect(await harness.repositories.trials.listByTool('mayas-flight-lab')).toEqual([]);
+    });
+
+    it('deleteToolGraph empties all six tool streams and leaves the owner profile', async () => {
+      const graph = flightLabGraph();
+      await persistGraph(harness.repositories, graph);
+      await harness.repositories.tools.deleteToolGraph('mayas-flight-lab');
+      expect(await harness.repositories.tools.get('mayas-flight-lab')).toBeNull();
+      expect(await harness.repositories.versions.listByTool('mayas-flight-lab')).toEqual([]);
+      expect(await harness.repositories.ledger.listByTool('mayas-flight-lab')).toEqual([]);
+      expect(await harness.repositories.trials.listByTool('mayas-flight-lab')).toEqual([]);
+      expect(await harness.repositories.grants.listByTool('mayas-flight-lab')).toEqual([]);
+      expect(await harness.repositories.summaries.listByTool('mayas-flight-lab')).toEqual([]);
+      expect(await harness.repositories.profiles.get(graph.profile.childId)).not.toBeNull();
+      await harness.repositories.tools.deleteToolGraph('mayas-flight-lab');
+    });
+
+    it('deleteProfileGraph removes owned tools and the profile, not another child', async () => {
+      const graph = flightLabGraph();
+      await persistGraph(harness.repositories, graph);
+      await harness.repositories.profiles.save(LEO_PROFILE);
+      const source = graph.tools[0];
+      const sourceVersion = graph.versions[1];
+      expect(source).toBeDefined();
+      expect(sourceVersion).toBeDefined();
+      if (source === undefined || sourceVersion === undefined) {
+        return;
+      }
+      const snapshot = buildForkSnapshot({
+        sourceDefinition: source,
+        sourceVersion,
+        sourceLedger: graph.entries,
+        targetToolId: allocateTargetToolId(source.toolId, []),
+        targetOwnerChildId: LEO_PROFILE.childId,
+        targetDisplayName: "Leo's copy of Maya's Flight Lab",
+        replacementEventIds: graph.entries.map((_, index) =>
+          EventId.parse(`event_${String(200 + index).padStart(3, '0')}`),
+        ),
+        targetVersionId: 'tool_version_200',
+        forkedAt: '2026-08-21T09:05:00Z',
+      });
+      await harness.repositories.versions.saveForkSnapshot(snapshot);
+      await harness.repositories.profiles.deleteProfileGraph(graph.profile.childId);
+      expect(await harness.repositories.profiles.get(graph.profile.childId)).toBeNull();
+      expect(await harness.repositories.tools.get(source.toolId)).toBeNull();
+      expect(await harness.repositories.tools.get(snapshot.definition.toolId)).not.toBeNull();
+      expect(await harness.repositories.profiles.get(LEO_PROFILE.childId)).not.toBeNull();
     });
   });
 }

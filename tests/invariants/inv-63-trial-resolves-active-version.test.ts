@@ -33,6 +33,7 @@ function withMockedToolGet(base: Repositories, get: Repositories['tools']['get']
       listByOwner: (childId) => base.tools.listByOwner(childId),
       save: (definition) => base.tools.save(definition),
       deleteByTool: (toolId) => base.tools.deleteByTool(toolId),
+      deleteToolGraph: (toolId) => base.tools.deleteToolGraph(toolId),
     },
   };
 }

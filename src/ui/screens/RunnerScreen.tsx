@@ -6,6 +6,7 @@ import type { ReadingBand } from '../../core/schema/vocabulary';
 import type { AuthorshipExplanationEntry } from '../../core/inspection/authorshipView';
 import type { ToolVersion } from '../../core/schema/toolVersion';
 import { ChoiceButton } from '../components/ChoiceButton';
+import { DELETED_SOURCE_COPY } from '../copy/parent';
 import { WhyPanel } from './WhyPanel';
 
 import styles from './screens.module.css';
@@ -18,6 +19,7 @@ export function RunnerScreen(props: {
   readonly title: string;
   readonly ownerName: string;
   readonly sourceAuthorName: string | null;
+  readonly sourceDeleted: boolean;
   readonly version: ToolVersion | null;
   readonly runtime: RuntimeResult | null;
   readonly lastTrial: ExperimentTrial | null;
@@ -49,6 +51,7 @@ export function RunnerScreen(props: {
           <section className={styles.tile}>
             <p>Owner: {props.ownerName}</p>
             {props.sourceAuthorName !== null ? <p>Inherited from {props.sourceAuthorName}</p> : null}
+            {props.sourceDeleted ? <p>{DELETED_SOURCE_COPY}</p> : null}
             <p>Saved version: {props.version.versionId}</p>
             <p>Comparisons: {props.version.metrics.join(', ') || 'none'}</p>
             <p>Rules: {props.version.rules.map((rule) => rule.ruleId).join(', ') || 'none'}</p>
@@ -60,7 +63,7 @@ export function RunnerScreen(props: {
               {props.lastTrial.validUnderCurrentVersion ? 'counted' : 'not counted'}
             </p>
           ) : null}
-          {inheritedRuleCopy(props.version, props.sourceAuthorName, props.explanation)}
+          {inheritedRuleCopy(props.version, props.sourceAuthorName, props.sourceDeleted, props.explanation)}
           {props.needsCopy ? (
             <ChoiceButton onClick={props.onMakeCopy}>Make my copy</ChoiceButton>
           ) : null}
@@ -99,11 +102,9 @@ function RankingPanel(props: { readonly runtime: RuntimeResult }) {
 function inheritedRuleCopy(
   version: ToolVersion,
   sourceAuthorName: string | null,
+  sourceDeleted: boolean,
   explanation: readonly AuthorshipExplanationEntry[],
 ): ReactNode {
-  if (sourceAuthorName === null) {
-    return null;
-  }
   const taught = explanation.find((entry) => entry.attribution === 'child_taught');
   const rule = version.rules.find((candidate) =>
     taught !== undefined && taught.subject.kind === 'rule'
@@ -111,6 +112,12 @@ function inheritedRuleCopy(
       : false,
   );
   if (rule === undefined || taught === undefined || taught.subject.kind !== 'rule') {
+    return null;
+  }
+  if (sourceDeleted) {
+    return <p>A deleted profile taught {taught.subject.ruleId}. An obstructed throw is not counted.</p>;
+  }
+  if (sourceAuthorName === null) {
     return null;
   }
   return (

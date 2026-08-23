@@ -19,6 +19,7 @@ export interface RunnerView {
   readonly viewer: ChildProfile;
   readonly owner: ChildProfile;
   readonly sourceAuthor: ChildProfile | null;
+  readonly sourceDeleted: boolean;
   readonly ledger: readonly LedgerEntry[];
   readonly trials: readonly ExperimentTrial[];
   readonly runtime: RuntimeResult;
@@ -71,11 +72,10 @@ export async function loadRunner(
   }
 
   let sourceAuthor: ChildProfile | null = null;
+  let sourceDeleted = false;
   if (tool.forkedFrom !== undefined) {
     sourceAuthor = await repositories.profiles.get(tool.forkedFrom.ownerChildId);
-    if (sourceAuthor === null) {
-      return { status: 'integrity_error', message: RUNNER_INTEGRITY_COPY };
-    }
+    sourceDeleted = sourceAuthor === null;
   }
 
   const ownsTool = viewer.childId === tool.ownerChildId;
@@ -87,6 +87,7 @@ export async function loadRunner(
       viewer,
       owner,
       sourceAuthor,
+      sourceDeleted,
       ledger,
       trials,
       runtime: replay(version, trials),

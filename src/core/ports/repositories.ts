@@ -36,6 +36,11 @@ export interface ToolVersionRepository {
   listByTool(toolId: ToolId): Promise<readonly ToolVersion[]>;
   /** Rejects an identifier that already exists: a compiled version is immutable. */
   save(version: ToolVersion): Promise<void>;
+  /**
+   * One all-or-nothing commit: persist the immutable version and activate it on the
+   * tool definition. Does not add an eighth repository family.
+   */
+  saveAndActivate(version: ToolVersion, definition: ToolDefinition): Promise<void>;
   deleteByTool(toolId: ToolId): Promise<void>;
 }
 

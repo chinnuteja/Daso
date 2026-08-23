@@ -2,7 +2,6 @@ import { TeachingMove, TeachingRequest, type TeachingSource } from '../../core/p
 import type { CandidateMutation } from '../../core/schema/mutation';
 
 export const FLIGHT_LAB_TOOL_ID = 'mayas-flight-lab';
-export const FLIGHT_LAB_VERSION_PLACEHOLDER = 'tool_version_001';
 
 export const FLIGHT_LAB_GOAL = 'I want to find out which paper airplane is best.';
 

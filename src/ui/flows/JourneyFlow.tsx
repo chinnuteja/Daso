@@ -15,7 +15,6 @@ import {
   FLIGHT_LAB_CORRECTION,
   FLIGHT_LAB_GOAL,
   FLIGHT_LAB_TOOL_ID,
-  FLIGHT_LAB_VERSION_PLACEHOLDER,
   NOTE_INPUT,
   OBSTRUCTION_SUGGESTION,
   createScriptedTeachingSource,
@@ -36,10 +35,10 @@ import type { Repositories } from '../../core/ports/repositories';
 import type { TeachingMove, TeachingSource } from '../../core/ports/teaching';
 import { ChildProfile } from '../../core/schema/childProfile';
 import type { EventId } from '../../core/schema/primitives';
-import { ToolDefinition } from '../../core/schema/toolDefinition';
-import type { ToolVersionBody } from '../../core/schema/toolVersion';
+import type { ToolVersion } from '../../core/schema/toolVersion';
 import type { ExperimentTrial } from '../../core/schema/experimentTrial';
 import type { ReadingBand } from '../../core/schema/vocabulary';
+import type { RuntimeResult } from '../../core/runtime';
 import { policyRejectionCopy, validationRejectionCopy } from '../copy/rejections';
 import { stateCopy } from '../copy/states';
 import { CaptureTrialScreen } from '../screens/CaptureTrialScreen';
@@ -91,7 +90,9 @@ export function JourneyFlow() {
   const [pendingSuggested, setPendingSuggested] = useState(false);
   const [question, setQuestion] = useState<string | null>(null);
   const [trials, setTrials] = useState<readonly ExperimentTrial[]>([]);
-  const [compiledBody, setCompiledBody] = useState<ToolVersionBody | null>(null);
+  const [compiledVersion, setCompiledVersion] = useState<ToolVersion | null>(null);
+  const [runtimeResult, setRuntimeResult] = useState<RuntimeResult | null>(null);
+  const [previousRuntimeResult, setPreviousRuntimeResult] = useState<RuntimeResult | null>(null);
   const [explanation, setExplanation] = useState<readonly AuthorshipExplanationEntry[]>([]);
   const [readingBand, setReadingBand] = useState<ReadingBand>(MAYA.readingBand);
   const [childName, setChildName] = useState(MAYA.displayName);
@@ -128,19 +129,6 @@ export function JourneyFlow() {
       const existing = await repositories.profiles.get(MAYA.childId);
       if (existing === null) {
         await repositories.profiles.save(MAYA);
-      }
-      const tool = await repositories.tools.get(FLIGHT_LAB_TOOL_ID);
-      if (tool === null) {
-        await repositories.tools.save(
-          ToolDefinition.parse({
-            toolId: FLIGHT_LAB_TOOL_ID,
-            ownerChildId: MAYA.childId,
-            displayName: "Maya's Flight Lab",
-            kind: 'experiment_comparator',
-            currentVersionId: FLIGHT_LAB_VERSION_PLACEHOLDER,
-            createdAt: clock.now(),
-          }),
-        );
       }
       await refresh(repositories);
       setMessage('Local store is ready.');
@@ -181,6 +169,10 @@ export function JourneyFlow() {
       pendingCandidateId,
       candidate: context.candidate,
       trial: context.trial,
+      toolDraft: {
+        ownerChildId: MAYA.childId,
+        displayName: "Maya's Flight Lab",
+      },
     });
     if (executed.rejection !== null) {
       const copy =
@@ -195,8 +187,10 @@ export function JourneyFlow() {
     await session.saveCounters();
     setState(result.next);
     setPendingCandidateId(executed.pendingCandidateId);
-    if (executed.compiledBody !== null) {
-      setCompiledBody(executed.compiledBody);
+    if (executed.compiledVersion !== null) {
+      setCompiledVersion(executed.compiledVersion);
+      setRuntimeResult(executed.runtimeResult);
+      setPreviousRuntimeResult(executed.previousRuntimeResult);
     }
     if (result.intents.includes('request_interpretation')) {
       await interpretIfNeeded(result.next, context.originalInput ?? FLIGHT_LAB_GOAL);
@@ -370,7 +364,6 @@ export function JourneyFlow() {
               {
                 trial: {
                   toolId: FLIGHT_LAB_TOOL_ID,
-                  toolVersionIdAtCapture: FLIGHT_LAB_VERSION_PLACEHOLDER,
                   designName: fields.designName,
                   distanceM: fields.distanceM,
                   obstruction: fields.obstruction,
@@ -462,7 +455,9 @@ export function JourneyFlow() {
       {state === 'COMPILE' ? (
         <CompilePreviewScreen
           prompt={prompt}
-          body={compiledBody}
+          version={compiledVersion}
+          runtime={runtimeResult}
+          previousRuntime={previousRuntimeResult}
           explanation={explanation}
           readingBand={readingBand}
           childName={childName}

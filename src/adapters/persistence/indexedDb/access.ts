@@ -1,7 +1,17 @@
 import type { StoreNames } from 'idb';
 import type { z } from 'zod';
 
-import type { TeachDasoDatabase, TeachDasoDb } from '../database';
+import { PersistenceError, type TeachDasoDatabase, type TeachDasoDb } from '../database';
+
+export async function abortTransaction(
+  tx: { abort(): void; done: Promise<void> },
+  message: string,
+): Promise<never> {
+  const settled = tx.done.catch(() => undefined);
+  tx.abort();
+  await settled;
+  throw new PersistenceError(message);
+}
 
 export async function getParsed<T>(
   database: TeachDasoDatabase,

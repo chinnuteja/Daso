@@ -1,6 +1,8 @@
 import type { ToolDefinitionRepository } from '../../../core/ports/repositories';
 import type { ChildId, ToolId } from '../../../core/schema/primitives';
 import { ToolDefinition } from '../../../core/schema/toolDefinition';
+import { ToolVersion } from '../../../core/schema/toolVersion';
+import { requireActiveVersion } from '../definitionPointer';
 import type { MemoryRecords } from './store';
 
 export function createMemoryToolRepository(records: MemoryRecords): ToolDefinitionRepository {
@@ -26,6 +28,17 @@ export function createMemoryToolRepository(records: MemoryRecords): ToolDefiniti
 
     async save(definition: ToolDefinition): Promise<void> {
       const parsed = ToolDefinition.parse(definition);
+      const previous = records.tools.get(parsed.toolId);
+      const rawVersion = records.versions.get(parsed.currentVersionId);
+      const version = rawVersion === undefined ? null : ToolVersion.parse(rawVersion);
+      try {
+        requireActiveVersion(parsed, version);
+      } catch (error) {
+        if (previous !== undefined) {
+          records.tools.set(parsed.toolId, previous);
+        }
+        throw error;
+      }
       records.tools.set(parsed.toolId, parsed);
     },
 

@@ -1,8 +1,10 @@
 import type { ToolDefinitionRepository } from '../../../core/ports/repositories';
 import type { ChildId, ToolId } from '../../../core/schema/primitives';
 import { ToolDefinition } from '../../../core/schema/toolDefinition';
+import { ToolVersion } from '../../../core/schema/toolVersion';
+import { requireActiveVersion } from '../definitionPointer';
 import { STORE, type TeachDasoDatabase } from '../database';
-import { getParsed } from './access';
+import { abortTransaction, getParsed } from './access';
 
 export function createIndexedDbToolRepository(database: TeachDasoDatabase): ToolDefinitionRepository {
   return {
@@ -18,7 +20,22 @@ export function createIndexedDbToolRepository(database: TeachDasoDatabase): Tool
     },
 
     async save(definition: ToolDefinition): Promise<void> {
-      await database.put(STORE.tools, ToolDefinition.parse(definition));
+      const parsed = ToolDefinition.parse(definition);
+      const tx = database.transaction([STORE.tools, STORE.toolVersions], 'readwrite');
+      const toolStore = tx.objectStore(STORE.tools);
+      const versionStore = tx.objectStore(STORE.toolVersions);
+      const rawVersion = await versionStore.get(parsed.currentVersionId);
+      const version = rawVersion === undefined ? null : ToolVersion.parse(rawVersion);
+      try {
+        requireActiveVersion(parsed, version);
+      } catch (error) {
+        await abortTransaction(
+          tx,
+          error instanceof Error ? error.message : 'definition pointer is invalid',
+        );
+      }
+      await toolStore.put(parsed);
+      await tx.done;
     },
 
     async deleteByTool(toolId: ToolId): Promise<void> {

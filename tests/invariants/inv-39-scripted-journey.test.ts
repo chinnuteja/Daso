@@ -22,7 +22,11 @@ describe('INV-39 — the full scripted journey completes (Milestone 1 verificati
     const versions = await result.repositories.versions.listByTool(FLIGHT_LAB_TOOL_ID);
 
     expect(trials).toHaveLength(4);
-    expect(versions).toEqual([]);
+    expect(versions).toHaveLength(2);
+    expect(versions.map((version) => version.versionId)).toEqual([
+      'tool_version_001',
+      'tool_version_002',
+    ]);
 
     const approvals = entries.filter(
       (entry): entry is Extract<(typeof entries)[number], { entryKind: 'approval' }> =>

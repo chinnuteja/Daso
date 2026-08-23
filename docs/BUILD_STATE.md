@@ -2,7 +2,7 @@
 
 **Maintained by:** technical architect / build orchestrator
 **Normative source:** `TEACH_DASO_PRODUCT_AND_ARCHITECTURE.md`
-**Last updated:** 2026-08-23. Phase 5 architecturally accepted at `ac4892a3964930b75b8ab40245d9ff1f65119627`. INV-01–INV-21 and INV-26–INV-64 passing; INV-22–INV-25 pending by specification.
+**Last updated:** 2026-08-23. Phase 5 merged to `main` at `364c02c91bcfe8ae970c34bfa150d7f068baad57`; Phase 6 specified in `docs/phases/PHASE_06.md`. INV-01–INV-21 and INV-26–INV-64 passing; INV-22–INV-25 pending by specification.
 
 This file is the single source of truth for what is built, what is proven, and what has
 drifted. A phase is not complete because it runs. It is complete when its acceptance tests
@@ -19,7 +19,7 @@ are named here and passing, and no undeclared deviation exists.
 | P3 | Orchestrator & Tablet Shell | M1 | **Implemented — gates green** | 2026-08-20 |
 | P4 | Teaching Agent & Approval Gate | M3 | **Implemented — gates green** | 2026-08-20 |
 | P5 | Compiler & Deterministic Runtime | M4 | **Architecturally accepted — gates green** | 2026-08-23 |
-| P6 | Keep & Reuse | M5 | Unblocked | — |
+| P6 | Keep & Reuse | M5 | **Specified — ready for implementation** | — |
 | P7 | Parent Evidence & Data Rights | M6 | Unblocked | — |
 | P8 | Founder-Facing Polish | M7 | Blocked on P6/P7 | — |
 
@@ -123,6 +123,8 @@ Phase 5 introduces no new product-spec deviations. Ranking now omits inactive me
 | 31 | Ranking and `RuntimeResult` metric fields follow `ToolVersion.metrics`; inactive metrics are omitted | Architectural review before P5 acceptance: replay must not compute or expose a comparison the child did not approve |
 | 32 | `tools.save` rejects a missing or other-tool `currentVersionId` in the same write; `persistGraph` saves versions before tools | Architectural review: a stored definition may not point at an absent or foreign version. INV-63 corrupt-state setup uses a mocked `tools.get` |
 | 33 | Accept Phase 5 at commit `ac4892a3964930b75b8ab40245d9ff1f65119627` | Independent review reran INV-20/21/57–64, typecheck, lint, full suite, and build; inspected the real v2 compile-preview artifact; and found no remaining automatic rejection condition |
+| 34 | P6 adds optional strict `ToolDefinition.forkedFrom { toolId, versionId, ownerChildId }` | A second-child-owned fork and durable “Maya taught this” attribution are both normative. Existing fields cannot persist both facts; one optional lineage object is the smallest sufficient correction and preserves the §9.2 fixture. |
+| 35 | Extend `ToolVersionRepository` with one atomic fork-snapshot commit rather than adding an eighth repository family | The fork's ledger, immutable version, and definition must appear together or not at all in memory and IndexedDB. |
 
 ---
 

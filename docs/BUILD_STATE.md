@@ -2,7 +2,7 @@
 
 **Maintained by:** technical architect / build orchestrator
 **Normative source:** `TEACH_DASO_PRODUCT_AND_ARCHITECTURE.md`
-**Last updated:** 2026-08-23. Phase 6 review blockers fixed on `orchestration/phase-06-plan` at `e242f190c8db40d54a89d5f3d19e2d8f2196c187` (gates green; not architecturally accepted). INV-01–INV-23 and INV-26–INV-72 passing; only INV-24–INV-25 remain pending for P7.
+**Last updated:** 2026-08-23. Phase 6 architecturally accepted at `e242f190c8db40d54a89d5f3d19e2d8f2196c187` after independent review. INV-01–INV-23 and INV-26–INV-72 passing; only INV-24–INV-25 remain pending for P7.
 
 This file is the single source of truth for what is built, what is proven, and what has
 drifted. A phase is not complete because it runs. It is complete when its acceptance tests
@@ -19,7 +19,7 @@ are named here and passing, and no undeclared deviation exists.
 | P3 | Orchestrator & Tablet Shell | M1 | **Implemented — gates green** | 2026-08-20 |
 | P4 | Teaching Agent & Approval Gate | M3 | **Implemented — gates green** | 2026-08-20 |
 | P5 | Compiler & Deterministic Runtime | M4 | **Architecturally accepted — gates green** | 2026-08-23 |
-| P6 | Keep & Reuse | M5 | **Implemented — gates green; not architecturally accepted** | — |
+| P6 | Keep & Reuse | M5 | **Architecturally accepted — gates green** | 2026-08-23 |
 | P7 | Parent Evidence & Data Rights | M6 | Unblocked | — |
 | P8 | Founder-Facing Polish | M7 | Blocked on P6/P7 | — |
 
@@ -60,7 +60,7 @@ P4 also asserts INV-18 (validation is code), INV-47 (agent cannot approve), INV-
 
 P5 asserts INV-20 and INV-21 and adds INV-57 (atomic compilation commit), INV-58 (no dangling active version), INV-59 (idempotent compilation), INV-60 (immutable version history), INV-61 (pure runtime), INV-62 (exact metric/ranking contract), INV-63 (trial resolves active version), and INV-64 (memory + IndexedDB/reopen milestone proof).
 
-P6 promotes INV-22 and INV-23 and adds INV-65 (saved-tile grounding), INV-66 (fork provenance), INV-67 (atomic fork), INV-68 (fork idempotency), INV-69 (runner active version), INV-70 (Day-2 inherited rule), INV-71 (IndexedDB reopen of source and fork), and INV-72 (runner integrity failure). Only INV-24 and INV-25 remain pending for P7. Phase 6 is implemented and gated; it is not architecturally accepted.
+P6 promotes INV-22 and INV-23 and adds INV-65 (saved-tile grounding), INV-66 (fork provenance), INV-67 (atomic fork), INV-68 (fork idempotency), INV-69 (runner active version), INV-70 (Day-2 inherited rule), INV-71 (IndexedDB reopen of source and fork), and INV-72 (runner integrity failure). Only INV-24 and INV-25 remain pending for P7. Phase 6 is architecturally accepted.
 
 ---
 
@@ -132,6 +132,7 @@ Phase 5 introduces no new product-spec deviations. Ranking now omits inactive me
 | 38 | Saved-tile counts come from `authorshipSummaryCounts` over stored trials and approved ledger corrections | C.6 forbids a fixture-only “9 observations · 2 corrections” when the stored demo has 4 / 1. |
 | 39 | `tools.save` and `saveAndActivate` reject any definition with `forkedFrom`; only `saveForkSnapshot` may persist lineage | A P1 review blocker: otherwise a caller can create a lineage-bearing tool without an atomic re-keyed ledger. Ordinary P5 compilation is unchanged. |
 | 40 | `saveForkSnapshot` loads the source ledger in the same atomic operation, checks both ledgers with `assertLedgerIntegrity` plus `appendEntries`, rejects same-owner forks, and requires `assertRekeyedLedger` before the first target write | A P1 review blocker: fold equality alone does not prove the target is a complete remapped copy of the named source snapshot. |
+| 41 | Accept Phase 6 at commit `e242f190c8db40d54a89d5f3d19e2d8f2196c187` | Independent review inspected the atomic re-key proof and direct-write rejection paths, inspected the real Day-2 evidence, and reran 14 targeted tests, typecheck, lint, the full suite, and production build. |
 
 ---
 
@@ -183,7 +184,7 @@ Phase 6 implementation gates on `orchestration/phase-06-plan` (not an acceptance
 | `npm test` | 0 — **228 passed, 2 todo** |
 | `npm run build` | 0 — routes `/`, `/inspect`, `/journey`, `/run`, `ƒ /api/agents/teaching` |
 
-Phase 6 P1 review-blocker gates on the same branch (not an acceptance run):
+Phase 6 independent architectural-acceptance gates on the same branch:
 
 | Command | Exit |
 |---|---|
@@ -195,4 +196,4 @@ Phase 6 P1 review-blocker gates on the same branch (not an acceptance run):
 
 INV-01 … INV-23 and INV-26 … INV-72 passing. INV-24 and INV-25 remain todo/pending for P7.
 
-No undeclared deviations. D-01 remains the only accepted product-spec deviation. Phase 5 remains architecturally accepted at commit `ac4892a3964930b75b8ab40245d9ff1f65119627`. Phase 6 is not architecturally accepted.
+No undeclared deviations. D-01 remains the only accepted product-spec deviation. Phase 5 remains architecturally accepted at commit `ac4892a3964930b75b8ab40245d9ff1f65119627`; Phase 6 is architecturally accepted at commit `e242f190c8db40d54a89d5f3d19e2d8f2196c187`.

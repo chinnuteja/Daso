@@ -1,32 +1,122 @@
 .shell {
-  max-width: 52rem;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 70rem;
   margin: 0 auto;
-  padding: 1.5rem;
+  padding: clamp(1rem, 3vw, 2.25rem);
   min-height: 100dvh;
+  overflow-x: hidden;
 }
 
 .header {
   display: flex;
-  align-items: baseline;
+  flex-wrap: wrap;
+  align-items: center;
   justify-content: space-between;
-  gap: var(--gap);
-  margin-bottom: 1.5rem;
-  border-bottom: 2px solid var(--line);
-  padding-bottom: 0.75rem;
+  gap: 1.25rem;
+  margin-bottom: clamp(1.75rem, 4vw, 3.5rem);
+  border: 1px solid rgb(200 205 197 / 75%);
+  border-radius: var(--radius-lg);
+  padding: 0.8rem 0.9rem;
+  background: rgb(255 253 247 / 82%);
+  box-shadow: var(--shadow-sm);
+  backdrop-filter: blur(12px);
+}
+
+.identity {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.mark {
+  display: inline-grid;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  min-width: var(--target);
+  min-height: var(--target);
+  border-radius: 1rem;
+  background: var(--ink);
+  color: var(--panel);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1;
+  text-decoration: none;
+  transform: rotate(-2deg);
+}
+
+.eyebrow {
+  margin: 0 0 0.05rem;
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.13em;
+  line-height: 1.2;
+  text-transform: uppercase;
 }
 
 .title {
   margin: 0;
-  font-size: 1.75rem;
+  font-size: var(--type-title);
+  line-height: 1.05;
+  letter-spacing: -0.025em;
 }
 
 .nav {
   display: flex;
-  gap: 1rem;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  padding: 0.25rem;
+  border-radius: 999px;
+  background: var(--panel-soft);
 }
 
 .nav a {
   min-height: var(--target);
+  min-width: var(--target);
   display: inline-flex;
   align-items: center;
+  justify-content: center;
+  padding: 0.45rem 0.85rem;
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 0.95rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition: color 160ms ease, background 160ms ease, transform 160ms ease;
+}
+
+.nav a:hover {
+  background: var(--panel);
+  color: var(--ink);
+  transform: translateY(-1px);
+}
+
+.nav a:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.main {
+  width: 100%;
+}
+
+@media (max-width: 34rem) {
+  .header {
+    align-items: stretch;
+  }
+
+  .identity {
+    flex: 1 1 100%;
+  }
+
+  .nav {
+    width: 100%;
+  }
+
+  .nav a {
+    flex: 1;
+  }
 }

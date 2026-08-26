@@ -1,12 +1,17 @@
 .card {
-  border: 2px dashed var(--suggest);
-  background: #f8efe6;
-  padding: 1rem;
-  margin: 1rem 0;
+  border: 1px dashed #c99072;
+  border-radius: var(--radius-md);
+  background: var(--suggest-soft);
+  padding: 1.1rem;
+  margin: 0.25rem 0;
+  color: #5f321f;
 }
 
 .label {
   margin: 0 0 0.5rem;
   font-weight: 700;
   color: var(--suggest);
+  font-size: 0.76rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
 }

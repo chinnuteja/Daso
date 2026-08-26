@@ -39,8 +39,11 @@ import type { ToolVersion } from '../../core/schema/toolVersion';
 import type { ExperimentTrial } from '../../core/schema/experimentTrial';
 import type { ReadingBand } from '../../core/schema/vocabulary';
 import type { RuntimeResult } from '../../core/runtime';
+import { ProgressRail } from '../components/ProgressRail';
 import { policyRejectionCopy, validationRejectionCopy } from '../copy/rejections';
+import { progressRailView, whyThisMatters } from '../copy/progressRail';
 import { stateCopy } from '../copy/states';
+import styles from '../screens/screens.module.css';
 import { CaptureTrialScreen } from '../screens/CaptureTrialScreen';
 import { CompilePreviewScreen } from '../screens/CompilePreviewScreen';
 import { DefineInputsScreen } from '../screens/DefineInputsScreen';
@@ -97,6 +100,8 @@ export function JourneyFlow() {
   const [readingBand, setReadingBand] = useState<ReadingBand>(MAYA.readingBand);
   const [childName, setChildName] = useState(MAYA.displayName);
   const [refusal, setRefusal] = useState<string | null>(null);
+  const [approvalRecorded, setApprovalRecorded] = useState(false);
+  const [correctionExplained, setCorrectionExplained] = useState(false);
 
   const refresh = useCallback(async (repositories: Repositories) => {
     const stored = await repositories.trials.listByTool(FLIGHT_LAB_TOOL_ID);
@@ -185,6 +190,7 @@ export function JourneyFlow() {
     }
     setRefusal(null);
     await session.saveCounters();
+    setApprovalRecorded(event.kind === 'candidate_approved');
     setState(result.next);
     setPendingCandidateId(executed.pendingCandidateId);
     if (executed.compiledVersion !== null) {
@@ -205,10 +211,26 @@ export function JourneyFlow() {
   const reviewingDefinition = pendingCandidateId !== null && pendingSummary.length > 0 &&
     (state === 'DEFINE_METRICS' || state === 'DEFINE_INPUTS');
 
+  const rail = progressRailView(state);
+  const hasDistanceMetric = explanation.some(
+    (entry) => entry.subject.kind === 'metric' && entry.subject.metric === 'median_distance',
+  );
+  const hasDesignInput = explanation.some(
+    (entry) => entry.subject.kind === 'input' && entry.subject.input === 'design_name',
+  );
+  const hasDistanceInput = explanation.some(
+    (entry) => entry.subject.kind === 'input' && entry.subject.input === 'distance_m',
+  );
+
   return (
     <div>
-      <p>{message}</p>
-      {refusal !== null ? <p>{refusal}</p> : null}
+      <ProgressRail view={rail} />
+      <p className={styles.why}>{whyThisMatters(state)}</p>
+      <div className={styles.journeyStatus} role="status">
+        <span>{message}</span>
+        {approvalRecorded ? <strong>Saved by Maya — Daso did not approve it.</strong> : null}
+      </div>
+      {refusal !== null ? <p className={styles.refusal}>{refusal}</p> : null}
       {reviewingDefinition || state === 'REVIEW_MUTATION' ? (
         <ReviewMutationScreen
           prompt={prompt}
@@ -242,6 +264,7 @@ export function JourneyFlow() {
         <DefineMetricsScreen
           prompt={prompt}
           question={question}
+          canConfirm={hasDistanceMetric}
           onChooseDistance={() => {
             setPendingSuggested(false);
             setPendingSummary('Compare how far each plane flies.');
@@ -280,6 +303,7 @@ export function JourneyFlow() {
       {state === 'DEFINE_INPUTS' && !reviewingDefinition ? (
         <DefineInputsScreen
           prompt={prompt}
+          canConfirm={hasDesignInput && hasDistanceInput}
           onChooseDesign={() => {
             setPendingSuggested(false);
             setPendingSummary('Write down the plane’s name.');
@@ -383,6 +407,7 @@ export function JourneyFlow() {
           prompt={prompt}
           trials={trials}
           onSelect={() => {
+            setCorrectionExplained(false);
             void dispatch({ kind: 'anomaly_selected' });
           }}
         />
@@ -391,6 +416,7 @@ export function JourneyFlow() {
         <ProposeCorrectionScreen
           prompt={prompt}
           question={question}
+          explained={correctionExplained}
           explanation={FLIGHT_LAB_CORRECTION}
           onOfferDistanceRule={() => {
             setPendingSuggested(true);
@@ -433,7 +459,9 @@ export function JourneyFlow() {
             void dispatch(
               { kind: 'correction_explained' },
               { originalInput: FLIGHT_LAB_CORRECTION },
-            );
+            ).then(() => {
+              setCorrectionExplained(true);
+            });
           }}
           onOfferCorrection={() => {
             setPendingSuggested(false);

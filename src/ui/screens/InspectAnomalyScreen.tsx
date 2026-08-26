@@ -12,14 +12,13 @@ export function InspectAnomalyScreen(props: {
     <div className={styles.stack}>
       <p className={styles.prompt}>{props.prompt}</p>
       <ul className={styles.list}>
-        {props.trials.map((trial) => (
+        {props.trials.map((trial, index) => (
           <li key={trial.trialId} className={styles.tile}>
-            <p>
-              {trial.designName} — {trial.distanceM} m
-              {trial.obstruction ? ' — touched something' : ''}
-            </p>
+            <p className={styles.eyebrow}>Throw {String(index + 1).padStart(2, '0')}</p>
+            <p><strong>{trial.designName}</strong> — {trial.distanceM} m</p>
+            {trial.obstruction ? <p className={styles.changeReason}>Touched something on the way.</p> : null}
             {trial.obstruction ? (
-              <ChoiceButton onClick={() => props.onSelect(trial.trialId)}>
+              <ChoiceButton emphasis="primary" onClick={() => props.onSelect(trial.trialId)}>
                 This one looks different
               </ChoiceButton>
             ) : null}

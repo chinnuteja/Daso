@@ -11,7 +11,9 @@ export function ImagineScreen(props: {
     <div className={styles.stack}>
       <p className={styles.prompt}>{props.prompt}</p>
       <div className={styles.actions}>
-        <ChoiceButton onClick={props.onGoalStated}>{props.goal}</ChoiceButton>
+        <ChoiceButton kind="child" emphasis="primary" onClick={props.onGoalStated}>
+          {props.goal}
+        </ChoiceButton>
       </div>
     </div>
   );

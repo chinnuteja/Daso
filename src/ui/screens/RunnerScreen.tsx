@@ -6,6 +6,7 @@ import type { ReadingBand } from '../../core/schema/vocabulary';
 import type { AuthorshipExplanationEntry } from '../../core/inspection/authorshipView';
 import type { ToolVersion } from '../../core/schema/toolVersion';
 import { ChoiceButton } from '../components/ChoiceButton';
+import { disclosureWhatIsReal, disclosuresForSurface } from '../copy/disclosures';
 import { DELETED_SOURCE_COPY } from '../copy/parent';
 import { WhyPanel } from './WhyPanel';
 
@@ -37,8 +38,19 @@ export function RunnerScreen(props: {
 }) {
   return (
     <div className={styles.stack}>
-      <p className={styles.prompt}>{props.title}</p>
-      <p className={styles.muted}>Runs from saved rules — no AI call in Runner Mode.</p>
+      <section className={styles.modeCard}>
+        <header className={styles.modeHeader}>
+          <div>
+            <p className={styles.eyebrow}>Use mode</p>
+            <h2 className={styles.modeTitle}>{props.title}</h2>
+          </div>
+          <p className={styles.offlineBadge}>Saved rules — works without AI</p>
+        </header>
+        <p className={styles.modeCopy}>
+          This screen works from saved rules, without AI. Record a throw and the saved rules
+          decide what counts.
+        </p>
+      </section>
       {props.status === 'loading' ? <p className={styles.muted}>Opening the saved tool…</p> : null}
       {props.status === 'empty' ? (
         <p className={styles.muted}>This tool is not saved on this tablet yet.</p>
@@ -48,24 +60,49 @@ export function RunnerScreen(props: {
       ) : null}
       {props.status === 'ready' && props.version !== null ? (
         <>
-          <section className={styles.tile}>
-            <p>Owner: {props.ownerName}</p>
-            {props.sourceAuthorName !== null ? <p>Inherited from {props.sourceAuthorName}</p> : null}
-            {props.sourceDeleted ? <p>{DELETED_SOURCE_COPY}</p> : null}
-            <p>Saved version: {props.version.versionId}</p>
-            <p>Comparisons: {props.version.metrics.join(', ') || 'none'}</p>
-            <p>Rules: {props.version.rules.map((rule) => rule.ruleId).join(', ') || 'none'}</p>
+          <section className={styles.modeCard}>
+            <div className={styles.metaGrid}>
+              <div
+                className={styles.metaItem}
+                role="group"
+                aria-label={`Owner: ${props.ownerName}`}
+              >
+                <span>Owner</span>
+                <strong>{props.ownerName}</strong>
+              </div>
+              <div className={styles.metaItem}>
+                <span>Origin</span>
+                <strong>
+                  {props.sourceAuthorName !== null
+                    ? `Inherited from ${props.sourceAuthorName}`
+                    : props.sourceDeleted
+                      ? DELETED_SOURCE_COPY
+                      : 'Made here'}
+                </strong>
+              </div>
+              <div className={styles.metaItem}>
+                <span>Saved version</span>
+                <strong>{props.version.versionId}</strong>
+              </div>
+            </div>
+            <p className={styles.ruleCallout}>
+              <strong>Active rule:</strong>{' '}
+              {props.version.rules.map((rule) => rule.ruleId).join(', ') || 'none'}
+            </p>
+            <p className={styles.muted}>
+              Compared by {props.version.metrics.join(', ') || 'no active comparison'}.
+            </p>
           </section>
           {props.runtime !== null ? <RankingPanel runtime={props.runtime} /> : null}
           {props.lastTrial !== null ? (
-            <p>
-              Latest throw: {props.lastTrial.designName} —{' '}
+            <p className={styles.latestTrial} role="status">
+              <strong>Latest throw:</strong> {props.lastTrial.designName} —{' '}
               {props.lastTrial.validUnderCurrentVersion ? 'counted' : 'not counted'}
             </p>
           ) : null}
           {inheritedRuleCopy(props.version, props.sourceAuthorName, props.sourceDeleted, props.explanation)}
           {props.needsCopy ? (
-            <ChoiceButton onClick={props.onMakeCopy}>Make my copy</ChoiceButton>
+            <ChoiceButton emphasis="primary" onClick={props.onMakeCopy}>Make my copy</ChoiceButton>
           ) : null}
           {props.canCapture && props.onCapture !== undefined ? (
             <CaptureForm onCapture={props.onCapture} />
@@ -75,6 +112,7 @@ export function RunnerScreen(props: {
             readingBand={props.readingBand}
             childName={props.creditName}
           />
+          <RunnerDisclosures sourceDeleted={props.sourceDeleted} />
         </>
       ) : null}
     </div>
@@ -92,9 +130,16 @@ function RankingPanel(props: { readonly runtime: RuntimeResult }) {
     })
     .join('; ');
   return (
-    <section className={styles.tile}>
-      <p>Winner now: {winner}</p>
-      <p>Ranking: {ranking || 'not enough valid throws yet'}</p>
+    <section className={styles.proofPanel}>
+      <div className={styles.proofHeader}>
+        <div>
+          <p className={styles.eyebrow}>Live result</p>
+          <h2>{winner === 'none yet' ? 'Keep testing.' : `${winner} leads.`}</h2>
+        </div>
+        <p>Calculated locally from saved observations.</p>
+      </div>
+      <p><strong>Winner now:</strong> {winner}</p>
+      <p><strong>Ranking:</strong> {ranking || 'not enough valid throws yet'}</p>
     </section>
   );
 }
@@ -115,15 +160,35 @@ function inheritedRuleCopy(
     return null;
   }
   if (sourceDeleted) {
-    return <p>A deleted profile taught {taught.subject.ruleId}. An obstructed throw is not counted.</p>;
+    return (
+      <p className={styles.ruleCallout}>
+        A deleted profile taught {taught.subject.ruleId}. An obstructed throw is not counted.
+      </p>
+    );
   }
   if (sourceAuthorName === null) {
     return null;
   }
   return (
-    <p>
+    <p className={styles.ruleCallout}>
       {sourceAuthorName} taught {taught.subject.ruleId}. An obstructed throw is not counted.
     </p>
+  );
+}
+
+function RunnerDisclosures(props: { readonly sourceDeleted: boolean }) {
+  const entries = disclosuresForSurface('in_product_runner_mode');
+  return (
+    <aside className={styles.disclosure}>
+      {entries.map((entry) => (
+        <dl key={entry.capability}>
+          <dt>What is simulated</dt>
+          <dd>{entry.whatIsSimulated}</dd>
+          <dt>What is real</dt>
+          <dd>{disclosureWhatIsReal(entry, { sourceDeleted: props.sourceDeleted })}</dd>
+        </dl>
+      ))}
+    </aside>
   );
 }
 
@@ -136,7 +201,7 @@ function CaptureForm(props: {
 }) {
   return (
     <form
-      className={styles.stack}
+      className={`${styles.stack} ${styles.formCard}`}
       onSubmit={(event) => {
         event.preventDefault();
         const data = new FormData(event.currentTarget);
@@ -148,25 +213,34 @@ function CaptureForm(props: {
         event.currentTarget.reset();
       }}
     >
-      <label className={styles.field}>
-        Plane
-        <select name="designName" required>
-          {DESIGNS.map((design) => (
-            <option key={design} value={design}>
-              {design}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label className={styles.field}>
-        Distance in metres
-        <input name="distanceM" type="number" min={0} step="0.1" required />
-      </label>
-      <label className={styles.field}>
-        <span>Did it touch something?</span>
+      <div className={styles.formHeading}>
+        <div>
+          <p className={styles.eyebrow}>New throw</p>
+          <h2>Try the saved tool.</h2>
+        </div>
+        <p>Measure the throw yourself, then record it here.</p>
+      </div>
+      <div className={styles.fieldGrid}>
+        <label className={styles.field}>
+          Plane
+          <select name="designName" required>
+            {DESIGNS.map((design) => (
+              <option key={design} value={design}>
+                {design}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className={styles.field}>
+          Distance in metres
+          <input name="distanceM" type="number" min={0} step="0.1" inputMode="decimal" required />
+        </label>
+      </div>
+      <label className={`${styles.field} ${styles.hit}`}>
         <input name="obstruction" type="checkbox" />
+        <span>Did it touch something?</span>
       </label>
-      <ChoiceButton type="submit">Record this throw</ChoiceButton>
+      <ChoiceButton type="submit" emphasis="primary">Record this throw</ChoiceButton>
     </form>
   );
 }

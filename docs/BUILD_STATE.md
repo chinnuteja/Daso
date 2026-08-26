@@ -2,7 +2,7 @@
 
 **Maintained by:** technical architect / build orchestrator
 **Normative source:** `TEACH_DASO_PRODUCT_AND_ARCHITECTURE.md`
-**Last updated:** 2026-08-24. Phase 7 architecturally accepted after independent review of the P1 privacy/attribution repair at `f804381de37143bedf380110cba12b6eb471e8f7` and final evidence at `d2c387b8328c539d04ffb44836be55fb305e0b9e`. INV-01–INV-79 asserted; no remaining todo invariants.
+**Last updated:** 2026-08-26. Phase 8 is architecturally accepted at `87f1cce9c324b802205f5794ef7ddf35aa36bce0`. INV-01–INV-83 are asserted and the M1–M7 product baseline is complete.
 
 This file is the single source of truth for what is built, what is proven, and what has
 drifted. A phase is not complete because it runs. It is complete when its acceptance tests
@@ -21,9 +21,9 @@ are named here and passing, and no undeclared deviation exists.
 | P5 | Compiler & Deterministic Runtime | M4 | **Architecturally accepted — gates green** | 2026-08-23 |
 | P6 | Keep & Reuse | M5 | **Architecturally accepted — gates green** | 2026-08-23 |
 | P7 | Parent Evidence & Data Rights | M6 | **Architecturally accepted — gates green** | 2026-08-24 |
-| P8 | Founder-Facing Polish | M7 | Unblocked | — |
+| P8 | Founder-Facing Polish | M7 | **Architecturally accepted — gates green** | 2026-08-26 |
 
-P5, P6, and P7 are architecturally accepted. P8 is unblocked.
+P5, P6, P7, and P8 are architecturally accepted. The planned M1–M7 product baseline is complete.
 
 ---
 
@@ -62,6 +62,8 @@ P5 asserts INV-20 and INV-21 and adds INV-57 (atomic compilation commit), INV-58
 P6 promotes INV-22 and INV-23 and adds INV-65 (saved-tile grounding), INV-66 (fork provenance), INV-67 (atomic fork), INV-68 (fork idempotency), INV-69 (runner active version), INV-70 (Day-2 inherited rule), INV-71 (IndexedDB reopen of source and fork), and INV-72 (runner integrity failure). Phase 6 is architecturally accepted.
 
 P7 promotes INV-24 and INV-25 and adds INV-73 (evidence projection / two-route R3), INV-74 (evidence route validation), INV-75 (canonical export), INV-76 (atomic delete), INV-77 (orphaned fork), INV-78 (parent evidence flow), and INV-79 (runner reaches no evidence). Phase 7 is architecturally accepted. After source-profile deletion, Home/Runner/Parent Evidence use an anonymous title and teacher; inherited decisions are not attributed to the surviving fork owner. Orphaned-fork export redacts `displayName` and keeps `forkedFrom` as unresolvable provenance (decision 49).
+
+P8 adds INV-80 (truthful progress rail), INV-81 (target/focus/reduced-motion/overflow), INV-82 (founder docs), and INV-83 (finished 90-second demo and manifest). Phase 8 is architecturally accepted.
 
 ---
 
@@ -147,6 +149,9 @@ Phase 7 accepts D-02: preserving grounding truth is more important than inventin
 | 49 | Coordinated `deleteProfileGraph` redacts a surviving fork's `displayName` to `A copied tool` and deletes that fork's parent summaries in the same snapshot/transaction; `forkedFrom` is kept. Product UI never prints lineage identifiers. | P7 P1 privacy/attribution: the copied title and a Leo-owned projection would otherwise show Maya or credit inherited `event_001`/`event_014` to Leo after Maya is deleted. `tools.save` still rejects `forkedFrom`; redaction is a coordinated store put, not a lineage write. |
 | 50 | Accept D-02: no specific prediction is shown in P7 parent evidence. | P3 never persisted such a fact. Adding or inferring one would violate P7's grounding rule. |
 | 51 | Accept Phase 7 at `f804381de37143bedf380110cba12b6eb471e8f7`, with final privacy-proof evidence at `d2c387b8328c539d04ffb44836be55fb305e0b9e`. | Independent review inspected the source-present and source-deleted fork attribution paths, the atomic redaction transaction, export disclosure, and the real browser proof; it reran 26 targeted tests, typecheck, lint, the full 268-test suite before/after production build, and build. |
+| 52 | P8 is presentation, founder docs, and a truthful demo package. No schema, route, store, or package dependency is added. The finished 90-second walkthrough is VP8 WebM because the available minimal encoder has no H.264 support. | Milestone 7 must make the causal chain legible without outrunning the implementation; format honesty is preferable to a false MP4 claim. |
+| 53 | Runner renders the R7 `second_child_identity` disclosure, but after source-profile deletion the on-screen “what is real” line uses anonymous copy. The registry and README keep the Maya-named founder wording. | Showing the registered Maya sentence on `/run` after deletion would regress P7 orphaned-fork privacy. |
+| 54 | Accept Phase 8 at `87f1cce9c324b802205f5794ef7ddf35aa36bce0`. | Completion review walked the real production flow, checked phone/tablet overflow and interactive targets, inspected the founder evidence and 90-second video, confirmed that only UI/docs/tests changed, and reran the full serial gate sequence before and after production build. |
 
 ---
 
@@ -166,7 +171,9 @@ Phase 7 accepts D-02: preserving grounding truth is more important than inventin
 
 Unchanged from Phase 1. Registry at `src/core/disclosure/simulations.ts`. Capture-screen
 entries are rendered by `CaptureDisclosures` (INV-46). Parent-view
-`parent_summary_delivery` is rendered on `/parent`.
+`parent_summary_delivery` is rendered on `/parent`. Runner-mode
+`second_child_identity` is rendered on `/run`; after source-profile deletion the
+product line is anonymized (decision 53).
 
 ---
 
@@ -179,6 +186,7 @@ Phase 4 D.4 packet: `docs/evidence/PHASE_04.md`.
 Phase 5 D.4 packet: `docs/evidence/PHASE_05.md`.
 Phase 6 E.4 packet: `docs/evidence/PHASE_06.md`. Phase 6 is architecturally accepted.
 Phase 7 E.2 packet: `docs/evidence/PHASE_07.md`. Phase 7 is architecturally accepted.
+Phase 8 evidence packet: `docs/evidence/PHASE_08.md`. Phase 8 is architecturally accepted.
 
 Gate commands independently rerun on 2026-08-23 for Phase 5 architectural acceptance:
 
@@ -243,6 +251,27 @@ Phase 7 independent architectural-acceptance gates on the same branch:
 | `npm run build` | 0 — routes `/`, `/inspect`, `/journey`, `/parent`, `/run`, `ƒ /api/agents/teaching`, `ƒ /api/agents/evidence` |
 | `npm test` (after build) | 0 — **93 files, 268 passed** |
 
-INV-01 … INV-79 passing. No remaining todo invariants.
+INV-01 … INV-83 passing. No remaining todo invariants.
 
-No undeclared deviations. D-01 and D-02 are accepted product-spec deviations. Phase 5 remains architecturally accepted at commit `ac4892a3964930b75b8ab40245d9ff1f65119627`; Phase 6 is architecturally accepted at commit `e242f190c8db40d54a89d5f3d19e2d8f2196c187`; Phase 7 is architecturally accepted at commit `f804381de37143bedf380110cba12b6eb471e8f7` with final evidence record `d2c387b8328c539d04ffb44836be55fb305e0b9e`.
+Phase 8 implementation gates on `orchestration/phase-08-plan` (not an acceptance run):
+
+| Command | Exit |
+|---|---|
+| targeted INV-80–INV-83 | 0 — **4 files, 4 passed** |
+| `npm run typecheck` | 0 — no diagnostics |
+| `npm run lint` | 0 — no errors or warnings |
+| `npm test` | 0 — **97 files, 272 passed** |
+| `npm run build` | 0 — routes `/`, `/inspect`, `/journey`, `/parent`, `/run`, `ƒ /api/agents/teaching`, `ƒ /api/agents/evidence` |
+| `npm test` (after build) | 0 — **97 files, 272 passed** |
+
+Phase 8 architectural-acceptance gates at `87f1cce9c324b802205f5794ef7ddf35aa36bce0`:
+
+| Command | Exit |
+|---|---|
+| targeted INV-80–INV-83 | 0 — **4 files, 4 passed** |
+| `npm run typecheck` | 0 — no diagnostics |
+| `npm run lint` | 0 — no errors or warnings |
+| `npm test` | 0 — **97 files, 272 passed** |
+| `npm run build` | 0 — routes `/`, `/inspect`, `/journey`, `/parent`, `/run`, `ƒ /api/agents/teaching`, `ƒ /api/agents/evidence` |
+| `npm test` (after build) | 0 — **97 files, 272 passed** |
+No undeclared deviations. D-01 and D-02 are accepted product-spec deviations. Phase 5 remains architecturally accepted at commit `ac4892a3964930b75b8ab40245d9ff1f65119627`; Phase 6 at `e242f190c8db40d54a89d5f3d19e2d8f2196c187`; Phase 7 at `f804381de37143bedf380110cba12b6eb471e8f7` with final evidence `d2c387b8328c539d04ffb44836be55fb305e0b9e`; and Phase 8 at `87f1cce9c324b802205f5794ef7ddf35aa36bce0`. The M1–M7 product baseline is complete.

@@ -7,13 +7,18 @@ export function ChoiceButton(props: {
   readonly onClick?: () => void;
   readonly type?: 'button' | 'submit';
   readonly kind?: 'child' | 'suggest';
+  readonly emphasis?: 'primary' | 'secondary' | 'danger';
+  readonly quiet?: boolean;
   readonly disabled?: boolean;
 }) {
-  const kindClass = props.kind === 'suggest' ? styles.suggest : styles.child;
+  const kindClass =
+    props.kind === 'suggest' ? styles.suggest : props.kind === 'child' ? styles.child : '';
+  const emphasisClass = styles[props.emphasis ?? 'secondary'];
+  const quietClass = props.quiet === true ? styles.quiet : '';
   return (
     <button
       type={props.type ?? 'button'}
-      className={`${styles.button} ${kindClass}`}
+      className={`${styles.button} ${emphasisClass} ${kindClass} ${quietClass}`.trim()}
       onClick={props.onClick}
       disabled={props.disabled}
     >

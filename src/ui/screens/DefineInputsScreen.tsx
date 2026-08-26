@@ -5,6 +5,7 @@ import styles from './screens.module.css';
 
 export function DefineInputsScreen(props: {
   readonly prompt: string;
+  readonly canConfirm: boolean;
   readonly onChooseDesign: () => void;
   readonly onChooseDistance: () => void;
   readonly onAcceptObstruction: () => void;
@@ -28,9 +29,14 @@ export function DefineInputsScreen(props: {
           Yes — record obstruction
         </ChoiceButton>
       </SuggestionCard>
-      <p>You can skip writing a free note. That is not part of this tool yet.</p>
-      <ChoiceButton onClick={props.onDeclineNote}>Don’t add a note field</ChoiceButton>
-      <ChoiceButton onClick={props.onConfirm}>These are the things we write down</ChoiceButton>
+      <p className={styles.muted}>A free note is optional and is not part of this tool yet.</p>
+      <ChoiceButton quiet onClick={props.onDeclineNote}>Don’t add a note field</ChoiceButton>
+      {!props.canConfirm ? (
+        <p className={styles.muted}>Choose the plane name and distance before moving on.</p>
+      ) : null}
+      <ChoiceButton emphasis="primary" onClick={props.onConfirm} disabled={!props.canConfirm}>
+        These are the things we write down
+      </ChoiceButton>
     </div>
   );
 }

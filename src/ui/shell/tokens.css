@@ -1,32 +1,108 @@
 :root {
-  --ink: #141414;
-  --paper: #f4efe6;
-  --panel: #fffdf8;
-  --line: #2b2b2b;
-  --accent: #0f4c81;
-  --child: #1b5e3b;
-  --suggest: #6b3a1f;
-  --target: 3.5rem;
-  --gap: 1rem;
+  --ink: #172620;
+  --paper: #f3f0e7;
+  --panel: #fffdf7;
+  --panel-soft: #f8f5ec;
+  --line: #c8cdc5;
+  --line-strong: #8b9991;
+  --accent: #0d6a54;
+  --accent-strong: #084c3d;
+  --accent-soft: #dff1e9;
+  --child: #12634d;
+  --child-soft: #e4f3ec;
+  --suggest: #9a4728;
+  --suggest-soft: #fceddf;
+  --danger: #a2362d;
+  --danger-soft: #fff0ec;
+  --muted: #52625b;
+  --muted-soft: #748078;
+  --shadow-sm: 0 1px 2px rgb(23 38 32 / 8%), 0 5px 18px rgb(23 38 32 / 5%);
+  --shadow-lg: 0 18px 50px rgb(23 38 32 / 10%);
+  --radius-sm: 0.75rem;
+  --radius-md: 1.25rem;
+  --radius-lg: 1.75rem;
+  --target: 44px;
+  --gap: 1.125rem;
+  --focus-ring: 3px solid #0b77d4;
+  --type-title: clamp(1.45rem, 2vw, 1.8rem);
+  --type-display: clamp(2.25rem, 6vw, 4.6rem);
+  --type-prompt: clamp(1.55rem, 3vw, 2.35rem);
+  --type-body: clamp(1rem, 1.25vw, 1.1rem);
+}
+
+* {
+  box-sizing: border-box;
 }
 
 html,
 body {
   margin: 0;
   min-height: 100%;
-  background: var(--paper);
+  max-width: 100%;
+  overflow-x: hidden;
+  background:
+    radial-gradient(circle at 8% 0%, rgb(225 242 234 / 70%), transparent 32rem),
+    radial-gradient(circle at 98% 18%, rgb(250 226 207 / 50%), transparent 27rem),
+    var(--paper);
   color: var(--ink);
-  font-family: "Segoe UI", system-ui, sans-serif;
-  font-size: 1.125rem;
-  line-height: 1.45;
+  font-family: "Aptos", "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+  font-size: var(--type-body);
+  line-height: 1.55;
+  text-rendering: optimizeLegibility;
+}
+
+body::before {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  content: '';
+  opacity: 0.32;
+  background-image: repeating-linear-gradient(
+    0deg,
+    transparent 0,
+    transparent 31px,
+    rgb(23 38 32 / 3%) 32px
+  );
+}
+
+button,
+input,
+select,
+a {
+  font: inherit;
 }
 
 button,
 input,
 select {
-  font: inherit;
+  color: inherit;
 }
 
 a {
   color: var(--accent);
+  text-underline-offset: 0.18em;
+}
+
+::selection {
+  background: var(--accent-soft);
+}
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

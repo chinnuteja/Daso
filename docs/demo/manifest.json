@@ -1,0 +1,61 @@
+{
+  "title": "Teach Daso 90-second demo",
+  "thesis": "The computer that grows with your child should grow because of your child.",
+  "closingLine": "Maya didn't download this tool. She taught it.",
+  "video": "docs/demo/teach-daso-90s.webm",
+  "videoFormat": "VP8 WebM",
+  "videoBlocker": null,
+  "requiredBeats": [
+    "thesis",
+    "define",
+    "correction",
+    "v2 change",
+    "Day-2 proof",
+    "parent evidence",
+    "closing line"
+  ],
+  "frames": [
+    {
+      "id": "00-thesis",
+      "file": "docs/demo/frames/00-thesis.png",
+      "beat": "thesis",
+      "durationSeconds": 10,
+      "caption": "The computer that grows with your child should grow because of your child."
+    },
+    {
+      "id": "01-define",
+      "file": "docs/demo/frames/01-define.png",
+      "beat": "define",
+      "durationSeconds": 15,
+      "caption": "Maya asks which paper airplane is best and chooses what to write down."
+    },
+    {
+      "id": "02-correction",
+      "file": "docs/demo/frames/02-correction.png",
+      "beat": "correction",
+      "durationSeconds": 20,
+      "caption": "Maya said why the 8.9 m throw should not count. Daso cannot approve the rule."
+    },
+    {
+      "id": "03-v2",
+      "file": "docs/demo/frames/03-v2.png",
+      "beat": "v2 change",
+      "durationSeconds": 15,
+      "caption": "The same stored throws replay under v2. Dart is no longer counted."
+    },
+    {
+      "id": "04-day-two",
+      "file": "docs/demo/frames/04-day-two.png",
+      "beat": "Day-2 proof",
+      "durationSeconds": 12,
+      "caption": "Leo uses the saved copy. Works from saved rules, without AI."
+    },
+    {
+      "id": "05-parent",
+      "file": "docs/demo/frames/05-parent.png",
+      "beat": "parent evidence",
+      "durationSeconds": 18,
+      "caption": "A parent can see why. Maya didn't download this tool. She taught it."
+    }
+  ]
+}

@@ -4,7 +4,7 @@
 complete founder package, threat model, and a truthful 90-second demo.
 
 **Base:** Phase 7 accepted on `main` at `92680888abafb97c0784f65c0ee21b057fd9968e`.
-**Status:** Implemented. Acceptance evidence is recorded in `docs/evidence/PHASE_08.md`.
+**Status:** Architecturally accepted at `87f1cce9c324b802205f5794ef7ddf35aa36bce0`. Evidence is recorded in `docs/evidence/PHASE_08.md`.
 
 ## 1. Product standard
 

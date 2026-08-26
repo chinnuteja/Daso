@@ -5,7 +5,7 @@
 **Build ledger:** `docs/BUILD_STATE.md`
 **Branch:** `orchestration/phase-08-plan`
 **Base:** Phase 7 accepted on `main` at `92680888abafb97c0784f65c0ee21b057fd9968e`
-**Status:** Founder-quality completion pass implemented. Acceptance gates are recorded below.
+**Status:** Architecturally accepted at `87f1cce9c324b802205f5794ef7ddf35aa36bce0`. Acceptance gates are recorded below.
 
 ---
 

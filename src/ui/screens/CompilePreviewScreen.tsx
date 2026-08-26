@@ -30,19 +30,37 @@ export function CompilePreviewScreen(props: {
     <div className={styles.stack}>
       <p className={styles.prompt}>{props.prompt}</p>
       {props.version !== null ? (
-        <section className={styles.tile}>
-          <p>Saved version: {props.version.versionId}</p>
-          <p>Inputs: {props.version.inputs.join(', ')}</p>
-          <p>Comparisons: {props.version.metrics.join(', ') || 'none'}</p>
-          <p>Rules: {props.version.rules.map((rule) => rule.ruleId).join(', ') || 'none yet'}</p>
+        <section className={styles.proofPanel}>
+          <header className={styles.proofHeader}>
+            <div>
+              <p className={styles.eyebrow}>Saved as a lasting tool</p>
+              <h2>Your new version is ready.</h2>
+            </div>
+            <span className={styles.versionBadge}>Saved version: {props.version.versionId}</span>
+          </header>
+          <div className={styles.versionGrid}>
+            <div className={styles.versionItem}>
+              <span>Writes down</span>
+              <strong>{props.version.inputs.join(', ')}</strong>
+            </div>
+            <div className={styles.versionItem}>
+              <span>Compares</span>
+              <strong>{props.version.metrics.join(', ') || 'none'}</strong>
+            </div>
+            <div className={styles.versionItem}>
+              <span>New rule</span>
+              <strong>{props.version.rules.map((rule) => rule.ruleId).join(', ') || 'none yet'}</strong>
+            </div>
+          </div>
         </section>
       ) : null}
       {props.runtime !== null ? (
         <RankingPanel runtime={props.runtime} previous={props.previousRuntime} changed={changed} />
       ) : null}
       {wordsBecameRule && taughtRule !== undefined ? (
-        <p className={styles.status}>
-          Your words became a rule. {taughtRule.ruleId} now excludes the unfair throw.
+        <p className={styles.ruleResult}>
+          <strong>Your words became a rule.</strong>{' '}
+          {taughtRule.ruleId} now excludes the unfair throw.
         </p>
       ) : null}
       <WhyPanel
@@ -50,8 +68,12 @@ export function CompilePreviewScreen(props: {
         readingBand={props.readingBand}
         childName={props.childName}
       />
-      <ChoiceButton onClick={props.onAcknowledge}>I have seen what the tool does</ChoiceButton>
-      <ChoiceButton onClick={props.onOpenRunner}>Open Maya’s Flight Lab</ChoiceButton>
+      <div className={styles.actionsInline}>
+        <ChoiceButton quiet onClick={props.onAcknowledge}>I have seen what the tool does</ChoiceButton>
+        <ChoiceButton emphasis="primary" onClick={props.onOpenRunner}>
+          Open Maya’s Flight Lab
+        </ChoiceButton>
+      </div>
     </div>
   );
 }
@@ -67,7 +89,14 @@ function RankingPanel(props: {
   const showCompare = previousWinner !== undefined && props.runtime.winner !== undefined;
 
   return (
-    <section className={styles.tile}>
+    <section className={styles.proofPanel}>
+      <header className={styles.proofHeader}>
+        <div>
+          <p className={styles.eyebrow}>Same throws, new rule</p>
+          <h2>See exactly what changed.</h2>
+        </div>
+        <p>Dart’s obstructed throw is replayed under the rule Maya approved.</p>
+      </header>
       {showCompare ? (
         <div className={styles.compare}>
           <div className={styles.compareBlock}>
@@ -80,11 +109,12 @@ function RankingPanel(props: {
           </div>
         </div>
       ) : null}
-      <p>Winner now: {winner}</p>
-      <p>Ranking: {ranking || 'not enough valid throws yet'}</p>
+      <p><strong>Winner now:</strong> {winner}</p>
+      <p><strong>Ranking:</strong> {ranking || 'not enough valid throws yet'}</p>
       {props.changed.length > 0 ? (
-        <p>
-          After this correction, {props.changed.join(', ')} changed validity.
+        <p className={styles.changeReason}>
+          <strong>Why the result moved:</strong> after this correction,{' '}
+          {props.changed.join(', ')} changed validity.
           {previousWinner !== undefined ? ` Before, ${previousWinner} was first.` : ''}
           {props.runtime.winner !== undefined ? ` Now ${props.runtime.winner} is first.` : ''}
         </p>

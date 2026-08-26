@@ -11,8 +11,9 @@ export function WhyPanel(props: {
   readonly childName: string;
 }) {
   return (
-    <section>
-      <h2>Why this tool does this</h2>
+    <section className={styles.supportCard}>
+      <p className={styles.eyebrow}>Authorship, not magic</p>
+      <h2 className={styles.sectionTitle}>Why this tool does this</h2>
       <ul className={styles.list}>
         {props.explanation.map((entry) => (
           <AuthorshipRow

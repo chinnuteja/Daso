@@ -13,22 +13,31 @@ export function SavedToolTile(props: {
 }) {
   return (
     <article className={styles.tile}>
-      <strong>{props.tile.displayName}</strong>
-      <p>Created by {props.tile.creatorName}</p>
-      {props.tile.sourceDeleted ? <p>{DELETED_SOURCE_COPY}</p> : null}
-      <p>
-        {props.tile.observationCount} observations · {props.tile.approvedCorrectionCount}{' '}
-        corrections
+      <div className={styles.topline}>
+        <span className={styles.toolMark} aria-hidden="true">↗</span>
+        <span className={styles.ready}>Ready to use</span>
+      </div>
+      <div className={styles.identity}>
+        <h3>{props.tile.displayName}</h3>
+        <p>Created by {props.tile.creatorName}</p>
+        {props.tile.sourceDeleted ? <p className={styles.provenance}>{DELETED_SOURCE_COPY}</p> : null}
+      </div>
+      <p className={styles.counts}>
+        <strong>{props.tile.observationCount}</strong> observations
+        <span aria-hidden="true">·</span>
+        <strong>{props.tile.approvedCorrectionCount}</strong> corrections
       </p>
-      <ChoiceButton onClick={props.onOpenRunner}>Open in Runner Mode</ChoiceButton>
-      <ChoiceButton quiet onClick={props.onParentEvidence}>
-        Parent evidence
-      </ChoiceButton>
-      {props.onDayTwo !== undefined ? (
-        <ChoiceButton quiet onClick={props.onDayTwo}>
-          Let Leo try this
+      <ChoiceButton emphasis="primary" onClick={props.onOpenRunner}>Use this tool</ChoiceButton>
+      <div className={styles.secondaryActions}>
+        <ChoiceButton quiet onClick={props.onParentEvidence}>
+          Parent evidence
         </ChoiceButton>
-      ) : null}
+        {props.onDayTwo !== undefined ? (
+          <ChoiceButton quiet onClick={props.onDayTwo}>
+            Let Leo try this
+          </ChoiceButton>
+        ) : null}
+      </div>
     </article>
   );
 }

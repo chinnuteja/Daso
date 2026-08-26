@@ -2,8 +2,9 @@
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
-  padding: 0.85rem 1rem;
-  border: 2px solid var(--line);
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
   background: var(--panel);
   margin: 0 0 0.75rem;
   list-style: none;
@@ -11,12 +12,13 @@
 
 .row[data-attribution='child_chosen'],
 .row[data-attribution='child_taught'] {
-  border-left: 0.6rem solid var(--child);
+  border-left: 0.35rem solid var(--child);
+  background: var(--child-soft);
 }
 
 .row[data-attribution='ai_suggested_child_accepted'] {
-  border-left: 0.6rem dashed var(--suggest);
-  background: #f8efe6;
+  border-left: 0.35rem dashed var(--suggest);
+  background: var(--suggest-soft);
 }
 
 .subject {
@@ -24,5 +26,6 @@
 }
 
 .credit {
+  color: var(--muted);
   font-size: 1rem;
 }

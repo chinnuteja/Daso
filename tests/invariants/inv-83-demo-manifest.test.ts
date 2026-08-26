@@ -13,13 +13,18 @@ interface DemoManifest {
   readonly thesis: string;
   readonly closingLine: string;
   readonly video: string | null;
-  readonly videoBlocker: string;
+  readonly videoBlocker: string | null;
   readonly requiredBeats: readonly string[];
-  readonly frames: readonly { readonly file: string; readonly beat: string; readonly caption: string }[];
+  readonly frames: readonly {
+    readonly file: string;
+    readonly beat: string;
+    readonly caption: string;
+    readonly durationSeconds: number;
+  }[];
 }
 
 describe('INV-83 — demo script and frame manifest', () => {
-  it('INV-83: the demo package has the required beats and does not claim a fake video', () => {
+  it('INV-83: the finished 90-second demo has the required real-product beats', () => {
     const script = readFileSync(resolve(REPO_ROOT, 'docs/demo/README.md'), 'utf8');
     const manifest = JSON.parse(
       readFileSync(resolve(REPO_ROOT, 'docs/demo/manifest.json'), 'utf8'),
@@ -29,11 +34,15 @@ describe('INV-83 — demo script and frame manifest', () => {
       'The computer that grows with your child should grow because of your child.',
     );
     expect(manifest.closingLine).toBe("Maya didn't download this tool. She taught it.");
-    expect(manifest.video).toBeNull();
-    expect(manifest.videoBlocker.length).toBeGreaterThan(0);
+    expect(manifest.video).toBe('docs/demo/teach-daso-90s.webm');
+    expect(manifest.videoBlocker).toBeNull();
+    if (manifest.video === null) {
+      throw new Error('The finished demo video path must be present.');
+    }
+    expect(existsSync(resolve(REPO_ROOT, manifest.video))).toBe(true);
     expect(script).toContain(manifest.thesis);
     expect(script).toContain(manifest.closingLine);
-    expect(script).toContain('Capture blocker');
+    expect(script).toContain('Finished video');
     expect(script).toContain('Human check: pending');
     expect(script).toContain('D-02');
 
@@ -65,6 +74,8 @@ describe('INV-83 — demo script and frame manifest', () => {
     for (const frame of manifest.frames) {
       expect(existsSync(resolve(REPO_ROOT, frame.file))).toBe(true);
       expect(frame.caption.length).toBeGreaterThan(0);
+      expect(frame.durationSeconds).toBeGreaterThan(0);
     }
+    expect(manifest.frames.reduce((total, frame) => total + frame.durationSeconds, 0)).toBe(90);
   });
 });

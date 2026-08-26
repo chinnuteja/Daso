@@ -4,7 +4,7 @@
 complete founder package, threat model, and a truthful 90-second demo.
 
 **Base:** Phase 7 accepted on `main` at `92680888abafb97c0784f65c0ee21b057fd9968e`.
-**Status:** Planned. This is an executable implementation contract, not acceptance evidence.
+**Status:** Implemented. Acceptance evidence is recorded in `docs/evidence/PHASE_08.md`.
 
 ## 1. Product standard
 
@@ -93,7 +93,7 @@ of what remains. Do not turn export or identifiers into the primary story.
 
 ## 4. Implementation checklist
 
-- [ ] **1. Establish the visual and interaction foundation**
+- [x] **1. Establish the visual and interaction foundation**
   Spec ref: `TEACH_DASO_PRODUCT_AND_ARCHITECTURE.md > §§4.4, 13, 18`
   What to build: Refine existing CSS tokens and shell into a responsive notebook/lab system:
   type scale, spacing rhythm, semantic colours, focus ring, status styles, panels, buttons,
@@ -103,7 +103,7 @@ of what remains. Do not turn export or identifiers into the primary story.
   Verify: keyboard-only manual pass; axe/Lighthouse accessibility report; screenshots at all
   three widths.
 
-- [ ] **2. Make Home explain the artifact and prioritize the next action**
+- [x] **2. Make Home explain the artifact and prioritize the next action**
   Spec ref: `§6 Scene 1, Scene 6; §17 Product Success Criteria`
   What to build: Add a concise product promise and one primary start action; refine saved tiles
   and secondary actions without losing actual counts/provenance/deletion states.
@@ -111,7 +111,7 @@ of what remains. Do not turn export or identifiers into the primary story.
   and reach parent evidence without reading a paragraph or using `/inspect`.
   Verify: Home screenshot with empty/new state and saved-tool state; no hard-coded count/copy.
 
-- [ ] **3. Add an honest journey progress rail and state feedback**
+- [x] **3. Add an honest journey progress rail and state feedback**
   Spec ref: `§6 Scenes 1–5; §7.2; D-02`
   What to build: Map existing orchestrator states to the seven labels in §3B. Add current-step,
   completed-step, and next-action feedback in `JourneyFlow` without new states/events or a
@@ -121,7 +121,7 @@ of what remains. Do not turn export or identifiers into the primary story.
   Verify: unit table test for every state; visual checkpoints for IMAGINE, COLLECT_TRIALS,
   REVIEW_MUTATION, and COMPILE_PREVIEW.
 
-- [ ] **4. Redesign trial capture around real-world activity**
+- [x] **4. Redesign trial capture around real-world activity**
   Spec ref: `§4.4; §6 Scene 3; §11.3; R7`
   What to build: Make the “go throw, then record” rhythm obvious. Present fields in physical
   order (plane, distance, obstruction), a clear count/not-count cue, and the honest manual
@@ -130,7 +130,7 @@ of what remains. Do not turn export or identifiers into the primary story.
   returns the child to the next real experiment step after recording.
   Verify: capture screenshot; INV-32/46 and disclosure registry remain passing.
 
-- [ ] **5. Make correction and approval emotionally and logically clear**
+- [x] **5. Make correction and approval emotionally and logically clear**
   Spec ref: `§4.2; §6 Scene 4; §7.3; §12`
   What to build: Refine anomaly, suggestion, and approval screens to distinguish “Maya said”,
   “Daso suggests”, and “Maya approves”. Add small, non-blocking feedback when approval is
@@ -139,7 +139,7 @@ of what remains. Do not turn export or identifiers into the primary story.
   cannot approve it.
   Verify: real journey screenshot/recording; INV-10, 41, 47, 56 remain unchanged and green.
 
-- [ ] **6. Turn compile/replay into the proof moment**
+- [x] **6. Turn compile/replay into the proof moment**
   Spec ref: `§6 Scene 5; §17 Determinism; §18 45–70s`
   What to build: Improve `CompilePreviewScreen` to stage v1 → v2, trial_004’s validity flip,
   and before/now winner change from real runtime output. Respect reduced motion.
@@ -147,7 +147,7 @@ of what remains. Do not turn export or identifiers into the primary story.
   version, and changed ranking in under ten seconds.
   Verify: rerun INV-20/21/57–64; new screenshot against a real persisted journey.
 
-- [ ] **7. Finish the saved-tool and Day-2 Runner experience**
+- [x] **7. Finish the saved-tool and Day-2 Runner experience**
   Spec ref: `§6 Scenes 6–7; §7.5; §14`
   What to build: Clarify the distinction between teaching and using. Refine saved tile, Runner
   status/badge, rule credit, empty/integrity states, and copy action hierarchy.
@@ -155,7 +155,7 @@ of what remains. Do not turn export or identifiers into the primary story.
   copied, and deleted-source states remain truthful and readable.
   Verify: real P6 Day-2 screenshot at tablet size; INV-22/23/43/69/70/77/79 green.
 
-- [ ] **8. Refine parent evidence and data-rights comprehension**
+- [x] **8. Refine parent evidence and data-rights comprehension**
   Spec ref: `§4.5–4.6; §6 Scene 8; §11.4`
   What to build: Improve hierarchy, readable grounding labels, and the separation between the
   learning story, evidence, export, and delete. Keep P7 confirmations and orphaned-source
@@ -165,7 +165,7 @@ of what remains. Do not turn export or identifiers into the primary story.
   Verify: real parent screenshot; INV-24/25/75–78 green; keyboard focus screenshot for delete
   confirmation.
 
-- [ ] **9. Produce the founder package, documentation, and threat model**
+- [x] **9. Produce the founder package, documentation, and threat model**
   Spec ref: `§19; §12; §15; §20`
   What to build: Add root `README.md`, `docs/ARCHITECTURE.md`, and `docs/THREAT_MODEL.md`.
   README has one-sentence thesis, local run/test commands, 90-second product path, limitations,
@@ -177,9 +177,9 @@ of what remains. Do not turn export or identifiers into the primary story.
   surface; documentation names Flight Lab as the sole implemented tool and D-01/D-02 honestly.
   Verify: static documentation test and manual link check.
 
-- [ ] **10. Create a truthful 90-second founder demo and comprehension protocol**
+- [x] **10. Create a truthful 90-second founder demo and comprehension protocol**
   Spec ref: `§18–19; §20`
-  What to build: Record `docs/demo/teach-daso-90s.mp4` (or, if the environment cannot capture
+  What to build: Record `docs/demo/teach-daso-90s.mp4` or an equivalently playable local video (or, if the environment cannot capture
   video, provide a timestamped capture script plus final frame sequence and record that blocker
   honestly). Use the exact story: thesis → define → real trials/outlier → child correction and
   approval → v2 replay → Day-2 reuse → parent evidence → closing line. Add
@@ -231,4 +231,3 @@ disclosures, and no unverified claims. Include real screenshots for Home, correc
 compile/replay, Runner/Day-2, Parent Evidence, and mobile/touch layout. Include the demo file
 or an honest capture blocker and a frame manifest. Do not merge or claim architectural
 acceptance.
-

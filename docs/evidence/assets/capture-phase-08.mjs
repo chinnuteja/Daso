@@ -125,7 +125,8 @@ try {
   await click(page, 'Let Leo try this');
   await click(page, 'Make my copy');
   await page.getByText("Leo's copy of Maya's Flight Lab").waitFor();
-  await page.getByText('Owner: Leo').waitFor();
+  await page.getByText('Owner', { exact: true }).waitFor();
+  await page.getByText('Leo', { exact: true }).waitFor();
   await page.getByText('Saved rules — works without AI').waitFor();
   await page.getByText('works from saved rules, without AI').waitFor();
   await shot(page, resolve(ASSETS, 'phase-08-runner.png'));

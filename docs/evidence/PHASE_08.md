@@ -1,11 +1,11 @@
 # Phase 8 evidence packet
 
-**Date:** 2026-08-24
+**Date:** 2026-08-26
 **Spec:** `docs/phases/PHASE_08.md`
 **Build ledger:** `docs/BUILD_STATE.md`
 **Branch:** `orchestration/phase-08-plan`
 **Base:** Phase 7 accepted on `main` at `92680888abafb97c0784f65c0ee21b057fd9968e`
-**Status:** Implemented — gates green. Not architecturally accepted. The PR was not merged.
+**Status:** Founder-quality completion pass implemented. Acceptance gates are recorded below.
 
 ---
 
@@ -41,8 +41,10 @@ A child notices an unfair throw, teaches a lasting rule, sees the same stored th
 - `docs/ARCHITECTURE.md`
 - `docs/THREAT_MODEL.md`
 - `docs/demo/README.md`
+- `docs/demo/encode-demo.mjs`
 - `docs/demo/manifest.json`
 - `docs/demo/frames/*.png`
+- `docs/demo/teach-daso-90s.webm`
 - `docs/BUILD_STATE.md`
 - `docs/evidence/PHASE_08.md`
 - `docs/evidence/assets/capture-phase-08.mjs`
@@ -58,7 +60,10 @@ Next.js-generated `AGENTS.md` / `CLAUDE.md` are not included.
 
 ## 3. Screenshots
 
-Browser: Chrome (`channel: 'chrome'`), `http://localhost:3000`, via `docs/evidence/assets/capture-phase-08.mjs`.
+Browser: the in-app Chromium browser against production Next.js servers at
+`http://localhost:3001` and a fresh-storage definition run at `http://localhost:3002`.
+The checked-in capture script remains reproducible evidence tooling; the final frames below
+were inspected from real product state, not mocked markup.
 
 | File | What it shows |
 |---|---|
@@ -66,6 +71,7 @@ Browser: Chrome (`channel: 'chrome'`), `http://localhost:3000`, via `docs/eviden
 | `phase-08-home-320.png` / `768` / `1024` | Same Home at the three required widths |
 | `phase-08-home-saved.png` | Child-created tile with real counts; secondary actions quieter |
 | `phase-08-imagine.png` | Progress rail on Question; next action |
+| `phase-08-define.png` | A fresh run with the required median-distance metric selected |
 | `phase-08-capture.png` | Go throw then record; manual-measurement disclosure |
 | `phase-08-approval.png` | Maya said this; Daso cannot approve |
 | `phase-08-compile.png` | `tool_version_002`, **Before: Dart leads**, **Now: Falcon leads**, trial_004 flip, Your words became a rule |
@@ -75,11 +81,13 @@ Browser: Chrome (`channel: 'chrome'`), `http://localhost:3000`, via `docs/eviden
 
 Demo frames: `docs/demo/frames/00-thesis.png` … `05-parent.png`.
 
-## 4. Accessibility and demo honesty
+## 4. Accessibility, responsive behaviour, and demo honesty
 
 - Interactive CSS uses `--target: 44px`, `:focus-visible`, `prefers-reduced-motion`, and `overflow-x: hidden`. INV-81 asserts the source contract.
-- Delete confirmation was captured with the confirm control focused. A separate human-only keyboard tour and an axe/Lighthouse report were not produced in this sitting.
-- **Video blocker:** `docs/demo/teach-daso-90s.mp4` was not encoded. The script, manifest, and real frame sequence are the evidence. Human comprehension answers are **pending**.
+- Production-browser checks at 320px, 768px, and 1024px found no horizontal overflow on Home. The 320px pass also covered `/journey`, `/run`, and `/parent` with no overflow.
+- A live target-size audit covered the core routes. Every interactive control meets the 44px target; the native 24px checkbox is contained by its 44px clickable label. Delete confirmation was captured with the destructive control visibly focused.
+- `docs/demo/teach-daso-90s.webm` is a finished, 90-second, 1024×1366 VP8 walkthrough assembled from the six real production frames. `docs/demo/encode-demo.mjs` rebuilds it with the Playwright-bundled minimal FFmpeg and the already-installed transitive `sharp`; no package dependency was added. WebM is used because that local encoder does not contain H.264.
+- An axe/Lighthouse report and answers from an unfamiliar human viewer were not produced or invented. The independent three-question human comprehension check remains **pending** and is not represented as automated evidence.
 
 ## 5. Disclosures
 
@@ -87,7 +95,7 @@ All four R7 registry entries appear in `README.md` and on their declared product
 
 ## 6. Gate output
 
-Serial run on `orchestration/phase-08-plan` after the orphaned-disclosure redaction (decision 53). Commands were not run concurrently with the production build.
+Serial acceptance run on `orchestration/phase-08-plan` after the founder-quality completion pass. Commands were not run concurrently with a development or production server.
 
 | Command | Exit |
 |---|---|
@@ -100,4 +108,6 @@ Serial run on `orchestration/phase-08-plan` after the orphaned-disclosure redact
 
 The P7 orphaned-attribution integration test is included in the full suite (2 passed). After Maya’s profile is deleted, Runner still shows the R7 second-child disclosure, but the on-screen “what is real” line does not contain `Maya`.
 
-This packet does not claim architectural acceptance. The branch was not merged.
+No schema, repository contract, model path, dependency, tool kind, disclosure, deletion rule,
+or deterministic runtime behaviour changed in the completion pass. Human comprehension remains
+an external validation follow-up; it is not a code or architecture blocker.

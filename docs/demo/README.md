@@ -4,16 +4,13 @@
 
 **Closing line (82–90s):** Maya didn't download this tool. She taught it.
 
-## Capture blocker
+## Finished video
 
-This environment cannot encode `docs/demo/teach-daso-90s.mp4` (no committed screen-recorder or ffmpeg pipeline). The truthful substitute is:
+`docs/demo/teach-daso-90s.webm` is a 90-second VP8 founder cut made from the six verified production frames below. It is intentionally a frame-led product walkthrough: there is no fabricated cursor movement, sensor result, or notification.
 
-- this script
-- `docs/demo/manifest.json`
-- the timestamped frame sequence under `docs/demo/frames/`
-- `docs/evidence/assets/capture-phase-08.mjs`, which walks the real product path
+Rebuild it with `node docs/demo/encode-demo.mjs`. The local Playwright encoder supports VP8 WebM, not H.264 MP4, so the delivered file keeps the format honest rather than carrying a false `.mp4` extension.
 
-Do not treat the missing mp4 as a completed video.
+The exact live click path remains below and in `docs/evidence/assets/capture-phase-08.mjs`.
 
 ## Setup / reset
 

@@ -6,6 +6,7 @@ import styles from './screens.module.css';
 export function DefineMetricsScreen(props: {
   readonly prompt: string;
   readonly question: string | null;
+  readonly canConfirm: boolean;
   readonly onChooseDistance: () => void;
   readonly onAcceptConsistency: () => void;
   readonly onConfirm: () => void;
@@ -25,7 +26,12 @@ export function DefineMetricsScreen(props: {
           Yes — also compare consistency
         </ChoiceButton>
       </SuggestionCard>
-      <ChoiceButton onClick={props.onConfirm}>That’s what “best” means</ChoiceButton>
+      {!props.canConfirm ? (
+        <p className={styles.muted}>Choose at least one way to compare the planes.</p>
+      ) : null}
+      <ChoiceButton emphasis="primary" onClick={props.onConfirm} disabled={!props.canConfirm}>
+        That’s what “best” means
+      </ChoiceButton>
     </div>
   );
 }

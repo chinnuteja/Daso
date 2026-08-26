@@ -4,7 +4,24 @@
 
 A child notices something, teaches a lasting rule, sees the result change, and another child can use it later. A parent can see why. Flight Lab is the only implemented tool.
 
+![Teach Daso — a child starts from a real question](docs/demo/frames/00-thesis.png)
+
 This is a local tablet prototype. It is not affiliated with or endorsed by Daso.
+
+## The idea
+
+Teach Daso explores one adjacent question: can a child teach their computer a durable capability without quietly handing authorship to the AI?
+
+The answer here is deliberately narrow and executable. Maya defines what “best” means, records real observations, notices an unfair throw, explains why, and approves the change. The AI may suggest; it cannot approve. Her words compile into an immutable version, the same observations replay deterministically, and the saved tool runs later with no model call.
+
+| What a founder sees | What the architecture proves |
+|---|---|
+| **Before: Dart leads → Now: Falcon leads** | One approved rule changed one stored trial’s validity; the runtime replay is deterministic. |
+| **Maya taught this rule** | Material behavior is equal to the fold of approved authorship events. |
+| **Saved rules — works without AI** | Runner cannot reach either model role and uses the active immutable version. |
+| **Parent evidence** | Every narrative clause is projected from local records and cites evidence that exists. |
+
+![The same stored throws change after Maya approves her rule](docs/demo/frames/03-v2.png)
 
 ## Run locally
 

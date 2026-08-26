@@ -7,6 +7,7 @@ export function ProposeCorrectionScreen(props: {
   readonly prompt: string;
   readonly question: string | null;
   readonly explanation: string;
+  readonly explained: boolean;
   readonly onOfferDistanceRule: () => void;
   readonly onOfferMetricRemoval: () => void;
   readonly onExplain: () => void;
@@ -16,22 +17,34 @@ export function ProposeCorrectionScreen(props: {
     <div className={styles.stack}>
       <p className={styles.prompt}>{props.prompt}</p>
       {props.question !== null && <p>{props.question}</p>}
-      <SuggestionCard>
-        <p>Should Flight Lab stop counting throws that measure 8.9 metres?</p>
-        <ChoiceButton kind="suggest" onClick={props.onOfferDistanceRule}>
-          Review this suggestion
-        </ChoiceButton>
-      </SuggestionCard>
-      <SuggestionCard>
-        <p>Or should Flight Lab stop comparing distance altogether?</p>
-        <ChoiceButton kind="suggest" onClick={props.onOfferMetricRemoval}>
-          Review this suggestion
-        </ChoiceButton>
-      </SuggestionCard>
-      <ChoiceButton kind="child" onClick={props.onExplain}>
-        {props.explanation}
+      {!props.explained ? (
+        <>
+          <SuggestionCard>
+            <p>Should Flight Lab stop counting throws that measure 8.9 metres?</p>
+            <ChoiceButton kind="suggest" onClick={props.onOfferDistanceRule}>
+              Review this suggestion
+            </ChoiceButton>
+          </SuggestionCard>
+          <SuggestionCard>
+            <p>Or should Flight Lab stop comparing distance altogether?</p>
+            <ChoiceButton kind="suggest" onClick={props.onOfferMetricRemoval}>
+              Review this suggestion
+            </ChoiceButton>
+          </SuggestionCard>
+          <ChoiceButton kind="child" emphasis="primary" onClick={props.onExplain}>
+            {props.explanation}
+          </ChoiceButton>
+        </>
+      ) : (
+        <p className={styles.status}>Maya’s reason is ready: {props.explanation}</p>
+      )}
+      <ChoiceButton
+        emphasis={props.explained ? 'primary' : 'secondary'}
+        onClick={props.onOfferCorrection}
+        disabled={!props.explained}
+      >
+        Review the rule I taught
       </ChoiceButton>
-      <ChoiceButton onClick={props.onOfferCorrection}>Review the rule I taught</ChoiceButton>
     </div>
   );
 }

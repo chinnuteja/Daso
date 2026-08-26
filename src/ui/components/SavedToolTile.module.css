@@ -1,14 +1,98 @@
 .tile {
   min-height: 8rem;
-  border: 2px solid var(--line);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
   background: var(--panel);
-  padding: 1.25rem;
+  padding: clamp(1.15rem, 2vw, 1.5rem);
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 1rem;
   color: inherit;
+  box-shadow: var(--shadow-sm);
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.tile:hover {
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-2px);
 }
 
 .tile p {
   margin: 0;
+}
+
+.topline,
+.secondaryActions,
+.counts {
+  display: flex;
+  align-items: center;
+}
+
+.topline {
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.toolMark {
+  display: inline-grid;
+  place-items: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 0.8rem;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-size: 1.25rem;
+  font-weight: 900;
+}
+
+.ready {
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  background: var(--child-soft);
+  color: var(--child);
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.identity h3 {
+  margin: 0 0 0.25rem;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(1.35rem, 2.5vw, 1.75rem);
+  line-height: 1.15;
+}
+
+.identity p {
+  color: var(--muted);
+}
+
+.provenance {
+  margin-top: 0.35rem !important;
+  font-size: 0.92rem;
+}
+
+.counts {
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  padding: 0.75rem;
+  border-radius: var(--radius-sm);
+  background: var(--panel-soft);
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.counts strong {
+  color: var(--ink);
+}
+
+.secondaryActions {
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tile:hover {
+    transform: none;
+  }
 }

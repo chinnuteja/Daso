@@ -20,10 +20,10 @@ export function ReviewMutationScreen(props: {
       <p>{props.summary}</p>
       {props.refusal !== undefined ? <p className={styles.refusal}>{props.refusal}</p> : null}
       <div className={styles.actions}>
-        <ChoiceButton kind="child" onClick={props.onApprove}>
+        <ChoiceButton kind="child" emphasis="primary" onClick={props.onApprove}>
           Yes — add this to the tool
         </ChoiceButton>
-        <ChoiceButton onClick={props.onReject}>No — do not change the tool</ChoiceButton>
+        <ChoiceButton quiet onClick={props.onReject}>No — do not change the tool</ChoiceButton>
       </div>
     </>
   );
@@ -31,7 +31,7 @@ export function ReviewMutationScreen(props: {
   return (
     <div className={styles.stack}>
       <p className={styles.prompt}>{props.prompt}</p>
-      {props.suggested ? <SuggestionCard>{body}</SuggestionCard> : body}
+      {props.suggested ? <SuggestionCard>{body}</SuggestionCard> : <section className={styles.formCard}>{body}</section>}
     </div>
   );
 }

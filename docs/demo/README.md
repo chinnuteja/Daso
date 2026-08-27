@@ -1,5 +1,7 @@
 # 90-second founder demo
 
+> Historical Phase 8 interface. The result-first rebuild now starts at `/`; the old builder remains at `/journey`. These frames/video are not visual evidence for the new landing experience. See `docs/UX_REBUILD.md`.
+
 **Thesis (0–10s):** The computer that grows with your child should grow because of your child.
 
 **Closing line (82–90s):** Maya didn't download this tool. She taught it.

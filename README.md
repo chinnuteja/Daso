@@ -4,7 +4,7 @@
 
 A child notices something, teaches a lasting rule, sees the result change, and another child can use it later. A parent can see why. Flight Lab is the only implemented tool.
 
-![Teach Daso — a child starts from a real question](docs/demo/frames/00-thesis.png)
+The current landing experience starts with the result, not a setup wizard. See [the UX rebuild and research](docs/UX_REBUILD.md).
 
 This is a local tablet prototype. It is not affiliated with or endorsed by Daso.
 
@@ -21,7 +21,7 @@ The answer here is deliberately narrow and executable. Maya defines what “best
 | **Saved rules — works without AI** | Runner cannot reach either model role and uses the active immutable version. |
 | **Parent evidence** | Every narrative clause is projected from local records and cites evidence that exists. |
 
-![The same stored throws change after Maya approves her rule](docs/demo/frames/03-v2.png)
+The original Phase 8 screenshots and video are archived evidence of the earlier interface, not the current landing page.
 
 ## Run locally
 
@@ -39,7 +39,17 @@ npm test
 npm run build
 ```
 
-## 90-second product path
+## Try the idea — the primary experience
+
+Open `/`. The labelled example already shows four sample throws and the chair-hit result.
+
+1. **That throw shouldn’t count** — propose a lasting rule. The ranking does not change yet.
+2. **Approve & save this rule** — the same observations replay and Falcon leads.
+3. **Try a new throw** — test a clear or obstructed flight against the saved rule.
+
+The sample identities and baseline history are disclosed. Assistance is scripted, not live AI. Your approval and the saved computation are real. No sample data is written simply by opening Home. Existing saved tools are at `/library`.
+
+## Full guided builder — optional
 
 1. Home: **Start with a question**.
 2. Teach: question → what “best” means → what to write down → a guess (not stored as a result) → real throws.
@@ -68,7 +78,7 @@ Honest product-spec deviations:
 
 ## Routes
 
-`/` Home · `/journey` Teach · `/run` Runner · `/parent` Parent evidence · `/inspect` inspection projection · `/api/agents/teaching` and `/api/agents/evidence` (the only two model paths)
+`/` Interactive example · `/library` Saved tools · `/journey` Full builder · `/run` Runner · `/parent` Parent evidence · `/inspect` inspection projection · `/api/agents/teaching` and `/api/agents/evidence` (the only two model paths)
 
 ## Docs
 

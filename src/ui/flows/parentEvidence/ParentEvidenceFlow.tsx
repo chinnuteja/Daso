@@ -104,11 +104,11 @@ export function ParentEvidenceFlow() {
               const { repositories } = await openIndexedDbRepositories();
               if (kind === 'tool') {
                 await repositories.tools.deleteToolGraph(ready.tool.toolId);
-                router.replace(`/?deleted=${ready.tool.toolId}`);
+                router.replace(`/library?deleted=${ready.tool.toolId}`);
                 return;
               }
               await repositories.profiles.deleteProfileGraph(ready.owner.childId);
-              router.replace(`/?profileDeleted=${ready.owner.childId}`);
+              router.replace(`/library?profileDeleted=${ready.owner.childId}`);
             } catch {
               setPendingDelete(null);
               setDeleteError(PARENT_INTEGRITY_COPY);

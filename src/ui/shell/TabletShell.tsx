@@ -17,9 +17,9 @@ export function TabletShell(props: { readonly title: string; readonly children: 
           </div>
         </div>
         <nav className={styles.nav} aria-label="Teach Daso">
-          <Link href="/">Home</Link>
-          <Link href="/journey">Teach</Link>
-          <Link href="/run">Use</Link>
+          <Link href="/">Try the idea</Link>
+          <Link href="/library">Saved tools</Link>
+          <Link href="/journey">Full builder</Link>
         </nav>
       </header>
       <main className={styles.main}>{props.children}</main>

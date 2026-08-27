@@ -102,6 +102,11 @@ export function JourneyFlow() {
   const [refusal, setRefusal] = useState<string | null>(null);
   const [approvalRecorded, setApprovalRecorded] = useState(false);
   const [correctionExplained, setCorrectionExplained] = useState(false);
+  const [storageReady, setStorageReady] = useState(false);
+  const [storageError, setStorageError] = useState<string | null>(null);
+  const [storageAttempt, setStorageAttempt] = useState(0);
+  const [working, setWorking] = useState(false);
+  const workingRef = useRef(false);
 
   const refresh = useCallback(async (repositories: Repositories) => {
     const stored = await repositories.trials.listByTool(FLIGHT_LAB_TOOL_ID);
@@ -119,29 +124,46 @@ export function JourneyFlow() {
 
   useEffect(() => {
     let cancelled = false;
+    let closeDatabase: (() => void) | undefined;
+    const timeout = setTimeout(() => {
+      if (!cancelled && sessionRef.current === null) {
+        setStorageError('Local storage is taking too long. Close other Teach Daso tabs and retry.');
+        setMessage('Your workbench is not ready yet.');
+      }
+    }, 8000);
     void (async () => {
       const { repositories, database } = await openIndexedDbRepositories();
+      closeDatabase = () => database.close();
       if (cancelled) {
         database.close();
         return;
       }
       const ids = createSequentialIdFactory(await loadIdCounters(database));
-      sessionRef.current = {
-        repositories,
-        ids,
-        saveCounters: () => saveIdCounters(database, ids.snapshot()),
-      };
       const existing = await repositories.profiles.get(MAYA.childId);
       if (existing === null) {
         await repositories.profiles.save(MAYA);
       }
       await refresh(repositories);
+      if (cancelled) { database.close(); return; }
+      sessionRef.current = { repositories, ids, saveCounters: () => saveIdCounters(database, ids.snapshot()) };
+      clearTimeout(timeout);
+      setStorageReady(true);
+      setStorageError(null);
       setMessage('Local store is ready.');
-    })();
+    })().catch(() => {
+      if (!cancelled) {
+        clearTimeout(timeout);
+        setStorageError('We couldn’t open local storage. Nothing was changed. Please retry.');
+        setMessage('The workbench could not be opened.');
+      }
+    });
     return () => {
       cancelled = true;
+      clearTimeout(timeout);
+      sessionRef.current = null;
+      closeDatabase?.();
     };
-  }, [clock, refresh]);
+  }, [clock, refresh, storageAttempt]);
 
   async function interpretIfNeeded(nextState: OrchestratorState, originalInput: string): Promise<void> {
     const move: TeachingMove = await teachingRef.current.interpret({
@@ -156,15 +178,21 @@ export function JourneyFlow() {
   async function dispatch(
     event: OrchestratorEvent,
     context: { candidate?: CandidateDraft; trial?: TrialDraft; originalInput?: string } = {},
-  ): Promise<void> {
+  ): Promise<boolean> {
     const session = sessionRef.current;
     if (session === undefined || session === null) {
-      return;
+      setMessage('Still opening local storage. Please wait until the workbench is ready.');
+      return false;
     }
+    if (workingRef.current) return false;
     const result = transition(state, event);
     if (result.kind === 'ignored') {
-      return;
+      return false;
     }
+    workingRef.current = true;
+    setWorking(true);
+    setMessage('Saving your choice…');
+    try {
     const executed = await executeIntents({
       intents: result.intents,
       repositories: session.repositories,
@@ -186,7 +214,7 @@ export function JourneyFlow() {
           : policyRejectionCopy(executed.rejection.verdict.boundary, readingBand);
       setRefusal(copy);
       await session.saveCounters();
-      return;
+      return false;
     }
     setRefusal(null);
     await session.saveCounters();
@@ -205,6 +233,17 @@ export function JourneyFlow() {
       router.push(`/run?tool=${FLIGHT_LAB_TOOL_ID}`);
     }
     await refresh(session.repositories);
+    setMessage(event.kind === 'candidate_approved' ? 'Your approval is saved.' : 'Saved. Your next action is below.');
+    return true;
+    } catch {
+      setRefusal('That action could not be saved. Your previous records are still here. Please try again.');
+      setMessage('Not saved. Try the action again.');
+      return false;
+    } finally {
+      try { await session.saveCounters(); } catch { setRefusal('The storage write did not finish. Reload before making another change.'); setStorageReady(false); }
+      workingRef.current = false;
+      setWorking(false);
+    }
   }
 
   const prompt = stateCopy(state, readingBand);
@@ -231,6 +270,8 @@ export function JourneyFlow() {
         {approvalRecorded ? <strong>Saved by Maya — Daso did not approve it.</strong> : null}
       </div>
       {refusal !== null ? <p className={styles.refusal}>{refusal}</p> : null}
+      {storageError !== null ? <div role="alert"><p>{storageError}</p><button type="button" onClick={() => { setStorageError(null); setStorageReady(false); setMessage('Reopening local storage…'); setStorageAttempt((value) => value + 1); }}>Retry opening storage</button></div> : null}
+      <fieldset className={styles.flowControls} disabled={!storageReady || working} aria-busy={!storageReady || working}>
       {reviewingDefinition || state === 'REVIEW_MUTATION' ? (
         <ReviewMutationScreen
           prompt={prompt}
@@ -238,13 +279,15 @@ export function JourneyFlow() {
           suggested={pendingSuggested}
           refusal={refusal ?? undefined}
           onApprove={() => {
-            void dispatch({ kind: 'candidate_approved' }).then(() => {
+            void dispatch({ kind: 'candidate_approved' }).then((saved) => {
+              if (!saved) return;
               setPendingSummary('');
               setPendingSuggested(false);
             });
           }}
           onReject={() => {
-            void dispatch({ kind: 'candidate_rejected' }).then(() => {
+            void dispatch({ kind: 'candidate_rejected' }).then((saved) => {
+              if (!saved) return;
               setPendingSummary('');
               setPendingSuggested(false);
             });
@@ -459,7 +502,8 @@ export function JourneyFlow() {
             void dispatch(
               { kind: 'correction_explained' },
               { originalInput: FLIGHT_LAB_CORRECTION },
-            ).then(() => {
+            ).then((saved) => {
+              if (!saved) return;
               setCorrectionExplained(true);
             });
           }}
@@ -497,6 +541,7 @@ export function JourneyFlow() {
           }}
         />
       ) : null}
+      </fieldset>
     </div>
   );
 }

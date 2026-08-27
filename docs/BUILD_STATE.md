@@ -2,7 +2,7 @@
 
 **Maintained by:** technical architect / build orchestrator
 **Normative source:** `TEACH_DASO_PRODUCT_AND_ARCHITECTURE.md`
-**Last updated:** 2026-08-26. Phase 8 is architecturally accepted at `87f1cce9c324b802205f5794ef7ddf35aa36bce0`. INV-01–INV-83 are asserted and the M1–M7 product baseline is complete.
+**Last updated:** 2026-08-27. Phase 8's architecture remains accepted at `87f1cce9c324b802205f5794ef7ddf35aa36bce0`, but user-experience acceptance is reopened after the owner's failed first-use test. The result-first rebuild is on `ux/result-first-experience`; see `docs/UX_REBUILD.md`. Do not treat the old green gates as evidence that the new interface is understood by a first-time user.
 
 This file is the single source of truth for what is built, what is proven, and what has
 drifted. A phase is not complete because it runs. It is complete when its acceptance tests
@@ -21,9 +21,9 @@ are named here and passing, and no undeclared deviation exists.
 | P5 | Compiler & Deterministic Runtime | M4 | **Architecturally accepted — gates green** | 2026-08-23 |
 | P6 | Keep & Reuse | M5 | **Architecturally accepted — gates green** | 2026-08-23 |
 | P7 | Parent Evidence & Data Rights | M6 | **Architecturally accepted — gates green** | 2026-08-24 |
-| P8 | Founder-Facing Polish | M7 | **Architecturally accepted — gates green** | 2026-08-26 |
+| P8 | Founder-Facing Polish | M7 | **Architecture accepted; UX acceptance reopened** | 2026-08-26 (architecture) |
 
-P5, P6, P7, and P8 are architecturally accepted. The planned M1–M7 product baseline is complete.
+P5, P6, P7, and the original P8 architecture are accepted. The owner's first-use test reopened P8's user-experience acceptance. The result-first rebuild must be evaluated separately; an architectural baseline is not proof of a usable product.
 
 ---
 
@@ -156,6 +156,8 @@ Phase 7 accepts D-02: preserving grounding truth is more important than inventin
 ---
 
 ## 5. Open risks
+
+- **UX acceptance reopened** — the owner could not progress through the first interaction and could not identify the intended proof. The result-first rebuild passes 283 tests and production HTTP checks, but live browser automation is unavailable in this environment. Do not merge or mark UX accepted before the new two-action flow is actually tested. Research, implementation decisions, and exact gate results are in `docs/UX_REBUILD.md`.
 
 - **E.1 UI-first shaping of the domain** — INV-44: `src/ui` and `src/app` declare no Zod object schemas. The teaching route parses with the frozen core `TeachingRequest` / `TeachingMove`; it does not declare a `z.object` in `src/app`.
 - **E.2 Provenance becomes decorative** — still INV-09 / INV-11; storage cannot edit events (INV-28). INV-53 now rejects a pre-stamped `sourceEventId` before append.

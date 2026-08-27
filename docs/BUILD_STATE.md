@@ -2,7 +2,7 @@
 
 **Maintained by:** technical architect / build orchestrator
 **Normative source:** `TEACH_DASO_PRODUCT_AND_ARCHITECTURE.md`
-**Last updated:** 2026-08-27. Phase 8's architecture remains accepted at `87f1cce9c324b802205f5794ef7ddf35aa36bce0`, but user-experience acceptance is reopened after the owner's failed first-use test. The result-first rebuild is on `ux/result-first-experience`; see `docs/UX_REBUILD.md`. Do not treat the old green gates as evidence that the new interface is understood by a first-time user.
+**Last updated:** 2026-08-28. Phase 8's architecture remains accepted at `87f1cce9c324b802205f5794ef7ddf35aa36bce0`, but user-experience acceptance is reopened after the owner's failed first-use test. The result-first rebuild is on `ux/result-first-experience`; see `docs/UX_REBUILD.md`. Recovery checks now cover 288 passing tests, but the browser automation connection still fails before reaching a page. Live clicks, keyboard navigation, and responsive layout are not yet verified. Do not treat the old green gates as evidence that the new interface is understood by a first-time user.
 
 This file is the single source of truth for what is built, what is proven, and what has
 drifted. A phase is not complete because it runs. It is complete when its acceptance tests

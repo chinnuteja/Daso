@@ -148,6 +148,8 @@ export async function approveExperienceRule(context: ExperienceContext): Promise
 }
 
 export async function recordExperienceTrial(context: ExperienceContext, fields: { designName: string; distanceM: number; obstruction: boolean }) {
+  const current = await readRequiredExperience(context);
+  if (!current.saved) throw new Error('Save the reviewed rule before testing it.');
   const trial = await captureTrialUnderActiveVersion({ ...context, trial: { ...fields, toolId: context.toolId, validAtCapture: true } });
   const snapshot = await readRequiredExperience(context);
   const runtime = replay(snapshot.version, snapshot.trials);

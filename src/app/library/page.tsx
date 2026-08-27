@@ -75,10 +75,11 @@ function HomeContents() {
         }}
         onDayTwo={(toolId) => {
           void (async () => {
-            const { repositories } = await openIndexedDbRepositories();
-            await ensureSecondChildProfile(repositories);
+            const { repositories, database } = await openIndexedDbRepositories();
+            try { await ensureSecondChildProfile(repositories); }
+            finally { database.close(); }
             router.push(`/run?tool=${toolId}&viewer=${LEO_CHILD_ID}`);
-          })();
+          })().catch(() => setError('Leo’s profile could not be opened. Your saved tool is unchanged. Please try again.'));
         }}
       />
     </TabletShell>

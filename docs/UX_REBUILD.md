@@ -11,6 +11,11 @@ The previous Phase 8 visual/architecture acceptance did not establish usability.
 
 These patterns inform the design; they do not prove this particular interface is usable. Actual first-use testing is still required.
 
+Additional recovery guidance reviewed on 2026-08-28:
+
+- [W3C WAI: Multi-page forms](https://www.w3.org/WAI/tutorials/forms/multi-page/): make progress explicit, including in the page title. The experience now updates its title for notice, review, and saved stages and restores pending review after reload.
+- [W3C WAI: User notifications](https://www.w3.org/WAI/tutorials/forms/notifications/): explain both success and failure near the action. Busy primary buttons now name the operation. An approval recorded before a failed compile is distinguished from an active saved rule, and uncertain saves do not promise that nothing was written.
+
 ## Primary flow
 
 1. Home immediately shows four labelled sample observations, the calculated ranking, and the disputed chair-hit throw. No form filling or tutorial is required.
@@ -60,3 +65,29 @@ A fresh viewer should be able to identify the disputed result, propose and appro
 The initial server-rendered page contains the result-first action, sample disclosure, and disabled-until-ready controls. Production is served locally on port 3000.
 
 **Still unverified:** live browser clicks, keyboard navigation, and rendered mobile/tablet layout. The browser-control runtime failed before connecting (missing local kernel assets), including after a reset. No new screenshots, accessibility report, or independent comprehension result are claimed. This branch is ready for first-use review, not UX-accepted or merged.
+
+## Recovery verification — 2026-08-28
+
+The requested browser connection was attempted and reset once. Both attempts failed before any page could be inspected: `failed to write kernel assets: The system cannot find the path specified. (os error 3)`. This is an automation-environment blocker, not evidence of a page failure. No alternative browser-control mechanism was used to bypass the prescribed browser connection.
+
+Code review and executable checks added:
+
+- A restored pending proposal renders the review stage.
+- An already-recorded approval awaiting compilation is described as not active; the next save does not request another approval.
+- The test-throw entry point rejects writes until the reviewed rule is saved.
+- Waiting for another tab's lock times out after eight seconds and can be retried. The timeout stops when the lock is granted, so it never aborts a write already in progress.
+- Local database connections close even if loading ID counters fails; the library's second-child action now closes its connection and catches errors.
+- Editing test inputs clears the previous result so a prior verdict is not attached to different inputs.
+
+Targeted recovery/storage tests: **3 files, 16 passed**. Full suite before and after production build: **100 files, 288 passed** each. Type-check, lint, and production build: exit 0. The rebuilt production server is running on port 3000; `/`, `/library`, `/journey`, `/run`, and `/parent` return HTTP 200. These include server-rendered markup and fake-IndexedDB integration checks, not browser click tests.
+
+### Live acceptance checklist — NOT RUN
+
+1. Fresh local sample: notice → propose → back to observations without approving → review → approve. Ranking must remain Dart before approval, then become Falcon.
+2. Reload during review and after save. Pending review and saved rule must respectively survive.
+3. Enter obstructed Dart 10 m, then clear Dart 10 m. Confirm the first is excluded, the second counted, and displayed input/result correspondence stays clear.
+4. Open Runner, make Leo a copy, inspect Parent evidence. Test export and delete only an explicitly identified disposable sample, never unrelated user work.
+5. Follow all actions with keyboard only, including focus after stage changes, error recovery, details, and deletion confirmation.
+6. Inspect at 320 px phone, tablet, and desktop widths, with zoom and reduced motion. Verify readable text, no horizontal clipping, visible primary action, and touch target sizes.
+
+No API key is needed for this acceptance pass. Assistance remains explicitly scripted. UX acceptance is still open; historical screenshots and videos do not close it.

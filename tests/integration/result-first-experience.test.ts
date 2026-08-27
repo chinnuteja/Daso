@@ -11,6 +11,7 @@ import { approveExperienceRule, createExperiencePreview, prepareExperience, prop
 import { createOrReuseFork, ensureSecondChildProfile } from '../../src/ui/flows/runner/reuseTool';
 import { loadParentEvidence } from '../../src/ui/flows/parentEvidence/loadParentEvidence';
 import { JourneyFlow } from '../../src/ui/flows/JourneyFlow';
+import { ExperienceFlow } from '../../src/ui/experience/ExperienceFlow';
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
@@ -21,6 +22,34 @@ function context(): ExperienceContext {
 afterEach(() => setFailAfterVersionWrite(false));
 
 describe('result-first experience — real consequence, minimal ceremony', () => {
+  it('a restored pending proposal presents review, not a fresh first step', async () => {
+    const proposed = await proposeExperienceRule(context());
+    const html = renderToStaticMarkup(createElement(ExperienceFlow, { preview: proposed }));
+    expect(html).toContain('2 / 3 · You decide');
+    expect(html).toContain('Not active yet. Only your approval can change the tool.');
+    expect(html).not.toContain('3 / 3 · It remembers');
+  });
+
+  it('an approval awaiting compilation is described honestly on reload', async () => {
+    const session = context();
+    await proposeExperienceRule(session);
+    setFailAfterVersionWrite(true);
+    await expect(approveExperienceRule(session)).rejects.toThrow();
+    const stored = await readExperience(session);
+    if (stored === null) throw new Error('missing snapshot');
+    const html = renderToStaticMarkup(createElement(ExperienceFlow, { preview: stored }));
+    expect(html).toContain('Your approval is recorded, but the rule is not active yet.');
+    expect(html).toContain('Finish saving your decision');
+    expect(html).not.toContain('Go back without approving');
+    expect(html).not.toContain('Your rule is saved.');
+  });
+
+  it('does not record a test throw before the reviewed rule is saved', async () => {
+    const session = context();
+    await proposeExperienceRule(session);
+    await expect(recordExperienceTrial(session, { designName: 'Dart', distanceM: 10, obstruction: true })).rejects.toThrow('Save the reviewed rule');
+    expect(await session.repositories.trials.listByTool(session.toolId)).toHaveLength(4);
+  });
   it('the full builder does not expose live controls before storage initialization', () => {
     const html = renderToStaticMarkup(createElement(JourneyFlow));
     expect(html).toMatch(/<fieldset[^>]*disabled/u);

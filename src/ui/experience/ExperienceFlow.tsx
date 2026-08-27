@@ -17,7 +17,7 @@ export function ExperienceFlow({ preview }: { readonly preview: ExperienceSnapsh
   const [busy, setBusy] = useState('Opening your local workbench…');
   const [error, setError] = useState<string | null>(null);
   const [retry, setRetry] = useState(0);
-  const [reviewing, setReviewing] = useState(false);
+  const [reviewing, setReviewing] = useState(preview.pendingId !== null && !preview.saved);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<TestResult | null>(null);
   const [persisted, setPersisted] = useState(false);
@@ -32,7 +32,10 @@ export function ExperienceFlow({ preview }: { readonly preview: ExperienceSnapsh
     void withExperience(false, async (context) => context === null ? null : readExperience(context))
       .then((stored) => {
         if (cancelled) return;
-        if (stored !== null) { setSnapshot(stored); setPersisted(true); }
+        if (stored !== null) {
+          setSnapshot(stored); setPersisted(true);
+          setReviewing(stored.pendingId !== null && !stored.saved);
+        }
         setReady(true); setBusy('');
       })
       .catch(() => {
@@ -48,6 +51,12 @@ export function ExperienceFlow({ preview }: { readonly preview: ExperienceSnapsh
 
   useEffect(() => { if (testing) testInput.current?.focus(); }, [testing]);
 
+  useEffect(() => {
+    const previous = document.title;
+    document.title = `${snapshot.saved ? '3 of 3: Rule saved' : reviewing ? '2 of 3: Review your rule' : '1 of 3: Notice what counts'} — Teach Daso`;
+    return () => { document.title = previous; };
+  }, [reviewing, snapshot.saved]);
+
   async function run(label: string, action: (context: ExperienceContext) => Promise<void>) {
     if (locked.current || !ready) return;
     locked.current = true; setBusy(label); setError(null);
@@ -57,7 +66,7 @@ export function ExperienceFlow({ preview }: { readonly preview: ExperienceSnapsh
         await action(context);
       });
     } catch {
-      setError('That change could not be completed. Your saved data has not been reset. Try the action again; a retry will not duplicate an approval.');
+      setError('We couldn’t confirm that action finished. Your saved data has not been reset. Reload to check what was saved before recording another throw. Retrying a rule approval will not duplicate it.');
     } finally { locked.current = false; setBusy(''); }
   }
 
@@ -113,7 +122,7 @@ export function ExperienceFlow({ preview }: { readonly preview: ExperienceSnapsh
 
           <section className={styles.decision} aria-label="Teach a lasting rule" aria-busy={busy.length > 0}>
             <div className={styles.decisionBody}>
-              <p className={styles.eyebrow}>{saved ? 'Your decision became behavior' : reviewing ? 'A proposal, not a decision' : 'Play Maya’s part'}</p>
+              <p className={styles.eyebrow}>{saved ? 'Your decision became behavior' : reviewing ? snapshot.approved ? 'Finish saving your decision' : 'A proposal, not a decision' : 'Play Maya’s part'}</p>
               <h3 ref={heading} tabIndex={-1}>{saved ? 'You taught it what counts.' : reviewing ? 'One throw. A rule for every throw.' : 'You noticed what the computer missed.'}</h3>
               {saved ? (
                 <>
@@ -126,15 +135,15 @@ export function ExperienceFlow({ preview }: { readonly preview: ExperienceSnapsh
                 <>
                   <blockquote>“That one shouldn’t count because it hit the chair.”</blockquote>
                   <div className={styles.ruleProposal}><span>Proposed rule</span><strong>If a flight touches something,<br />don’t count it.</strong><p>This applies to every plane and future throw—not only the 8.9 m result.</p></div>
-                  <p className={styles.approvalNote}>Not active yet. Only your approval can change the tool.</p>
-                  <button className={styles.primary} disabled={disabled} onClick={() => { void run('Saving your approval and recalculating…', async (context) => { setSnapshot(await approveExperienceRule(context)); setPersisted(true); setReviewing(false); }); }}>Approve &amp; save this rule <span aria-hidden="true">→</span></button>
-                  <button className={styles.secondary} disabled={disabled} onClick={() => setReviewing(false)}>Go back without approving</button>
+                  <p className={styles.approvalNote}>{snapshot.approved ? 'Your approval is recorded, but the rule is not active yet. Retry saving to finish; you won’t approve twice.' : 'Not active yet. Only your approval can change the tool.'}</p>
+                  <button className={styles.primary} disabled={disabled} onClick={() => { void run('Saving your approval and recalculating…', async (context) => { setSnapshot(await approveExperienceRule(context)); setPersisted(true); setReviewing(false); }); }}>{busy || (snapshot.approved ? 'Retry saving the approved rule' : 'Approve & save this rule')} <span aria-hidden="true">→</span></button>
+                  <button className={styles.secondary} disabled={disabled} onClick={() => setReviewing(false)}>Back to the observations</button>
                 </>
               ) : (
                 <>
                   <p>Maya is comparing paper planes. She notices the winning throw hit a chair. Help her teach the tool why that matters.</p>
                   <div className={styles.observationQuote}><span>Maya’s observation</span><q>That throw shouldn’t count.</q></div>
-                  <button className={styles.primary} disabled={disabled} onClick={() => { void run('Preparing your proposed rule…', async (context) => { setSnapshot(await proposeExperienceRule(context)); setPersisted(true); setReviewing(true); }); }}>That throw shouldn’t count <span aria-hidden="true">→</span></button>
+                  <button className={styles.primary} disabled={disabled} onClick={() => { void run('Preparing your proposed rule…', async (context) => { setSnapshot(await proposeExperienceRule(context)); setPersisted(true); setReviewing(true); }); }}>{busy || 'That throw shouldn’t count'} <span aria-hidden="true">→</span></button>
                   <p className={styles.micro}>You’ll review the rule before anything changes.</p>
                 </>
               )}
@@ -149,7 +158,7 @@ export function ExperienceFlow({ preview }: { readonly preview: ExperienceSnapsh
       {saved && testing ? (
         <section className={styles.testPanel} aria-label="Test the saved rule">
           <div><p className={styles.eyebrow}>Now make it prove itself</p><h3>A new throw. The same rule.</h3><p>Enter an observation. Try a long flight that touched something, then a clear flight.</p><p className={styles.micro}>Distances and obstructions are entered by you—not measured by a camera.</p></div>
-          <form aria-busy={busy.length > 0} onSubmit={(event) => {
+          <form aria-busy={busy.length > 0} onChange={() => setTestResult(null)} onSubmit={(event) => {
             event.preventDefault();
             const data = new FormData(event.currentTarget);
             const distance = Number(data.get('distance'));

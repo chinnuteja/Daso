@@ -34,24 +34,32 @@ async function openLocalStore(databaseName?: string) {
 export async function withExperience<T>(create: boolean, action: (context: ExperienceContext | null) => Promise<T>, databaseName?: string): Promise<T> {
   const run = async () => {
     const { repositories, database } = await openLocalStore(databaseName);
-    const ids = createSequentialIdFactory(await loadIdCounters(database));
     try {
-      let pointer = parsePointer(await database.get('meta', POINTER_KEY));
-      if (pointer !== null && create) {
-        const profile = await repositories.profiles.get(pointer.ownerChildId);
-        // Never resurrect a deleted profile under the identity retained by surviving forks.
-        if (profile === null) pointer = null;
-      }
-      if (pointer === null && create) {
-        const suffix = crypto.randomUUID();
-        pointer = { toolId: `sample-flight-lab-${suffix}`, ownerChildId: `child_sample_${suffix.replaceAll('-', '')}` };
-        await database.put('meta', { key: POINTER_KEY, ...pointer });
-      }
-      return await action(pointer === null ? null : { repositories, ids, clock: createBrowserClock(), ...pointer });
-    } finally {
-      try { if (create) await saveIdCounters(database, ids.snapshot()); }
-      finally { database.close(); }
-    }
+      const ids = createSequentialIdFactory(await loadIdCounters(database));
+      try {
+        let pointer = parsePointer(await database.get('meta', POINTER_KEY));
+        if (pointer !== null && create) {
+          const profile = await repositories.profiles.get(pointer.ownerChildId);
+          // Never resurrect a deleted profile under the identity retained by surviving forks.
+          if (profile === null) pointer = null;
+        }
+        if (pointer === null && create) {
+          const suffix = crypto.randomUUID();
+          pointer = { toolId: `sample-flight-lab-${suffix}`, ownerChildId: `child_sample_${suffix.replaceAll('-', '')}` };
+          await database.put('meta', { key: POINTER_KEY, ...pointer });
+        }
+        return await action(pointer === null ? null : { repositories, ids, clock: createBrowserClock(), ...pointer });
+      } finally { if (create) await saveIdCounters(database, ids.snapshot()); }
+    } finally { database.close(); }
   };
-  return navigator.locks ? navigator.locks.request('teach-daso-example', run) : run();
+  if (!navigator.locks) return run();
+  // Time out only while waiting for another tab, never during a write in progress.
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8000);
+  try {
+    return await navigator.locks.request('teach-daso-example', { signal: controller.signal }, async () => {
+      clearTimeout(timer);
+      return run();
+    });
+  } finally { clearTimeout(timer); }
 }

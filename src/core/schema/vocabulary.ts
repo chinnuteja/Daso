@@ -14,11 +14,18 @@ export const ToolKind = z.enum(['experiment_comparator']);
 export type ToolKind = z.infer<typeof ToolKind>;
 
 /** The comparisons Flight Lab supports, per the section 9.3 example. */
-export const MetricId = z.enum(['median_distance', 'consistency']);
+export const MetricId = z.enum(['median_distance', 'median_load', 'consistency']);
 export type MetricId = z.infer<typeof MetricId>;
 
 /** The fields a Flight Lab trial can carry, per section 6 scene 3. */
-export const InputField = z.enum(['design_name', 'distance_m', 'obstruction', 'note']);
+export const InputField = z.enum([
+  'design_name',
+  'distance_m',
+  'load_count',
+  'obstruction',
+  'setup_changed',
+  'note',
+]);
 export type InputField = z.infer<typeof InputField>;
 
 /** Who authored a ledger entry. There is no third actor that can author behaviour. */

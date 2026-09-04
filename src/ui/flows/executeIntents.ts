@@ -54,8 +54,10 @@ export interface CandidateDraft {
 export interface TrialDraft {
   readonly toolId: ToolId;
   readonly designName: string;
-  readonly distanceM: number;
+  readonly distanceM?: number;
+  readonly loadCount?: number;
   readonly obstruction: boolean;
+  readonly setupChanged?: boolean;
   readonly validAtCapture: boolean;
   readonly note?: string;
 }

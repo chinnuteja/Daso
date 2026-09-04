@@ -32,7 +32,9 @@ export function RunnerScreen(props: {
   readonly onMakeCopy?: () => void;
   readonly onCapture?: (fields: {
     readonly designName: string;
-    readonly distanceM: number;
+    readonly distanceM?: number;
+    readonly loadCount?: number;
+    readonly setupChanged?: boolean;
     readonly obstruction: boolean;
   }) => void;
 }) {
@@ -96,7 +98,7 @@ export function RunnerScreen(props: {
           {props.runtime !== null ? <RankingPanel runtime={props.runtime} /> : null}
           {props.lastTrial !== null ? (
             <p className={styles.latestTrial} role="status">
-              <strong>Latest throw:</strong> {props.lastTrial.designName} —{' '}
+              <strong>Latest observation:</strong> {props.lastTrial.designName} —{' '}
               {props.lastTrial.validUnderCurrentVersion ? 'counted' : 'not counted'}
             </p>
           ) : null}
@@ -105,7 +107,7 @@ export function RunnerScreen(props: {
             <ChoiceButton emphasis="primary" onClick={props.onMakeCopy}>Make my copy</ChoiceButton>
           ) : null}
           {props.canCapture && props.onCapture !== undefined ? (
-            <CaptureForm onCapture={props.onCapture} />
+            <CaptureForm onCapture={props.onCapture} version={props.version} />
           ) : null}
           <WhyPanel
             explanation={props.explanation}
@@ -125,6 +127,9 @@ function RankingPanel(props: { readonly runtime: RuntimeResult }) {
     .map((entry) => {
       if (entry.medianDistanceMm !== undefined) {
         return `${entry.rank}. ${entry.designName} — ${String(millimetresToMetres(entry.medianDistanceMm))} m`;
+      }
+      if (entry.medianLoadCount !== undefined) {
+        return `${entry.rank}. ${entry.designName} — ${String(entry.medianLoadCount)} coins`;
       }
       return `${entry.rank}. ${entry.designName}`;
     })
@@ -159,10 +164,13 @@ function inheritedRuleCopy(
   if (rule === undefined || taught === undefined || taught.subject.kind !== 'rule') {
     return null;
   }
+  const ruleMeaning = version.metrics.includes('median_load')
+    ? 'A result from a changed setup is not counted.'
+    : 'An obstructed throw is not counted.';
   if (sourceDeleted) {
     return (
       <p className={styles.ruleCallout}>
-        A deleted profile taught {taught.subject.ruleId}. An obstructed throw is not counted.
+        A deleted profile taught {taught.subject.ruleId}. {ruleMeaning}
       </p>
     );
   }
@@ -171,7 +179,7 @@ function inheritedRuleCopy(
   }
   return (
     <p className={styles.ruleCallout}>
-      {sourceAuthorName} taught {taught.subject.ruleId}. An obstructed throw is not counted.
+      {sourceAuthorName} taught {taught.subject.ruleId}. {ruleMeaning}
     </p>
   );
 }
@@ -195,52 +203,78 @@ function RunnerDisclosures(props: { readonly sourceDeleted: boolean }) {
 function CaptureForm(props: {
   readonly onCapture: (fields: {
     readonly designName: string;
-    readonly distanceM: number;
+    readonly distanceM?: number;
+    readonly loadCount?: number;
+    readonly setupChanged?: boolean;
     readonly obstruction: boolean;
   }) => void;
+  readonly version: ToolVersion;
 }) {
+  const isLoadComparison = props.version.metrics.includes('median_load');
   return (
     <form
       className={`${styles.stack} ${styles.formCard}`}
       onSubmit={(event) => {
         event.preventDefault();
         const data = new FormData(event.currentTarget);
-        props.onCapture({
-          designName: String(data.get('designName') ?? ''),
-          distanceM: Number(data.get('distanceM')),
-          obstruction: data.get('obstruction') === 'on',
-        });
+        props.onCapture(isLoadComparison
+          ? {
+              designName: String(data.get('designName') ?? ''),
+              loadCount: Number(data.get('loadCount')),
+              setupChanged: data.get('setupChanged') === 'on',
+              obstruction: false,
+            }
+          : {
+              designName: String(data.get('designName') ?? ''),
+              distanceM: Number(data.get('distanceM')),
+              obstruction: data.get('obstruction') === 'on',
+            });
         event.currentTarget.reset();
       }}
     >
       <div className={styles.formHeading}>
         <div>
-          <p className={styles.eyebrow}>New throw</p>
-          <h2>Try the saved tool.</h2>
+          <p className={styles.eyebrow}>New observation</p>
+          <h2>{isLoadComparison ? 'Try the saved bridge test.' : 'Try the saved tool.'}</h2>
         </div>
-        <p>Measure the throw yourself, then record it here.</p>
+        <p>{isLoadComparison ? 'Count the coins yourself, then record what changed.' : 'Measure the throw yourself, then record it here.'}</p>
       </div>
       <div className={styles.fieldGrid}>
-        <label className={styles.field}>
-          Plane
-          <select name="designName" required>
-            {DESIGNS.map((design) => (
-              <option key={design} value={design}>
-                {design}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className={styles.field}>
-          Distance in metres
-          <input name="distanceM" type="number" min={0} step="0.1" inputMode="decimal" required />
-        </label>
+        {isLoadComparison ? (
+          <>
+            <label className={styles.field}>
+              Bridge design
+              <input name="designName" placeholder="Flat, folded, accordion…" required />
+            </label>
+            <label className={styles.field}>
+              Coins held
+              <input name="loadCount" type="number" min={0} step="1" inputMode="numeric" required />
+            </label>
+          </>
+        ) : (
+          <>
+            <label className={styles.field}>
+              Plane
+              <select name="designName" required>
+                {DESIGNS.map((design) => (
+                  <option key={design} value={design}>
+                    {design}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className={styles.field}>
+              Distance in metres
+              <input name="distanceM" type="number" min={0} step="0.1" inputMode="decimal" required />
+            </label>
+          </>
+        )}
       </div>
       <label className={`${styles.field} ${styles.hit}`}>
-        <input name="obstruction" type="checkbox" />
-        <span>Did it touch something?</span>
+        <input name={isLoadComparison ? 'setupChanged' : 'obstruction'} type="checkbox" />
+        <span>{isLoadComparison ? 'I changed something besides the bridge design' : 'Did it touch something?'}</span>
       </label>
-      <ChoiceButton type="submit" emphasis="primary">Record this throw</ChoiceButton>
+      <ChoiceButton type="submit" emphasis="primary">Record this observation</ChoiceButton>
     </form>
   );
 }

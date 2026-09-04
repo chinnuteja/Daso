@@ -29,8 +29,12 @@ function conditionMatches(
       return trial.designName === equals;
     case 'distance_m':
       return trial.distanceM === equals;
+    case 'load_count':
+      return trial.loadCount === equals;
     case 'obstruction':
       return trial.obstruction === equals;
+    case 'setup_changed':
+      return trial.setupChanged === equals;
     case 'note':
       return trial.note === equals;
     default: {

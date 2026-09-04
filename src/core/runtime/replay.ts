@@ -5,6 +5,7 @@ import {
   consistencySpreadMm,
   hasConsistency,
   hasMedianDistance,
+  hasMedianLoad,
   medianMillimetres,
   metresToMillimetres,
 } from './metrics';
@@ -22,17 +23,21 @@ export function replay(version: ToolVersion, trials: readonly ExperimentTrial[])
     projections.map((projection) => [projection.trialId, projection.validUnderCurrentVersion]),
   );
   const useMedian = hasMedianDistance(version.metrics);
+  const useLoad = hasMedianLoad(version.metrics);
   const useConsistency = hasConsistency(version.metrics);
-  const rankByMetrics = useMedian || useConsistency;
+  const rankByMetrics = useMedian || useLoad || useConsistency;
 
-  const byDesign = new Map<string, number[]>();
+  const byDesign = new Map<string, { distances: number[]; loads: number[] }>();
   for (const trial of trials) {
     if (validity.get(trial.trialId) !== true) {
       continue;
     }
-    const distances = byDesign.get(trial.designName) ?? [];
-    distances.push(metresToMillimetres(trial.distanceM));
-    byDesign.set(trial.designName, distances);
+    const values = byDesign.get(trial.designName) ?? { distances: [], loads: [] };
+    if ((useMedian || useConsistency) && trial.distanceM !== undefined) {
+      values.distances.push(metresToMillimetres(trial.distanceM));
+    }
+    if (useLoad && trial.loadCount !== undefined) values.loads.push(trial.loadCount);
+    byDesign.set(trial.designName, values);
   }
 
   const seen = new Set<string>();
@@ -44,16 +49,21 @@ export function replay(version: ToolVersion, trials: readonly ExperimentTrial[])
       continue;
     }
     seen.add(trial.designName);
-    const distances = byDesign.get(trial.designName);
-    if (distances === undefined || distances.length === 0) {
+    const values = byDesign.get(trial.designName);
+    const hasRequiredMeasurement = values !== undefined &&
+      ((!useMedian && !useConsistency) || values.distances.length > 0) &&
+      (!useLoad || values.loads.length > 0);
+    if (!hasRequiredMeasurement || values === undefined) {
       insufficient.push(trial.designName);
       continue;
     }
-    const sorted = [...distances].sort((left, right) => left - right);
+    const sorted = [...values.distances].sort((left, right) => left - right);
+    const loads = [...values.loads].sort((left, right) => left - right);
     metrics.push({
       designName: trial.designName,
-      validTrialCount: sorted.length,
+      validTrialCount: useLoad ? loads.length : sorted.length,
       ...(useMedian ? { medianDistanceMm: medianMillimetres(sorted) } : {}),
+      ...(useLoad ? { medianLoadCount: medianMillimetres(loads) } : {}),
       ...(useConsistency ? { consistencyMm: consistencySpreadMm(sorted) } : {}),
     });
   }

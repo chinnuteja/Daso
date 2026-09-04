@@ -1,93 +1,46 @@
-# Result-first experience rebuild
+# Inquiry workspace rebuild
 
-The previous Phase 8 visual/architecture acceptance did not establish usability. The owner's first-use test failed: the Question button could silently ignore a click before IndexedDB initialization, and the long setup hid the product's central proof. This rebuild supersedes the old founder-demo flow, not the domain architecture.
+The original result-first paper-plane demo proved that a saved rule could change a ranking, but it did not make the product understandable. This rebuild replaces Home with one honest, child-led inquiry. It preserves the existing versioned ledger, compiler, runtime, local persistence, reuse, parent evidence, and data-rights architecture.
 
-## Research translated into decisions
+## The product claim
 
-- [NN/g: Progressive Disclosure](https://www.nngroup.com/articles/progressive-disclosure/): show the useful result and relevant decision together. Put ledger/version details in a labelled expandable section; keep the complete builder secondary.
-- [NN/g: Visibility of System Status](https://www.nngroup.com/articles/visibility-system-status/): every asynchronous action has a loading state, disabled controls, success feedback, and visible failure/retry. No apparently live button may silently discard an early click.
-- [GOV.UK: Check answers](https://design-system.service.gov.uk/patterns/check-answers/): the proposed rule is reviewed in plain language before the significant save action. The button names its consequence: “Approve & save this rule.”
-- [GOV.UK: Confirmation pages](https://design-system.service.gov.uk/patterns/confirmation-pages/): show what changed and what can be done next. Confirmation is followed by a real new-throw test, not a dead-end success message.
+Teach Daso is not a chatbot that treats a child's sentence as true. A child starts with a hypothesis, sees that exact hypothesis reflected back, records observations, notices when a comparison was not fair, and explicitly approves a narrow rule that changes only which observations count in the calculation.
 
-These patterns inform the design; they do not prove this particular interface is usable. Actual first-use testing is still required.
+The running example is a paper bridge: one sheet across two supports, with coins used as a measurable load. It deliberately uses a physical activity where a learner can make, test, revise, and explain.
 
-Additional recovery guidance reviewed on 2026-08-28:
+## First-use path
 
-- [W3C WAI: Multi-page forms](https://www.w3.org/WAI/tutorials/forms/multi-page/): make progress explicit, including in the page title. The experience now updates its title for notice, review, and saved stages and restores pending review after reload.
-- [W3C WAI: User notifications](https://www.w3.org/WAI/tutorials/forms/notifications/): explain both success and failure near the action. Busy primary buttons now name the operation. An approval recorded before a failed compile is distinguished from an active saved rule, and uncertain saves do not promise that nothing was written.
+1. **Think.** The child writes a hypothesis. It is not saved until the child confirms the reflection.
+2. **Reflect.** The interface repeats the child's exact words and labels them a hypothesis—not a fact.
+3. **Test.** The child records bridge design, number of coins held, and whether something other than the design changed. Results are calculated locally from those observations.
+4. **Review.** If a changed setup is recorded, the child can propose one plain-language fair-test rule. The proposal alone changes nothing.
+5. **Save.** The child approves the rule. A new immutable version is compiled; the changed-set-up observation remains visible but is excluded from the current comparison.
+6. **Use again.** The saved tool opens in Runner Mode with the same load-count fields and rule semantics. It does not pretend a bridge tool is an airplane tool.
 
-## Primary flow
+The technical builder at `/journey` remains available as an advanced route. `/library`, `/run`, `/parent`, export, deletion, and local-first persistence remain part of the wider prototype.
 
-1. Home immediately shows four labelled sample observations, the calculated ranking, and the disputed chair-hit throw. No form filling or tutorial is required.
-2. “That throw shouldn't count” creates a proposed rule. It does not approve it or change the ranking.
-3. “Approve & save this rule” records a separate child approval and compiles through the existing backend. The same four observations replay under the saved version.
-4. “Try a new throw” focuses the measurement input. Both obstructed and clear flights are evaluated by the actual runtime.
-5. Secondary actions open the saved runner, make an independent copy for Leo, or open grounded parent evidence and data rights.
+## What is real and what is not
 
-Home is `/`. Existing saved tools are at `/library`. The full guided builder remains `/journey`.
+- The entered hypothesis, approved decisions, versions, observations, replayed result, and saved local tool are real local data.
+- The fair-test rule is deterministic code: `setup_changed = true` means that observation is retained but cannot decide the active ranking.
+- No live model claims to understand arbitrary child language. The reflection is deliberately exact, and the supported activity uses constrained, reviewable data.
+- No camera, microphone, cloud sync, automatic measurement, or parent notification is implied by this experience.
 
-## Honesty and scope
+A future free-form assistant needs a server-side model, explicit data handling, activity-specific guardrails, and evaluation against misunderstandings. An API key alone is not a substitute for those product safeguards.
 
-Maya and the initial observations are a labelled sample. Baseline sample approval history is not presented as work performed by this visitor. Assistance is scripted; no live model interpretation is implied. The visitor's correction proposal, explicit approval, saved rule, runtime evaluation, fork, and export/deletion are real.
+## UX principles used
 
-The server-rendered preview is computed with the real compiler/runtime in isolated memory. Merely opening Home does not write sample profiles or tools. The first explicit action creates a uniquely identified local sample. A metadata pointer uses the existing meta store; there is no new repository family, object store, schema, or model route. Deleted identities are never reused by a new sample, so surviving forks remain anonymous.
+- Show one meaningful decision at a time; keep the technical builder secondary.
+- Keep the child's own words visible without turning them into evidence.
+- Make system state and save status visible beside the action.
+- Preserve an imperfect observation instead of deleting it; explain its effect on the result.
+- Use plain language for the rule and the outcome, while retaining auditable technical records underneath.
 
-## Verification added
+Research inspiration included learning systems that make a learner's representation inspectable (Betty's Brain), preserve a valid approach while isolating a mistake (CherryPot, Korea), develop question formation (Wrai, Japan), and maintain revisable learner memory (Zizaixue, China). These informed the interaction model; they do not validate it. Independent child and parent usability sessions are still required.
 
-- Initial preview is a real runtime result, not a hard-coded winner.
-- Proposal alone cannot change the active ranking.
-- Approval changes the ranking without rewriting observations.
-- Repeated proposal/save calls are idempotent.
-- A failed compile can be retried without duplicating the already-recorded approval.
-- New throws use runtime validity, not the original capture flag.
-- Saved state survives an IndexedDB close/reopen.
-- The new entry point still supports forks and grounded parent evidence.
-- The full builder renders disabled controls before storage is ready.
-- Landing-page reads create no sample data.
-- New samples cannot resurrect deleted source identities.
+## Verification
 
-## Acceptance standard
-
-A fresh viewer should be able to identify the disputed result, propose and approve the rule, and explain what changed without a spoken walkthrough. A green unit suite alone does not satisfy that standard. The old 90-second video and Phase 8 screenshots are historical, not evidence for this rebuild.
-
-## Verification run — 2026-08-27
-
-| Gate | Result |
-|---|---|
-| New integration tests | 2 files, 11 passed |
-| `npm run typecheck` | Exit 0 |
-| `npm run lint` | Exit 0 |
-| `npm test` | 99 files, 283 passed |
-| `npm run build` | Exit 0; includes the new `/library` route and both existing agent routes |
-| `npm test` after build | 99 files, 283 passed |
-| Production HTTP check | `/`, `/library`, `/journey`, `/run`, `/parent` and referenced static assets return 200 |
-
-The initial server-rendered page contains the result-first action, sample disclosure, and disabled-until-ready controls. Production is served locally on port 3000.
-
-**Still unverified:** live browser clicks, keyboard navigation, and rendered mobile/tablet layout. The browser-control runtime failed before connecting (missing local kernel assets), including after a reset. No new screenshots, accessibility report, or independent comprehension result are claimed. This branch is ready for first-use review, not UX-accepted or merged.
-
-## Recovery verification — 2026-08-28
-
-The requested browser connection was attempted and reset once. Both attempts failed before any page could be inspected: `failed to write kernel assets: The system cannot find the path specified. (os error 3)`. This is an automation-environment blocker, not evidence of a page failure. No alternative browser-control mechanism was used to bypass the prescribed browser connection.
-
-Code review and executable checks added:
-
-- A restored pending proposal renders the review stage.
-- An already-recorded approval awaiting compilation is described as not active; the next save does not request another approval.
-- The test-throw entry point rejects writes until the reviewed rule is saved.
-- Waiting for another tab's lock times out after eight seconds and can be retried. The timeout stops when the lock is granted, so it never aborts a write already in progress.
-- Local database connections close even if loading ID counters fails; the library's second-child action now closes its connection and catches errors.
-- Editing test inputs clears the previous result so a prior verdict is not attached to different inputs.
-
-Targeted recovery/storage tests: **3 files, 16 passed**. Full suite before and after production build: **100 files, 288 passed** each. Type-check, lint, and production build: exit 0. The rebuilt production server is running on port 3000; `/`, `/library`, `/journey`, `/run`, and `/parent` return HTTP 200. These include server-rendered markup and fake-IndexedDB integration checks, not browser click tests.
-
-### Live acceptance checklist — NOT RUN
-
-1. Fresh local sample: notice → propose → back to observations without approving → review → approve. Ranking must remain Dart before approval, then become Falcon.
-2. Reload during review and after save. Pending review and saved rule must respectively survive.
-3. Enter obstructed Dart 10 m, then clear Dart 10 m. Confirm the first is excluded, the second counted, and displayed input/result correspondence stays clear.
-4. Open Runner, make Leo a copy, inspect Parent evidence. Test export and delete only an explicitly identified disposable sample, never unrelated user work.
-5. Follow all actions with keyboard only, including focus after stage changes, error recovery, details, and deletion confirmation.
-6. Inspect at 320 px phone, tablet, and desktop widths, with zoom and reduced motion. Verify readable text, no horizontal clipping, visible primary action, and touch target sizes.
-
-No API key is needed for this acceptance pass. Assistance remains explicitly scripted. UX acceptance is still open; historical screenshots and videos do not close it.
+- Integration tests prove that a hypothesis becomes intent rather than a rule, a changed setup can be proposed and then explicitly approved, and replay changes without rewriting the observation.
+- Runtime tests cover the new `median_load` metric and retain the distance and consistency contracts.
+- Type-check, lint, full test suite, and production build must pass before this work is accepted.
+- Browser-level acceptance remains required: keyboard navigation, 320 px / tablet / desktop layout, local reload, and a comprehension check with independent viewers.

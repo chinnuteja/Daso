@@ -5,6 +5,24 @@ import { createBrowserClock } from '../browserClock';
 import type { ExperienceContext } from './session';
 
 const POINTER_KEY = 'result-first-example';
+
+export const BRIDGE_BENCH_IDENTITY = {
+  pointerKey: 'bridge-bench-example',
+  toolPrefix: 'bridge-bench',
+  childPrefix: 'child_bridge',
+} as const;
+
+interface ExperienceIdentity {
+  readonly pointerKey: string;
+  readonly toolPrefix: string;
+  readonly childPrefix: string;
+}
+
+const FLIGHT_LAB_IDENTITY: ExperienceIdentity = {
+  pointerKey: POINTER_KEY,
+  toolPrefix: 'sample-flight-lab',
+  childPrefix: 'child_sample',
+};
 interface ExamplePointer { readonly toolId: string; readonly ownerChildId: string }
 
 function parsePointer(value: unknown): ExamplePointer | null {
@@ -31,13 +49,18 @@ async function openLocalStore(databaseName?: string) {
   } finally { clearTimeout(timer); }
 }
 
-export async function withExperience<T>(create: boolean, action: (context: ExperienceContext | null) => Promise<T>, databaseName?: string): Promise<T> {
+export async function withExperience<T>(
+  create: boolean,
+  action: (context: ExperienceContext | null) => Promise<T>,
+  databaseName?: string,
+  identity: ExperienceIdentity = FLIGHT_LAB_IDENTITY,
+): Promise<T> {
   const run = async () => {
     const { repositories, database } = await openLocalStore(databaseName);
     try {
       const ids = createSequentialIdFactory(await loadIdCounters(database));
       try {
-        let pointer = parsePointer(await database.get('meta', POINTER_KEY));
+        let pointer = parsePointer(await database.get('meta', identity.pointerKey));
         if (pointer !== null && create) {
           const profile = await repositories.profiles.get(pointer.ownerChildId);
           // Never resurrect a deleted profile under the identity retained by surviving forks.
@@ -45,8 +68,11 @@ export async function withExperience<T>(create: boolean, action: (context: Exper
         }
         if (pointer === null && create) {
           const suffix = crypto.randomUUID();
-          pointer = { toolId: `sample-flight-lab-${suffix}`, ownerChildId: `child_sample_${suffix.replaceAll('-', '')}` };
-          await database.put('meta', { key: POINTER_KEY, ...pointer });
+          pointer = {
+            toolId: `${identity.toolPrefix}-${suffix}`,
+            ownerChildId: `${identity.childPrefix}_${suffix.replaceAll('-', '')}`,
+          };
+          await database.put('meta', { key: identity.pointerKey, ...pointer });
         }
         return await action(pointer === null ? null : { repositories, ids, clock: createBrowserClock(), ...pointer });
       } finally { if (create) await saveIdCounters(database, ids.snapshot()); }
@@ -62,4 +88,13 @@ export async function withExperience<T>(create: boolean, action: (context: Exper
       return run();
     });
   } finally { clearTimeout(timer); }
+}
+
+/** A separate local identity prevents the new inquiry from overwriting the old Flight Lab sample. */
+export function withBridgeBench<T>(
+  create: boolean,
+  action: (context: ExperienceContext | null) => Promise<T>,
+  databaseName?: string,
+): Promise<T> {
+  return withExperience(create, action, databaseName, BRIDGE_BENCH_IDENTITY);
 }

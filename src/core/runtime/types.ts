@@ -17,6 +17,7 @@ export const DesignMetrics = z.strictObject({
   designName: NonEmptyString,
   validTrialCount: z.number().int().nonnegative(),
   medianDistanceMm: z.number().optional(),
+  medianLoadCount: z.number().optional(),
   consistencyMm: z.number().optional(),
 });
 export type DesignMetrics = z.infer<typeof DesignMetrics>;
@@ -25,6 +26,7 @@ export const RankingEntry = z.strictObject({
   rank: z.number().int().positive(),
   designName: NonEmptyString,
   medianDistanceMm: z.number().optional(),
+  medianLoadCount: z.number().optional(),
   consistencyMm: z.number().optional(),
 });
 export type RankingEntry = z.infer<typeof RankingEntry>;

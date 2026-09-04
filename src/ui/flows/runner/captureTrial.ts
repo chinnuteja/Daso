@@ -17,8 +17,10 @@ export class ActiveVersionCaptureError extends Error {
 export interface TrialCaptureDraft {
   readonly toolId: ToolId;
   readonly designName: string;
-  readonly distanceM: number;
+  readonly distanceM?: number;
+  readonly loadCount?: number;
   readonly obstruction: boolean;
+  readonly setupChanged?: boolean;
   readonly validAtCapture: boolean;
   readonly note?: string;
 }
@@ -70,8 +72,10 @@ export async function captureTrialUnderActiveVersion(input: {
     toolId: input.trial.toolId,
     toolVersionIdAtCapture: version.versionId,
     designName: input.trial.designName,
-    distanceM: input.trial.distanceM,
+    ...(input.trial.distanceM === undefined ? {} : { distanceM: input.trial.distanceM }),
+    ...(input.trial.loadCount === undefined ? {} : { loadCount: input.trial.loadCount }),
     obstruction: input.trial.obstruction,
+    ...(input.trial.setupChanged === undefined ? {} : { setupChanged: input.trial.setupChanged }),
     validAtCapture: input.trial.validAtCapture,
     validUnderCurrentVersion: input.trial.validAtCapture,
     createdAt: input.clock.now(),

@@ -4,7 +4,7 @@ import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 import { openIndexedDbRepositories } from '../../adapters/persistence';
-import { withExperience } from '../../ui/flows/experience/browserSession';
+import { withBridgeBench, withExperience } from '../../ui/flows/experience/browserSession';
 import {
   LEO_CHILD_ID,
   MAYA_CHILD_ID,
@@ -41,10 +41,18 @@ function HomeContents() {
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      const sampleOwner = await withExperience(false, async (context) => context?.ownerChildId ?? null);
+      const [sampleOwner, bridgeOwner] = await Promise.all([
+        withExperience(false, async (context) => context?.ownerChildId ?? null),
+        withBridgeBench(false, async (context) => context?.ownerChildId ?? null),
+      ]);
       const { repositories, database } = await openIndexedDbRepositories();
+      const ownerChildIds = [MAYA_CHILD_ID, LEO_CHILD_ID];
+      if (sampleOwner !== null && !ownerChildIds.includes(sampleOwner)) ownerChildIds.push(sampleOwner);
+      if (bridgeOwner !== null && !ownerChildIds.includes(bridgeOwner)) ownerChildIds.push(bridgeOwner);
       let listed: readonly SavedToolTileView[];
-      try { listed = await loadSavedTiles(repositories, [MAYA_CHILD_ID, LEO_CHILD_ID, ...(sampleOwner === null ? [] : [sampleOwner])]); }
+      try {
+        listed = await loadSavedTiles(repositories, ownerChildIds);
+      }
       finally { database.close(); }
       if (!cancelled) {
         setTiles(listed);
@@ -65,7 +73,7 @@ function HomeContents() {
         deletedToolId={deletedToolId}
         deletedProfileId={deletedProfileId}
         onStartTeaching={() => {
-          router.push('/journey');
+          router.push('/');
         }}
         onOpenRunner={(toolId, viewerChildId) => {
           router.push(`/run?tool=${toolId}&viewer=${viewerChildId}`);

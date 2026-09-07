@@ -21,7 +21,8 @@ describe('INV-82 — founder documentation', () => {
     const threat = readDoc('docs/THREAT_MODEL.md');
     const docs = `${readme}\n${architecture}\n${threat}`;
 
-    expect(readme).toContain('Flight Lab is the only implemented tool');
+    expect(readme).toContain('Two executable tool kinds exist: coaching preferences and experiment comparators');
+    expect(readme).toContain('Interpretation is deterministic in this prototype');
     expect(readme).toContain('D-01');
     expect(readme).toContain('D-02');
     expect(architecture).toContain('D-01');
@@ -29,6 +30,7 @@ describe('INV-82 — founder documentation', () => {
 
     for (const route of [
       '`/`',
+      '`/lab`',
       '`/journey`',
       '`/run`',
       '`/parent`',

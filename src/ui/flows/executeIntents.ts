@@ -22,7 +22,7 @@ import {
 } from '../../core/schema/primitives';
 import { ToolDefinition } from '../../core/schema/toolDefinition';
 import type { ToolVersion, ToolVersionBody } from '../../core/schema/toolVersion';
-import type { Actor, AuthorshipEventType } from '../../core/schema/vocabulary';
+import type { Actor, AuthorshipEventType, ToolKind } from '../../core/schema/vocabulary';
 import {
   validateCandidate,
   type ValidationContext,
@@ -65,6 +65,7 @@ export interface TrialDraft {
 export interface ToolDraft {
   readonly ownerChildId: ChildId;
   readonly displayName: string;
+  readonly kind?: ToolKind;
 }
 
 export interface IntentExecutionInput {
@@ -260,7 +261,7 @@ function nextToolDefinition(
     toolId: input.toolId,
     ownerChildId: input.toolDraft.ownerChildId,
     displayName: input.toolDraft.displayName,
-    kind: 'experiment_comparator',
+    kind: input.toolDraft.kind ?? 'experiment_comparator',
     currentVersionId: versionId,
     createdAt: compiledAt,
   });

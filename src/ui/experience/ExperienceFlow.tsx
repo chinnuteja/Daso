@@ -39,7 +39,7 @@ export function ExperienceFlow({ preview }: { readonly preview: ExperienceSnapsh
         setReady(true); setBusy('');
       })
       .catch(() => {
-        if (!cancelled) { setBusy(''); setError('We couldn’t open local storage. Nothing has been changed. Close other Teach Daso tabs, then retry.'); }
+        if (!cancelled) { setBusy(''); setError('We couldn’t open local storage. Nothing has been changed. Close other Kale tabs, then retry.'); }
       });
     return () => { cancelled = true; };
   }, [retry]);
@@ -53,7 +53,7 @@ export function ExperienceFlow({ preview }: { readonly preview: ExperienceSnapsh
 
   useEffect(() => {
     const previous = document.title;
-    document.title = `${snapshot.saved ? '3 of 3: Rule saved' : reviewing ? '2 of 3: Review your rule' : '1 of 3: Notice what counts'} — Teach Daso`;
+    document.title = `${snapshot.saved ? '3 of 3: Rule saved' : reviewing ? '2 of 3: Review your rule' : '1 of 3: Notice what counts'} — Kale Memory Lab`;
     return () => { document.title = previous; };
   }, [reviewing, snapshot.saved]);
 
@@ -191,7 +191,7 @@ export function ExperienceFlow({ preview }: { readonly preview: ExperienceSnapsh
           <div><span>03 / Privacy</span><h4>It stays on this device.</h4><p>The example has its own identity. It doesn’t overwrite your existing tools. Export and deletion are available in Parent evidence after saving.</p></div>
         </div>
       </details>
-      <footer className={styles.footer}><p>Want to build it from the beginning?</p><Link href="/journey">Open the full guided builder →</Link><span>Only Flight Lab is implemented. Independent prototype; not affiliated with Daso.</span></footer>
+      <footer className={styles.footer}><p>Want to build it from the beginning?</p><Link href="/journey">Open the full guided builder →</Link><span>Independent prototype built to explore an adjacent direction for Daso.</span></footer>
     </div>
   );
 }

@@ -1,6 +1,6 @@
-import { InquiryFlow } from '../ui/inquiry/InquiryFlow';
+import { WritingPreferenceFlow } from '../ui/coaching/WritingPreferenceFlow';
 import { TabletShell } from '../ui/shell/TabletShell';
 
 export default async function HomePage() {
-  return <TabletShell title="Teach Daso"><InquiryFlow /></TabletShell>;
+  return <TabletShell title="Kale Memory Lab"><WritingPreferenceFlow /></TabletShell>;
 }

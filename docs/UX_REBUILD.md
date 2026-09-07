@@ -1,14 +1,28 @@
-# Inquiry workspace rebuild
+# Child-owned memory experience
 
-The original result-first paper-plane demo proved that a saved rule could change a ranking, but it did not make the product understandable. This rebuild replaces Home with one honest, child-led inquiry. It preserves the existing versioned ledger, compiler, runtime, local persistence, reuse, parent evidence, and data-rights architecture.
+The original result-first paper-plane demo proved that a saved rule could change a ranking, but it did not make the product understandable. The primary experience is now a child teaching Kale how to help during writing. Bridge Bench remains the secondary inquiry proof. Both preserve the existing versioned ledger, compiler, runtime, local persistence, reuse, parent evidence, and data-rights architecture.
 
 ## The product claim
 
-Teach Daso is not a chatbot that treats a child's sentence as true. A child starts with a hypothesis, sees that exact hypothesis reflected back, records observations, notices when a comparison was not fair, and explicitly approves a narrow rule that changes only which observations count in the calculation.
+Kale Memory Lab is not a chatbot that treats a child's sentence as true. The system may interpret a sentence into a closed capability, but shows that interpretation separately and keeps it inactive until the child approves it.
+
+The primary example makes that boundary immediately visible. Kale initially notices spelling in a Moon Dragon draft. The child asks for ideas-first help, reviews the interpreted preference and scope, then approves it. Only then does the same input produce a story question and defer spelling. The original words, approval event, immutable active version, and response are separate inspectable facts.
 
 The running example is a paper bridge: one sheet across two supports, with coins used as a measurable load. It deliberately uses a physical activity where a learner can make, test, revise, and explain.
 
-## First-use path
+## Primary first-use path
+
+1. **Experience the default.** Ask Kale for help; it notices a spelling issue.
+2. **Teach.** Say how help should work: story ideas first, spelling after the draft.
+3. **Scope.** Choose this story or every writing project.
+4. **Review.** Compare the exact sentence with Kale's narrow structured interpretation.
+5. **Approve.** Activate the behavior; before approval the response cannot change.
+6. **Use.** Ask again and see a story question while spelling is explicitly deferred.
+7. **Return.** Reload or open Saved tools; the approved local version remains active and opens in the correct writing experience.
+
+The interpreter is deterministic and intentionally narrow. Unsupported sentences produce a clarification request. A production model could broaden proposal generation without changing the child-approval boundary.
+
+## Bridge Bench path
 
 1. **Think.** The child writes a hypothesis. It is not saved until the child confirms the reflection.
 2. **Reflect.** The interface repeats the child's exact words and labels them a hypothesis—not a fact.

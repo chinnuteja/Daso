@@ -4,7 +4,7 @@ import type { PolicyBoundary } from '../../core/policy';
 
 const VALIDATION_COPY: Record<ValidationCheck, Record<ReadingBand, string>> = {
   schema: {
-    emerging: 'Daso does not know that kind of change.',
+    emerging: 'Kale does not know that kind of change.',
     developing: 'That change is not a kind Flight Lab can learn.',
     fluent: 'The candidate is outside the supported tool schema.',
   },
@@ -77,12 +77,12 @@ const POLICY_COPY: Record<PolicyBoundary | 'unenumerated', Record<ReadingBand, s
     fluent: 'Public publishing is denied.',
   },
   undeclared_runner_model: {
-    emerging: 'The saved tool does not call Daso.',
+    emerging: 'The saved tool does not call Kale.',
     developing: 'Runner Mode cannot secretly ask a model.',
     fluent: 'Undeclared model invocation during Runner Mode is denied.',
   },
   unenumerated: {
-    emerging: 'Daso is not allowed to do that.',
+    emerging: 'Kale is not allowed to do that.',
     developing: 'That request is not on the allowed list, so it is refused.',
     fluent: 'The request matches no explicit allowance and is denied by default.',
   },

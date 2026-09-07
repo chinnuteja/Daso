@@ -1,8 +1,8 @@
-# Teach Daso
+# Kale Memory Lab
 
 **The computer that grows with your child should grow because of your child.**
 
-A child notices something, teaches a lasting rule, sees the result change, and another child can use it later. A parent can see why. Flight Lab is the only implemented tool.
+A child tells Kale how they want help, reviews what Kale understood, and activates a lasting preference. The same authorship architecture also lets a child build a fair-test tool from observations and rules.
 
 The current landing experience starts with the result, not a setup wizard. See [the UX rebuild and research](docs/UX_REBUILD.md).
 
@@ -10,12 +10,15 @@ This is a local tablet prototype. It is not affiliated with or endorsed by Daso.
 
 ## The idea
 
-Teach Daso explores one adjacent question: can a child teach their computer a durable capability without quietly handing authorship to the AI?
+Kale Memory Lab explores one adjacent question: can a child teach their computer a durable capability without quietly handing authorship to the AI?
 
-The answer here is deliberately narrow and executable. Maya defines what “best” means, records real observations, notices an unfair throw, explains why, and approves the change. The AI may suggest; it cannot approve. Her words compile into an immutable version, the same observations replay deterministically, and the saved tool runs later with no model call.
+The primary proof is deliberately personal and easy to understand. In a writing draft, Kale initially notices a spelling issue. The child teaches it, in their own words, to ask about the story first and defer spelling until the draft is finished. Kale reflects a narrow structured interpretation, but nothing changes until the child approves it. Approval compiles an immutable local version; the same draft then gets a story question instead of a correction.
+
+The deeper Bridge Bench and Flight Lab proofs use the same mechanism for data tools. A child defines what “best” means, records real observations, notices an unfair test, explains why, and approves the change. Their words compile into an immutable version, the same observations replay deterministically, and the saved tool runs later with no model call.
 
 | What a founder sees | What the architecture proves |
 |---|---|
+| **Ask about my story first** | A child-authored sentence is reflected into a closed preference, stays inactive until approval, and changes executable behavior only after compilation. |
 | **Before: Dart leads → Now: Falcon leads** | One approved rule changed one stored trial’s validity; the runtime replay is deterministic. |
 | **Maya taught this rule** | Material behavior is equal to the fold of approved authorship events. |
 | **Saved rules — works without AI** | Runner cannot reach either model role and uses the active immutable version. |
@@ -41,19 +44,21 @@ npm run build
 
 ## Try the idea — the primary experience
 
-Open `/`. The labelled example already shows four sample throws and the chair-hit result.
+Open `/`.
 
-1. **That throw shouldn’t count** — propose a lasting rule. The ranking does not change yet.
-2. **Approve & save this rule** — the same observations replay and Falcon leads.
-3. **Try a new throw** — test a clear or obstructed flight against the saved rule.
+1. Ask Kale for help with the Moon Dragon draft. With no preference saved, it notices the spelling issue.
+2. Tell Kale: **“Ask about my story first and fix spelling after I finish the draft.”**
+3. Choose whether the preference applies only here or to every writing project.
+4. Review Kale’s narrow interpretation. The original words and proposed executable behavior are shown separately.
+5. Approve it. Kale now asks about the story and explicitly waits on spelling. Reload: the approved version remains active.
 
-The sample identities and baseline history are disclosed. Assistance is scripted, not live AI. Your approval and the saved computation are real. No sample data is written simply by opening Home. Existing saved tools are at `/library`.
+Interpretation is deterministic in this prototype, not a live-model performance. The child’s proposal, approval, immutable version, local persistence, and behavior change are real. Existing saved tools are at `/library`; Bridge Bench is at `/lab`.
 
 ## Full guided builder — optional
 
 1. Home: **Start with a question**.
 2. Teach: question → what “best” means → what to write down → a guess (not stored as a result) → real throws.
-3. Notice the 8.9 m Dart throw that touched something. Maya says why. Approve the rule. Daso cannot approve it.
+3. Notice the 8.9 m Dart throw that touched something. Maya says why. Approve the rule. Kale cannot approve it.
 4. See the same stored throws replay under v2: Dart is no longer counted; Falcon leads.
 5. Home → **Let Leo try this** → **Make my copy**. Runner works from saved rules, without AI.
 6. **Parent evidence** shows the grounded story. Delete is real.
@@ -62,7 +67,7 @@ Demo script and frames: `docs/demo/README.md`. Closing line: **Maya didn't downl
 
 ## Limitations and simulations
 
-Flight Lab is the only tool kind. There is no sign-in, analytics, public sharing, cloud sync, or camera that measures distance.
+Two executable tool kinds exist: coaching preferences and experiment comparators. The writing interpreter intentionally recognizes one narrow preference family; it asks for clarification outside that contract. There is no sign-in, analytics, public sharing, cloud sync, or camera that measures distance.
 
 | Simulated | What is real | Where you are told |
 |---|---|---|
@@ -78,7 +83,7 @@ Honest product-spec deviations:
 
 ## Routes
 
-`/` Interactive example · `/library` Saved tools · `/journey` Full builder · `/run` Runner · `/parent` Parent evidence · `/inspect` inspection projection · `/api/agents/teaching` and `/api/agents/evidence` (the only two model paths)
+`/` Writing preference · `/lab` Bridge Bench · `/library` Saved tools · `/journey` Full builder · `/run` Runner · `/parent` Parent evidence · `/inspect` inspection projection · `/api/agents/teaching` and `/api/agents/evidence` (the only two model paths)
 
 ## Docs
 

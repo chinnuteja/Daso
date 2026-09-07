@@ -127,7 +127,7 @@ export function JourneyFlow() {
     let closeDatabase: (() => void) | undefined;
     const timeout = setTimeout(() => {
       if (!cancelled && sessionRef.current === null) {
-        setStorageError('Local storage is taking too long. Close other Teach Daso tabs and retry.');
+        setStorageError('Local storage is taking too long. Close other Kale tabs and retry.');
         setMessage('Your workbench is not ready yet.');
       }
     }, 8000);
@@ -267,7 +267,7 @@ export function JourneyFlow() {
       <p className={styles.why}>{whyThisMatters(state)}</p>
       <div className={styles.journeyStatus} role="status">
         <span>{message}</span>
-        {approvalRecorded ? <strong>Saved by Maya — Daso did not approve it.</strong> : null}
+        {approvalRecorded ? <strong>Saved by Maya — Kale did not approve it.</strong> : null}
       </div>
       {refusal !== null ? <p className={styles.refusal}>{refusal}</p> : null}
       {storageError !== null ? <div role="alert"><p>{storageError}</p><button type="button" onClick={() => { setStorageError(null); setStorageReady(false); setMessage('Reopening local storage…'); setStorageAttempt((value) => value + 1); }}>Retry opening storage</button></div> : null}

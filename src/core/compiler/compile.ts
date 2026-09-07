@@ -35,6 +35,9 @@ export function bodyFromVersion(version: ToolVersion): ToolVersionBody {
     inputs: version.inputs,
     metrics: version.metrics,
     rules: version.rules,
+    ...(version.coachingPreference === undefined
+      ? {}
+      : { coachingPreference: version.coachingPreference }),
   });
 }
 

@@ -10,7 +10,7 @@ export function CaptureDisclosures() {
   return (
     <aside className={styles.disclosure}>
       <h2>Measured by you, not a camera</h2>
-      <p>Daso stores only what you type and confirm after each real throw.</p>
+      <p>Kale stores only what you type and confirm after each real throw.</p>
       <dl>
         {entries.map((entry) => (
           <div key={entry.capability}>

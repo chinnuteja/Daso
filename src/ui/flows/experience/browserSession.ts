@@ -12,6 +12,12 @@ export const BRIDGE_BENCH_IDENTITY = {
   childPrefix: 'child_bridge',
 } as const;
 
+export const WRITING_COACH_IDENTITY = {
+  pointerKey: 'writing-coach-example',
+  toolPrefix: 'writing-coach',
+  childPrefix: 'child_writer',
+} as const;
+
 interface ExperienceIdentity {
   readonly pointerKey: string;
   readonly toolPrefix: string;
@@ -43,7 +49,7 @@ async function openLocalStore(databaseName?: string) {
     return await Promise.race([
       opening,
       new Promise<never>((_, reject) => {
-        timer = setTimeout(() => { expired = true; reject(new Error('Local storage is taking too long. Close other Teach Daso tabs and retry.')); }, 8000);
+        timer = setTimeout(() => { expired = true; reject(new Error('Local storage is taking too long. Close other Kale prototype tabs and retry.')); }, 8000);
       }),
     ]);
   } finally { clearTimeout(timer); }
@@ -97,4 +103,12 @@ export function withBridgeBench<T>(
   databaseName?: string,
 ): Promise<T> {
   return withExperience(create, action, databaseName, BRIDGE_BENCH_IDENTITY);
+}
+
+export function withWritingCoach<T>(
+  create: boolean,
+  action: (context: ExperienceContext | null) => Promise<T>,
+  databaseName?: string,
+): Promise<T> {
+  return withExperience(create, action, databaseName, WRITING_COACH_IDENTITY);
 }

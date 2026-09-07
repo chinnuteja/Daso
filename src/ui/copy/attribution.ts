@@ -11,9 +11,9 @@ const COPY: Record<
     fluent: (childName) => `Chosen by ${childName}.`,
   },
   ai_suggested_child_accepted: {
-    emerging: () => 'Daso suggested this. You said yes.',
-    developing: (childName) => `Daso suggested this. ${childName} said yes.`,
-    fluent: (childName) => `Suggested by Daso, accepted by ${childName}.`,
+    emerging: () => 'Kale suggested this. You said yes.',
+    developing: (childName) => `Kale suggested this. ${childName} said yes.`,
+    fluent: (childName) => `Suggested by Kale, accepted by ${childName}.`,
   },
   child_taught: {
     emerging: () => 'You taught this rule.',

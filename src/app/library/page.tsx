@@ -4,7 +4,7 @@ import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 import { openIndexedDbRepositories } from '../../adapters/persistence';
-import { withBridgeBench, withExperience } from '../../ui/flows/experience/browserSession';
+import { withBridgeBench, withExperience, withWritingCoach } from '../../ui/flows/experience/browserSession';
 import {
   LEO_CHILD_ID,
   MAYA_CHILD_ID,
@@ -19,7 +19,7 @@ export default function HomePage() {
   return (
     <Suspense
       fallback={
-        <TabletShell title="Teach Daso">
+        <TabletShell title="Kale Memory Lab">
           <p>Loading saved tools…</p>
         </TabletShell>
       }
@@ -41,14 +41,16 @@ function HomeContents() {
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      const [sampleOwner, bridgeOwner] = await Promise.all([
+      const [sampleOwner, bridgeOwner, writingOwner] = await Promise.all([
         withExperience(false, async (context) => context?.ownerChildId ?? null),
         withBridgeBench(false, async (context) => context?.ownerChildId ?? null),
+        withWritingCoach(false, async (context) => context?.ownerChildId ?? null),
       ]);
       const { repositories, database } = await openIndexedDbRepositories();
       const ownerChildIds = [MAYA_CHILD_ID, LEO_CHILD_ID];
       if (sampleOwner !== null && !ownerChildIds.includes(sampleOwner)) ownerChildIds.push(sampleOwner);
       if (bridgeOwner !== null && !ownerChildIds.includes(bridgeOwner)) ownerChildIds.push(bridgeOwner);
+      if (writingOwner !== null && !ownerChildIds.includes(writingOwner)) ownerChildIds.push(writingOwner);
       let listed: readonly SavedToolTileView[];
       try {
         listed = await loadSavedTiles(repositories, ownerChildIds);
@@ -65,7 +67,7 @@ function HomeContents() {
   }, []);
 
   return (
-    <TabletShell title="Teach Daso">
+    <TabletShell title="Kale Memory Lab">
       {error !== null ? <p role="alert">{error}</p> : null}
       <HomeScreen
         tiles={tiles}
@@ -73,10 +75,11 @@ function HomeContents() {
         deletedToolId={deletedToolId}
         deletedProfileId={deletedProfileId}
         onStartTeaching={() => {
-          router.push('/');
+          router.push('/lab');
         }}
         onOpenRunner={(toolId, viewerChildId) => {
-          router.push(`/run?tool=${toolId}&viewer=${viewerChildId}`);
+          const tool = tiles.find((tile) => tile.toolId === toolId);
+          router.push(tool?.kind === 'coaching_preference' ? '/' : `/run?tool=${toolId}&viewer=${viewerChildId}`);
         }}
         onParentEvidence={(toolId) => {
           router.push(`/parent?tool=${toolId}`);

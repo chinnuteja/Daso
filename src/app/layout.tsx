@@ -4,8 +4,8 @@ import type { ReactNode } from 'react';
 import '../ui/shell/tokens.css';
 
 export const metadata: Metadata = {
-  title: 'Teach Daso',
-  description: 'A child-authored capability prototype.',
+  title: 'Kale Memory Lab',
+  description: 'Inspectable, child-owned personalization for Kale.',
 };
 
 export const viewport: Viewport = {

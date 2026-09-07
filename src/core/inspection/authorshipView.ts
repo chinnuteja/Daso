@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { foldApprovedEvents } from '../ledger/fold';
 import { CandidateEntry, Ledger, LedgerEntry, compareEntries } from '../ledger/types';
 import { EventId, RuleId } from '../schema/primitives';
-import { InputField, MetricId } from '../schema/vocabulary';
+import { CoachingPreferenceDraft, InputField, MetricId } from '../schema/vocabulary';
 import { childApprovedCandidateIds } from './summaryCounts';
 
 /**
@@ -25,6 +25,7 @@ export const AuthorshipSubject = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('metric'), metric: MetricId }),
   z.strictObject({ kind: z.literal('input'), input: InputField }),
   z.strictObject({ kind: z.literal('rule'), ruleId: RuleId }),
+  z.strictObject({ kind: z.literal('coaching_preference'), preference: CoachingPreferenceDraft }),
 ]);
 export type AuthorshipSubject = z.infer<typeof AuthorshipSubject>;
 
@@ -44,6 +45,7 @@ export function authorshipExplanation(
   const heldMetrics = new Set<MetricId>(body.metrics);
   const heldInputs = new Set<InputField>(body.inputs);
   const heldRules = new Set<string>(body.rules.map((rule) => rule.ruleId));
+  const heldCoachingSource = body.coachingPreference?.sourceEventId;
 
   const result: AuthorshipExplanationEntry[] = [];
 
@@ -51,7 +53,7 @@ export function authorshipExplanation(
     if (entry.entryKind !== 'candidate' || !approvedIds.has(entry.eventId)) {
       continue;
     }
-    const explained = explainIfHeld(entry, heldMetrics, heldInputs, heldRules);
+    const explained = explainIfHeld(entry, heldMetrics, heldInputs, heldRules, heldCoachingSource);
     if (explained !== null) {
       result.push(explained);
     }
@@ -65,6 +67,7 @@ function explainIfHeld(
   heldMetrics: ReadonlySet<MetricId>,
   heldInputs: ReadonlySet<InputField>,
   heldRules: ReadonlySet<string>,
+  heldCoachingSource: EventId | undefined,
 ): AuthorshipExplanationEntry | null {
   const mutation = entry.candidateMutation;
   const attribution = attributionOf(entry);
@@ -97,6 +100,16 @@ function explainIfHeld(
       return AuthorshipExplanationEntry.parse({
         eventId: entry.eventId,
         subject: { kind: 'rule', ruleId: mutation.rule.ruleId },
+        attribution,
+      });
+    }
+    case 'set_coaching_preference': {
+      if (entry.eventId !== heldCoachingSource) {
+        return null;
+      }
+      return AuthorshipExplanationEntry.parse({
+        eventId: entry.eventId,
+        subject: { kind: 'coaching_preference', preference: mutation.preference },
         attribution,
       });
     }

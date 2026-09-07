@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 import { RuleId } from './primitives';
-import { InputField, MetricId, RuleCondition, RuleEffect } from './vocabulary';
+import { CoachingPreferenceDraft, InputField, MetricId, RuleCondition, RuleEffect } from './vocabulary';
 
 /**
  * The candidate mutation vocabulary: the complete set of changes anyone — child or AI — may
@@ -15,6 +15,7 @@ export const MUTATION_OPERATIONS = [
   'remove_metric',
   'add_rule',
   'remove_rule',
+  'set_coaching_preference',
 ] as const;
 
 /**
@@ -38,6 +39,7 @@ export const CandidateMutation = z.discriminatedUnion('operation', [
   z.strictObject({ operation: z.literal('remove_metric'), metric: MetricId }),
   z.strictObject({ operation: z.literal('add_rule'), rule: RuleDraft }),
   z.strictObject({ operation: z.literal('remove_rule'), ruleId: RuleId }),
+  z.strictObject({ operation: z.literal('set_coaching_preference'), preference: CoachingPreferenceDraft }),
 ]);
 export type CandidateMutation = z.infer<typeof CandidateMutation>;
 
@@ -52,6 +54,7 @@ export const DocumentedMutation = z.discriminatedUnion('operation', [
   z.strictObject({ operation: z.literal('remove_metric'), metric: MetricId }),
   z.strictObject({ operation: z.literal('add_rule'), rule: RuleId }),
   z.strictObject({ operation: z.literal('remove_rule'), rule: RuleId }),
+  z.strictObject({ operation: z.literal('set_coaching_preference'), preference: CoachingPreferenceDraft }),
 ]);
 export type DocumentedMutation = z.infer<typeof DocumentedMutation>;
 
@@ -67,6 +70,8 @@ export function toDocumentedMutation(mutation: CandidateMutation): DocumentedMut
       return { operation: 'add_rule', rule: mutation.rule.ruleId };
     case 'remove_rule':
       return { operation: 'remove_rule', rule: mutation.ruleId };
+    case 'set_coaching_preference':
+      return { operation: 'set_coaching_preference', preference: mutation.preference };
     default:
       return assertExhaustive(mutation);
   }

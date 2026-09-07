@@ -2,7 +2,7 @@ import { AuthorshipEvent } from '../schema/authorshipEvent';
 import { CandidateMutation, toDocumentedMutation } from '../schema/mutation';
 import { EventId, ToolId } from '../schema/primitives';
 import { ToolVersionBody } from '../schema/toolVersion';
-import { InputField, MetricId, ToolRule } from '../schema/vocabulary';
+import { type CoachingPreference, InputField, MetricId, ToolRule } from '../schema/vocabulary';
 import { deepFreeze } from '../serialization/deepFreeze';
 import { CandidateEntry, Ledger, LedgerEntry, compareEntries } from './types';
 
@@ -35,6 +35,7 @@ export function foldApprovedEvents(entries: readonly LedgerEntry[]): ToolVersion
   const metrics: MetricId[] = [];
   let rules: readonly ToolRule[] = [];
   let ruleChanges = 0;
+  let coachingPreference: CoachingPreference | undefined;
 
   for (const entry of ordered) {
     if (entry.entryKind !== 'candidate' || !approvedIds.has(entry.eventId)) {
@@ -78,6 +79,13 @@ export function foldApprovedEvents(entries: readonly LedgerEntry[]): ToolVersion
         ruleChanges += 1;
         break;
       }
+      case 'set_coaching_preference': {
+        coachingPreference = {
+          ...mutation.preference,
+          sourceEventId: entry.eventId,
+        };
+        break;
+      }
       default:
         return assertExhaustive(mutation);
     }
@@ -92,6 +100,7 @@ export function foldApprovedEvents(entries: readonly LedgerEntry[]): ToolVersion
     inputs,
     metrics,
     rules,
+    ...(coachingPreference === undefined ? {} : { coachingPreference }),
   });
 
   return deepFreeze(body);

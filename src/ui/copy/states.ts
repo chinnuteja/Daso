@@ -33,7 +33,7 @@ const STATE_COPY: Record<OrchestratorState, Record<ReadingBand, string>> = {
     fluent: 'Inspect the unusual observation.',
   },
   PROPOSE_CORRECTION: {
-    emerging: 'Tell Daso why.',
+    emerging: 'Tell Kale why.',
     developing: 'Why should that throw not count?',
     fluent: 'Explain the correction you want to teach.',
   },

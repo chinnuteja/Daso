@@ -12,6 +12,7 @@ import {
 import type { CoachingScope } from '../../core/schema/vocabulary';
 import { approveWritingPreference, proposeWritingPreference, readWritingCoach, scopeLabel, type WritingCoachContext, type WritingCoachSnapshot } from '../flows/coaching';
 import { withWritingCoach } from '../flows/experience/browserSession';
+import { ExperienceGuide } from './ExperienceGuide';
 import styles from './writingPreference.module.css';
 
 type Stage = 'try' | 'teach' | 'review' | 'active';
@@ -98,6 +99,7 @@ export function WritingPreferenceFlow() {
 
   return (
     <div className={styles.page}>
+      <ExperienceGuide />
       <section className={styles.hero}>
         <p className={styles.kicker}>Inspectable personalization for Kale</p>
         <h2>Teach the computer <em>how</em> to help—without letting it take over.</h2>

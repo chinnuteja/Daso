@@ -112,3 +112,37 @@ export function withWritingCoach<T>(
 ): Promise<T> {
   return withExperience(create, action, databaseName, WRITING_COACH_IDENTITY);
 }
+
+/**
+ * Removes only the writing-coach demo identity and its owned graph. Bridge Bench,
+ * Flight Lab, and any forks owned by other profiles remain untouched.
+ */
+export async function resetWritingCoach(databaseName?: string): Promise<boolean> {
+  const run = async () => {
+    const { repositories, database } = await openLocalStore(databaseName);
+    try {
+      const pointer = parsePointer(await database.get('meta', WRITING_COACH_IDENTITY.pointerKey));
+      if (pointer === null) {
+        await database.delete('meta', WRITING_COACH_IDENTITY.pointerKey);
+        return false;
+      }
+      await repositories.profiles.deleteProfileGraph(pointer.ownerChildId);
+      await database.delete('meta', WRITING_COACH_IDENTITY.pointerKey);
+      return true;
+    } finally {
+      database.close();
+    }
+  };
+
+  if (!navigator.locks) return run();
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8000);
+  try {
+    return await navigator.locks.request('teach-daso-example', { signal: controller.signal }, async () => {
+      clearTimeout(timer);
+      return run();
+    });
+  } finally {
+    clearTimeout(timer);
+  }
+}

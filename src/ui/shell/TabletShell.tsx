@@ -3,7 +3,11 @@ import Link from 'next/link';
 
 import styles from './TabletShell.module.css';
 
-export function TabletShell(props: { readonly title: string; readonly children: ReactNode }) {
+export function TabletShell(props: {
+  readonly title: string;
+  readonly children: ReactNode;
+  readonly headerActions?: ReactNode;
+}) {
   return (
     <div className={styles.shell}>
       <header className={styles.header}>
@@ -21,6 +25,7 @@ export function TabletShell(props: { readonly title: string; readonly children: 
           <Link href="/lab">Bridge Bench</Link>
           <Link href="/library">Saved tools</Link>
         </nav>
+        {props.headerActions}
       </header>
       <main className={styles.main}>{props.children}</main>
     </div>

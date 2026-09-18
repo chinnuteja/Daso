@@ -46,6 +46,8 @@ npm run build
 
 Open `/`.
 
+The first visit opens a concise guide to the product claim, the four-step interaction, and the three routes. It can be reopened with **Guide**. Use **↻ Start fresh** in the header to delete only the writing-demo identity and reload the original unsaved experience; Bridge Bench and other saved experiment graphs are preserved.
+
 1. Ask Kale for help with the Moon Dragon draft. With no preference saved, it notices the spelling issue.
 2. Tell Kale: **“Ask about my story first and fix spelling after I finish the draft.”**
 3. Choose whether the preference applies only here or to every writing project.

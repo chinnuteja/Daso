@@ -60,4 +60,4 @@ Seven repository families: profiles, tools, versions, ledger, trials, grants, su
 | Fork reuse and orphan privacy | INV-23, INV-66–INV-71, INV-77 |
 | Founder experience | INV-80–INV-83 |
 
-D-01 and D-02 are recorded in `docs/BUILD_STATE.md`.
+D-01 and D-02 are summarized in the README under **Honest product-spec deviations**.

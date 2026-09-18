@@ -65,8 +65,6 @@ Interpretation is deterministic in this prototype, not a live-model performance.
 5. Home → **Let Leo try this** → **Make my copy**. Runner works from saved rules, without AI.
 6. **Parent evidence** shows the grounded story. Delete is real.
 
-Demo script and frames: `docs/demo/README.md`. Closing line: **Maya didn't download this tool. She taught it.**
-
 ## Limitations and simulations
 
 Two executable tool kinds exist: coaching preferences and experiment comparators. The writing interpreter intentionally recognizes one narrow preference family; it asks for clarification outside that contract. There is no sign-in, analytics, public sharing, cloud sync, or camera that measures distance.
@@ -91,5 +89,4 @@ Honest product-spec deviations:
 
 - Architecture: `docs/ARCHITECTURE.md`
 - Threat model: `docs/THREAT_MODEL.md`
-- Evidence: `docs/evidence/`
-- Demo: `docs/demo/README.md`
+- UX rationale and research: `docs/UX_REBUILD.md`

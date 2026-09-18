@@ -54,7 +54,7 @@ Research inspiration included learning systems that make a learner's representat
 
 ## Verification
 
-- Integration tests prove that a hypothesis becomes intent rather than a rule, a changed setup can be proposed and then explicitly approved, and replay changes without rewriting the observation.
-- Runtime tests cover the new `median_load` metric and retain the distance and consistency contracts.
-- Type-check, lint, full test suite, and production build must pass before this work is accepted.
-- Browser-level acceptance remains required: keyboard navigation, 320 px / tablet / desktop layout, local reload, and a comprehension check with independent viewers.
+- Integration tests prove that a preference remains inactive until child approval, changes executable behavior afterward, survives reload, and can be reset without deleting Bridge Bench.
+- Experiment tests prove that a hypothesis becomes intent rather than a rule and that replay changes without rewriting an observation.
+- Type-check, lint, all 296 tests, and the production build pass on the submission branch.
+- Browser acceptance covers the first-run guide, keyboard dismissal, reopening, saved-state reload, and correct Saved Tools routing. Independent child and parent comprehension sessions remain future product research, not a claimed result.

@@ -111,6 +111,9 @@ export function appendStroke(drawing: DrawDocument, stroke: DrawStroke, updatedA
     ...drawing,
     revision: drawing.revision + 1,
     strokes: [...drawing.strokes, stroke],
+    selection: drawing.selection === undefined
+      ? undefined
+      : { ...drawing.selection, sourceDigest: EMPTY_DRAW_DIGEST },
     updatedAt,
   });
 }
@@ -121,6 +124,9 @@ export function removeLastStroke(drawing: DrawDocument, updatedAt: string): Draw
     ...drawing,
     revision: drawing.revision + 1,
     strokes: drawing.strokes.slice(0, -1),
+    selection: drawing.selection === undefined
+      ? undefined
+      : { ...drawing.selection, sourceDigest: EMPTY_DRAW_DIGEST },
     updatedAt,
   });
 }
@@ -131,7 +137,15 @@ export function restoreStroke(drawing: DrawDocument, stroke: DrawStroke, updated
 
 export function clearStrokes(drawing: DrawDocument, updatedAt: string): DrawDocument | null {
   if (drawing.strokes.length === 0) return null;
-  return DrawDocumentSchema.parse({ ...drawing, revision: drawing.revision + 1, strokes: [], updatedAt });
+  return DrawDocumentSchema.parse({
+    ...drawing,
+    revision: drawing.revision + 1,
+    strokes: [],
+    selection: drawing.selection === undefined
+      ? undefined
+      : { ...drawing.selection, sourceDigest: EMPTY_DRAW_DIGEST },
+    updatedAt,
+  });
 }
 
 export function setMarkSelection(
@@ -173,7 +187,9 @@ export function setGuidePath(
 }
 
 export function isMarkSelectionCurrent(drawing: DrawDocument): boolean {
-  return drawing.selection !== undefined && drawing.selection.sourceDigest === drawing.contentDigest;
+  return drawing.selection !== undefined
+    && drawing.selection.sourceDigest === drawing.contentDigest
+    && drawing.selection.strokeIds.every((id) => drawing.strokes.some((stroke) => stroke.strokeId === id));
 }
 
 export function samplePoint(points: readonly DrawPoint[], next: DrawPoint, minDistance: number = 1.5): DrawPoint[] {

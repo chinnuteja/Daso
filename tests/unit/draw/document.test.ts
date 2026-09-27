@@ -54,11 +54,14 @@ describe('DrawDocument source ownership', () => {
     const sourced = await withDrawSourceDigest(appendStroke(document(), STROKE, '2026-09-27T12:00:01Z'));
     const selected = setMarkSelection(sourced, ['stroke_scale_001'], '2026-09-27T12:00:02Z');
     expect(isMarkSelectionCurrent(selected)).toBe(true);
-    const editedSource = await withDrawSourceDigest(appendStroke(selected, {
+    const immediatelyEdited = appendStroke(selected, {
       ...STROKE,
       strokeId: 'stroke_scale_002',
       points: [{ x: 42, y: 42 }, { x: 57, y: 57 }],
-    }, '2026-09-27T12:00:03Z'));
+    }, '2026-09-27T12:00:03Z');
+    expect(isMarkSelectionCurrent(immediatelyEdited)).toBe(false);
+
+    const editedSource = await withDrawSourceDigest(immediatelyEdited);
     expect(isMarkSelectionCurrent(editedSource)).toBe(false);
     expect(clearMarkSelection(editedSource, '2026-09-27T12:00:04Z').selection).toBeUndefined();
   });

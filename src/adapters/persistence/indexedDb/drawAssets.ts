@@ -14,7 +14,9 @@ export function createIndexedDbDrawAssetRepository(database: TeachDasoDatabase):
       const raw = await database.getAllFromIndex(STORE.drawDocuments, 'ownerChildId', childId);
       return raw
         .map((item) => DrawDocument.parse(item))
-        .sort((left, right) => (left.documentId < right.documentId ? -1 : 1));
+        .sort((left, right) =>
+          left.updatedAt.localeCompare(right.updatedAt) || left.documentId.localeCompare(right.documentId),
+        );
     },
 
     async saveDocument(document: DrawDocument): Promise<void> {

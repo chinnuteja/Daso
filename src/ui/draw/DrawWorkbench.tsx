@@ -38,10 +38,6 @@ function timestamp(): string {
   return new Date().toISOString();
 }
 
-function nextStrokeId(): string {
-  return `stroke_draw_${Date.now().toString(36)}`;
-}
-
 function pointFromEvent(event: PointerEvent<SVGSVGElement>): DrawPoint {
   const bounds = event.currentTarget.getBoundingClientRect();
   return {
@@ -66,6 +62,7 @@ export function DrawWorkbench() {
   const documentRef = useRef<DrawDocument | null>(null);
   const draftRef = useRef<DrawStroke | null>(null);
   const guideRef = useRef<readonly DrawPoint[] | null>(null);
+  const strokeCounter = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -116,8 +113,9 @@ export function DrawWorkbench() {
   }
 
   async function start(kind: 'practice' | 'blank'): Promise<void> {
+    const suffix = Date.now().toString(36);
     const created = createDrawDocument({
-      documentId: kind === 'practice' ? PRACTICE_ID : BLANK_ID,
+      documentId: kind === 'practice' ? `${PRACTICE_ID}_${suffix}` : `${BLANK_ID}_${suffix}`,
       ownerChildId: DRAW_OWNER_ID,
       now: timestamp(),
       strokes: kind === 'practice' ? PRACTICE_DRAGON_STROKES : [],
@@ -152,7 +150,7 @@ export function DrawWorkbench() {
       return;
     }
     const stroke: DrawStroke = {
-      strokeId: nextStrokeId(),
+      strokeId: `stroke_draw_${Date.now().toString(36)}_${(++strokeCounter.current).toString(36)}`,
       color,
       width,
       points: [pointFromEvent(event)],

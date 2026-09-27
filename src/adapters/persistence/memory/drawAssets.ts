@@ -15,7 +15,9 @@ export function createMemoryDrawAssetRepository(records: MemoryRecords): DrawAss
       return [...records.drawDocuments.values()]
         .map((raw) => DrawDocument.parse(raw))
         .filter((document) => document.ownerChildId === childId)
-        .sort((left, right) => (left.documentId < right.documentId ? -1 : 1));
+        .sort((left, right) =>
+          left.updatedAt.localeCompare(right.updatedAt) || left.documentId.localeCompare(right.documentId),
+        );
     },
 
     async saveDocument(document: DrawDocument): Promise<void> {

@@ -32,6 +32,13 @@
 The tests prove a distant tap cannot select a mark, an owned stroke can; a source edit invalidates an earlier
 selection; and path start/end ordering remains exactly as the child drew it.
 
+## Final quality correction
+
+- A selection is now invalidated at the instant a source stroke is appended, removed, or cleared; it does not
+  wait for an asynchronous digest refresh. The unit proof checks both the immediate and re-digested states.
+- Document listing has a stable `updatedAt`, then `documentId` ordering, so choosing a fresh drawing cannot
+  become nondeterministic when two writes have the same timestamp.
+
 ## Browser limitation
 
 The controlled local-browser environment still renders the opening Draw screen but does not execute client

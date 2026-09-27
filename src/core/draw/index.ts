@@ -23,3 +23,10 @@ export {
   withDrawSourceDigest,
 } from './document';
 export { distanceToSegment, hitTestStroke, isUsableGuidePath } from './interaction';
+export {
+  buildDeterministicDrawPreview,
+  DEFAULT_DRAW_PREVIEW_CONTROLS,
+  MAX_PREVIEW_POINTS,
+  MAX_PREVIEW_STAMPS,
+} from './preview';
+export type { DerivedPreviewStroke, DrawPreview, DrawPreviewControls } from './preview';

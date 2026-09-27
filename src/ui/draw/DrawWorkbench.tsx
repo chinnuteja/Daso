@@ -5,9 +5,11 @@ import { type CSSProperties, type PointerEvent, useEffect, useRef, useState } fr
 import { openBrowserDrawAssets } from '../../adapters/persistence';
 import {
   appendStroke,
+  buildDeterministicDrawPreview,
   clearStrokes,
   clearMarkSelection,
   createDrawDocument,
+  DEFAULT_DRAW_PREVIEW_CONTROLS,
   DRAW_HEIGHT,
   DRAW_WIDTH,
   hitTestStroke,
@@ -21,7 +23,7 @@ import {
   setMarkSelection,
   withDrawSourceDigest,
 } from '../../core/draw';
-import type { DrawDocument, DrawPoint, DrawStroke } from '../../core/draw';
+import type { DrawDocument, DrawPoint, DrawPreviewControls, DrawStroke } from '../../core/draw';
 import type { DrawAssetRepository } from '../../core/ports/repositories';
 
 import styles from './DrawWorkbench.module.css';
@@ -55,6 +57,8 @@ export function DrawWorkbench() {
   const [redo, setRedo] = useState<readonly DrawStroke[]>([]);
   const [color, setColor] = useState<(typeof PALETTE)[number]>('#294f46');
   const [width, setWidth] = useState(7);
+  const [previewVisible, setPreviewVisible] = useState(false);
+  const [previewControls, setPreviewControls] = useState<DrawPreviewControls>(DEFAULT_DRAW_PREVIEW_CONTROLS);
   const [ready, setReady] = useState(false);
   const [status, setStatus] = useState('Opening your drawing desk…');
   const [error, setError] = useState<string | null>(null);
@@ -122,6 +126,7 @@ export function DrawWorkbench() {
     });
     setActive(created);
     setRedo([]);
+    setPreviewVisible(false);
     setMode('workbench');
     setStatus(kind === 'practice' ? 'Practice drawing loaded. Every line is still yours to change.' : 'A blank page is ready for your mark.');
     await persist(created, kind === 'practice' ? 'Practice drawing saved on this device.' : 'Blank drawing saved on this device.');
@@ -137,6 +142,7 @@ export function DrawWorkbench() {
       }
       const next = setMarkSelection(document, [stroke.strokeId], timestamp());
       setActive(next);
+      setPreviewVisible(false);
       void persist(next, 'That mark is yours. Now show where it should travel.');
       setToolMode('path');
       return;
@@ -201,6 +207,7 @@ export function DrawWorkbench() {
     const next = appendStroke(documentRef.current, active, timestamp());
     setActive(next);
     setRedo([]);
+    setPreviewVisible(false);
     void persist(next, 'Stroke saved locally.');
   }
 
@@ -247,6 +254,7 @@ export function DrawWorkbench() {
     const next = clearMarkSelection(documentRef.current, timestamp());
     setActive(next);
     setToolMode('select');
+    setPreviewVisible(false);
     void persist(next, 'Tap the exact mark you want to use.');
   }
 
@@ -279,6 +287,16 @@ export function DrawWorkbench() {
   const selectionCurrent = document !== null && isMarkSelectionCurrent(document);
   const selectedIds = selectionCurrent ? new Set(document.selection?.strokeIds ?? []) : new Set<string>();
   const pathPoints = guideDraft ?? document?.guidePath?.points ?? [];
+  const canPreview = selectionCurrent && document?.guidePath !== undefined;
+  let previewError: string | null = null;
+  let preview = null;
+  if (previewVisible && document !== null && canPreview) {
+    try {
+      preview = buildDeterministicDrawPreview(document, previewControls);
+    } catch (caught) {
+      previewError = caught instanceof Error ? caught.message : 'That preview could not be made yet.';
+    }
+  }
   return (
     <section className={styles.workbench} aria-labelledby="draw-workbench-title">
       <header className={styles.workbenchHeader}>
@@ -336,7 +354,41 @@ export function DrawWorkbench() {
             <span>{selectionCurrent ? 'Kept in your drawing. Nothing has been copied or saved as a tool.' : document?.selection !== undefined ? 'You changed the source drawing. Pick the mark again before using it.' : 'Pick a source mark when you are ready.'}</span>
             <button type="button" onClick={changeMark}>{selectionCurrent ? 'Change mark' : 'Pick a mark'}</button>
           </div>
-          <p className={styles.layerNote}><b>Source</b> is your drawing. Guide and preview layers arrive later—and will never change it.</p>
+          <div className={styles.previewCard} data-ready={canPreview}>
+            <div>
+              <b>Try your repeat</b>
+              <span>{canPreview ? 'See your exact mark travel along your path.' : 'First pick your mark, then draw where it should travel.'}</span>
+            </div>
+            <button
+              type="button"
+              className={styles.previewButton}
+              disabled={!canPreview}
+              onClick={() => {
+                setPreviewVisible((visible) => !visible);
+                setStatus(previewVisible ? 'Preview hidden. Your source drawing is untouched.' : 'Preview shown. Change the controls to make it feel right.');
+              }}
+            >
+              {previewVisible ? 'Hide preview' : 'Preview my repeats'}
+            </button>
+            {previewVisible && canPreview ? <div className={styles.previewControls}>
+              <label>
+                <span>Space between <b>{previewControls.spacing}</b></span>
+                <input aria-label="Repeat spacing" type="range" min="16" max="160" step="4" value={previewControls.spacing} onChange={(event) => setPreviewControls((controls) => ({ ...controls, spacing: Number(event.target.value) }))} />
+              </label>
+              <label>
+                <span>First size <b>{previewControls.startScale.toFixed(1)}×</b></span>
+                <input aria-label="First repeat size" type="range" min="0.2" max="2" step="0.1" value={previewControls.startScale} onChange={(event) => setPreviewControls((controls) => ({ ...controls, startScale: Number(event.target.value) }))} />
+              </label>
+              <label>
+                <span>Last size <b>{previewControls.endScale.toFixed(1)}×</b></span>
+                <input aria-label="Last repeat size" type="range" min="0.2" max="2" step="0.1" value={previewControls.endScale} onChange={(event) => setPreviewControls((controls) => ({ ...controls, endScale: Number(event.target.value) }))} />
+              </label>
+              <label className={styles.followPath}><input aria-label="Turn repeats along path" type="checkbox" checked={previewControls.followPath} onChange={(event) => setPreviewControls((controls) => ({ ...controls, followPath: event.target.checked }))} /> Turn marks along my path</label>
+              <p>This is a temporary local preview. It has not changed your drawing or become a tool.</p>
+            </div> : null}
+            {previewError !== null ? <p className={styles.previewError} role="alert">{previewError}</p> : null}
+          </div>
+          <p className={styles.layerNote}><b>Source</b> is your drawing. Guide and preview layers never change it.</p>
         </aside>
 
         <div className={styles.canvasFrame}>
@@ -378,14 +430,20 @@ export function DrawWorkbench() {
               {pathPoints[0] !== undefined ? <><circle cx={pathPoints[0].x} cy={pathPoints[0].y} r="10" fill="#fffdf7" stroke="#a65636" strokeWidth="5" /><text x={pathPoints[0].x + 15} y={pathPoints[0].y - 14} fill="#8d432d" fontSize="20" fontWeight="700">starts here</text></> : null}
               {pathPoints.at(-1) !== undefined && pathPoints.length >= 2 ? <text x={pathPoints.at(-1)!.x + 15} y={pathPoints.at(-1)!.y + 28} fill="#8d432d" fontSize="20" fontWeight="700">ends here</text> : null}
             </g>
-            <g data-layer="derived-preview" aria-hidden="true" />
+            <g data-layer="derived-preview" aria-label="Temporary repeat preview" pointerEvents="none">
+              {preview?.strokes.map((stroke) => stroke.points.length === 1 ? (
+                <circle key={stroke.previewStrokeId} cx={stroke.points[0]!.x} cy={stroke.points[0]!.y} r={Math.max(1, stroke.width / 2)} fill={stroke.color} opacity=".72" />
+              ) : (
+                <polyline key={stroke.previewStrokeId} points={stroke.points.map((point) => `${point.x},${point.y}`).join(' ')} fill="none" stroke={stroke.color} strokeWidth={stroke.width} strokeLinecap="round" strokeLinejoin="round" opacity=".72" />
+              ))}
+            </g>
           </svg>
           {document?.strokes.length === 0 && draftStroke === null ? <p className={styles.emptyCanvas}>Make one little mark. It can become something useful later.</p> : null}
         </div>
       </div>
 
       <footer className={styles.footer}>
-        <p><span aria-hidden="true">●</span> {document?.strokes.length ?? 0} marks · source hash {document?.contentDigest.slice(0, 10) ?? '…'}…</p>
+        <p><span aria-hidden="true">●</span> {document?.strokes.length ?? 0} marks{preview === null ? '' : ` · ${preview.stampCount} temporary repeats`} · source hash {document?.contentDigest.slice(0, 10) ?? '…'}…</p>
         <p role="status">{status}</p>
       </footer>
       {error !== null ? <p className={styles.error} role="alert">{error}</p> : null}

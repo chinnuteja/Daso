@@ -32,19 +32,36 @@ export async function openBrowserDrawAssets(): Promise<{
   readonly durable: boolean;
   readonly close: () => void;
 }> {
+  const fallback = () => ({
+    drawAssets: createMemoryPersistence().repositories.drawAssets,
+    durable: false,
+    close: () => undefined,
+  });
   if (typeof indexedDB === 'undefined') {
-    return {
-      drawAssets: createMemoryPersistence().repositories.drawAssets,
-      durable: false,
-      close: () => undefined,
-    };
+    return fallback();
   }
-  const opened = await openIndexedDbRepositories();
-  return {
-    drawAssets: opened.repositories.drawAssets,
-    durable: true,
-    close: () => opened.database.close(),
-  };
+  const opening = openIndexedDbRepositories();
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const opened = await Promise.race([
+      opening,
+      new Promise<never>((_, reject) => {
+        timeout = setTimeout(() => reject(new Error('Local storage did not become ready.')), 2_000);
+      }),
+    ]);
+    return {
+      drawAssets: opened.repositories.drawAssets,
+      durable: true,
+      close: () => opened.database.close(),
+    };
+  } catch {
+    // A blocked/private browser must still let a child draw. If its late IDB request succeeds,
+    // close it rather than leaving a hidden connection alive.
+    void opening.then(({ database }) => database.close()).catch(() => undefined);
+    return fallback();
+  } finally {
+    if (timeout !== undefined) clearTimeout(timeout);
+  }
 }
 
 export interface PersistableGraph {

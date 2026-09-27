@@ -28,7 +28,10 @@ export async function getParsed<T>(
 
 export async function listByToolIndex<T>(
   database: TeachDasoDatabase,
-  storeName: Exclude<StoreNames<TeachDasoDb>, 'childProfiles' | 'meta' | 'tools'>,
+  storeName: Exclude<
+    StoreNames<TeachDasoDb>,
+    'childProfiles' | 'meta' | 'tools' | 'drawDocuments'
+  >,
   toolId: string,
   schema: z.ZodType<T>,
 ): Promise<T[]> {

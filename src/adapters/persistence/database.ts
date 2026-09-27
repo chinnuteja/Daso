@@ -1,12 +1,12 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
 
 /**
- * IndexedDB layout for Teach Daso. Schema version 1 is additive: it only creates stores
+ * IndexedDB layout for Teach Daso. Every schema step is additive: it only creates stores
  * and indexes. No migration may rewrite, renumber, or reorder a ledger entry.
  */
 
 export const DATABASE_NAME = 'teach-daso';
-export const DATABASE_VERSION = 1;
+export const DATABASE_VERSION = 2;
 
 export const STORE = {
   childProfiles: 'childProfiles',
@@ -16,6 +16,8 @@ export const STORE = {
   trials: 'trials',
   grants: 'grants',
   summaries: 'summaries',
+  drawDocuments: 'drawDocuments',
+  markSnapshots: 'markSnapshots',
   meta: 'meta',
 } as const;
 
@@ -38,6 +40,12 @@ export interface TeachDasoDb extends DBSchema {
   trials: { key: string; value: unknown; indexes: { toolId: string } };
   grants: { key: string; value: unknown; indexes: { toolId: string } };
   summaries: { key: string; value: unknown; indexes: { toolId: string } };
+  drawDocuments: { key: string; value: unknown; indexes: { ownerChildId: string } };
+  markSnapshots: {
+    key: string;
+    value: unknown;
+    indexes: { toolId: string; sourceDocumentId: string };
+  };
   meta: { key: string; value: unknown };
 }
 
@@ -71,6 +79,14 @@ export async function openTeachDasoDatabase(
         summaries.createIndex('toolId', 'toolId');
 
         database.createObjectStore(STORE.meta, { keyPath: 'key' });
+      }
+      if (oldVersion < 2) {
+        const documents = database.createObjectStore(STORE.drawDocuments, { keyPath: 'documentId' });
+        documents.createIndex('ownerChildId', 'ownerChildId');
+
+        const snapshots = database.createObjectStore(STORE.markSnapshots, { keyPath: 'snapshotId' });
+        snapshots.createIndex('toolId', 'toolId');
+        snapshots.createIndex('sourceDocumentId', 'sourceDocumentId');
       }
     },
   });

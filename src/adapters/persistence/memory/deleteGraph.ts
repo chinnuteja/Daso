@@ -4,6 +4,7 @@ import type { ChildId, ToolId } from '../../../core/schema/primitives';
 import { ParentSummary } from '../../../core/schema/parentSummary';
 import { PermissionGrant } from '../../../core/schema/permissionGrant';
 import { ExperimentTrial } from '../../../core/schema/experimentTrial';
+import { DrawDocument, MarkSnapshot } from '../../../core/draw/schema';
 import { ToolDefinition } from '../../../core/schema/toolDefinition';
 import { ToolVersion } from '../../../core/schema/toolVersion';
 import { PersistenceError } from '../database';
@@ -18,6 +19,8 @@ interface MemorySnapshot {
   readonly trials: Map<string, unknown>;
   readonly grants: Map<string, unknown>;
   readonly summaries: Map<string, unknown>;
+  readonly drawDocuments: Map<string, unknown>;
+  readonly markSnapshots: Map<string, unknown>;
 }
 
 type StoreName = Exclude<keyof MemoryRecords, 'meta'>;
@@ -35,6 +38,8 @@ function snapshotRecords(records: MemoryRecords): MemorySnapshot {
     trials: new Map(records.trials),
     grants: new Map(records.grants),
     summaries: new Map(records.summaries),
+    drawDocuments: new Map(records.drawDocuments),
+    markSnapshots: new Map(records.markSnapshots),
   };
 }
 
@@ -47,6 +52,8 @@ function restoreRecords(records: MemoryRecords, snapshot: MemorySnapshot): void 
     'trials',
     'grants',
     'summaries',
+    'drawDocuments',
+    'markSnapshots',
   ];
   for (const store of stores) {
     records[store].clear();
@@ -92,6 +99,11 @@ function scheduleToolGraph(records: MemoryRecords, toolId: ToolId): ScheduledMut
   for (const [summaryId, raw] of records.summaries.entries()) {
     if (ParentSummary.parse(raw).toolId === toolId) {
       scheduled.push({ kind: 'delete', store: 'summaries', key: summaryId });
+    }
+  }
+  for (const [snapshotId, raw] of records.markSnapshots.entries()) {
+    if (MarkSnapshot.parse(raw).toolId === toolId) {
+      scheduled.push({ kind: 'delete', store: 'markSnapshots', key: snapshotId });
     }
   }
   return scheduled;
@@ -161,6 +173,11 @@ export function deleteMemoryProfileGraph(records: MemoryRecords, childId: ChildI
   }
   if (records.profiles.has(childId)) {
     scheduled.push({ kind: 'delete', store: 'profiles', key: childId });
+  }
+  for (const [documentId, raw] of records.drawDocuments.entries()) {
+    if (DrawDocument.parse(raw).ownerChildId === childId) {
+      scheduled.push({ kind: 'delete', store: 'drawDocuments', key: documentId });
+    }
   }
   scheduled.push(...scheduleSurvivingForkRedaction(records, childId));
   applyScheduled(records, scheduled);

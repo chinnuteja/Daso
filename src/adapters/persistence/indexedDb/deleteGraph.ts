@@ -4,6 +4,7 @@ import { LedgerEntry } from '../../../core/ledger/types';
 import { redactOrphanedForkDefinition } from '../../../core/reuse/orphanedFork';
 import type { ChildId, ToolId } from '../../../core/schema/primitives';
 import { ExperimentTrial } from '../../../core/schema/experimentTrial';
+import { DrawDocument, MarkSnapshot } from '../../../core/draw/schema';
 import { ParentSummary } from '../../../core/schema/parentSummary';
 import { PermissionGrant } from '../../../core/schema/permissionGrant';
 import { ToolDefinition } from '../../../core/schema/toolDefinition';
@@ -19,6 +20,8 @@ const PROFILE_GRAPH_STORES = [
   STORE.trials,
   STORE.grants,
   STORE.summaries,
+  STORE.drawDocuments,
+  STORE.markSnapshots,
   STORE.childProfiles,
 ] as const;
 
@@ -53,6 +56,10 @@ async function scheduleToolGraph(tx: DeleteTx, toolId: ToolId): Promise<Schedule
   const summaries = await tx.objectStore(STORE.summaries).index('toolId').getAll(toolId);
   for (const raw of summaries) {
     scheduled.push({ kind: 'delete', store: STORE.summaries, key: ParentSummary.parse(raw).summaryId });
+  }
+  const snapshots = await tx.objectStore(STORE.markSnapshots).index('toolId').getAll(toolId);
+  for (const raw of snapshots) {
+    scheduled.push({ kind: 'delete', store: STORE.markSnapshots, key: MarkSnapshot.parse(raw).snapshotId });
   }
   return scheduled;
 }
@@ -139,6 +146,14 @@ export async function deleteIndexedDbProfileGraph(
   const profile = await tx.objectStore(STORE.childProfiles).get(childId);
   if (profile !== undefined) {
     scheduled.push({ kind: 'delete', store: STORE.childProfiles, key: childId });
+  }
+  const documents = await tx.objectStore(STORE.drawDocuments).index('ownerChildId').getAll(childId);
+  for (const raw of documents) {
+    scheduled.push({
+      kind: 'delete',
+      store: STORE.drawDocuments,
+      key: DrawDocument.parse(raw).documentId,
+    });
   }
   scheduled.push(...(await scheduleSurvivingForkRedaction(tx, childId)));
   await applyScheduled(tx, scheduled);

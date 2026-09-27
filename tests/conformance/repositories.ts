@@ -89,6 +89,50 @@ export function defineRepositoryConformance(
       expect(unapprovedNote?.childApproved).toBe(false);
     });
 
+    it('round-trips Draw source assets and never overwrites a selected mark snapshot', async () => {
+      const document = {
+        documentId: 'draw_document_001',
+        ownerChildId: 'child_local_01',
+        width: 800,
+        height: 600,
+        revision: 1,
+        strokes: [
+          {
+            strokeId: 'stroke_scale_001',
+            color: '#0088cc',
+            width: 8,
+            points: [
+              { x: 12, y: 16 },
+              { x: 28, y: 24 },
+            ],
+          },
+        ],
+        createdAt: '2026-09-27T10:00:00Z',
+        updatedAt: '2026-09-27T10:00:00Z',
+      };
+      const snapshot = {
+        snapshotId: 'mark_snapshot_001',
+        toolId: 'mayas-flight-lab',
+        sourceDocumentId: document.documentId,
+        sourceRevision: 1,
+        strokes: document.strokes,
+        sourceDigest: 'a'.repeat(64),
+        createdAt: '2026-09-27T10:00:01Z',
+      };
+
+      await harness.repositories.drawAssets.saveDocument(document);
+      await harness.repositories.drawAssets.saveMarkSnapshot(snapshot);
+      expect(await harness.repositories.drawAssets.listDocumentsByOwner('child_local_01')).toEqual([
+        document,
+      ]);
+      expect(await harness.repositories.drawAssets.listMarkSnapshotsByTool('mayas-flight-lab')).toEqual([
+        snapshot,
+      ]);
+      await expect(harness.repositories.drawAssets.saveMarkSnapshot(snapshot)).rejects.toThrow(
+        /immutable/u,
+      );
+    });
+
     it('lists the ledger in ascending sequence order', async () => {
       const graph = flightLabGraph();
       await persistGraph(harness.repositories, graph);

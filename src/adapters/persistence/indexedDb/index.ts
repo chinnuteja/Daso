@@ -1,6 +1,7 @@
 import type { Repositories } from '../../../core/ports/repositories';
 import { openTeachDasoDatabase, type TeachDasoDatabase } from '../database';
 import { createIndexedDbGrantRepository } from './grants';
+import { createIndexedDbDrawAssetRepository } from './drawAssets';
 import { createIndexedDbLedgerRepository } from './ledgerRepository';
 import { createIndexedDbProfileRepository } from './profiles';
 import { createIndexedDbSummaryRepository } from './summaries';
@@ -17,6 +18,7 @@ export function createIndexedDbRepositories(database: TeachDasoDatabase): Reposi
     trials: createIndexedDbTrialRepository(database),
     grants: createIndexedDbGrantRepository(database),
     summaries: createIndexedDbSummaryRepository(database),
+    drawAssets: createIndexedDbDrawAssetRepository(database),
   };
 }
 

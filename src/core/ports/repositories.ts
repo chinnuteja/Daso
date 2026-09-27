@@ -3,7 +3,16 @@ import type { ChildProfile } from '../schema/childProfile';
 import type { ExperimentTrial } from '../schema/experimentTrial';
 import type { PermissionGrant } from '../schema/permissionGrant';
 import type { ParentSummary } from '../schema/parentSummary';
-import type { ChildId, GrantId, ToolId, ToolVersionId, TrialId } from '../schema/primitives';
+import type {
+  ChildId,
+  DrawDocumentId,
+  GrantId,
+  MarkSnapshotId,
+  ToolId,
+  ToolVersionId,
+  TrialId,
+} from '../schema/primitives';
+import type { DrawDocument, MarkSnapshot } from '../draw/schema';
 import type { ForkSnapshot } from '../reuse/types';
 import type { ToolDefinition } from '../schema/toolDefinition';
 import type { ToolVersion } from '../schema/toolVersion';
@@ -92,6 +101,22 @@ export interface ParentSummaryRepository {
   deleteByTool(toolId: ToolId): Promise<void>;
 }
 
+/**
+ * The only new persistence family in the Kale migration. It deliberately owns both mutable
+ * drawing documents and immutable selected-mark snapshots, instead of scattering Draw state
+ * across generic blobs or adding a repository per UI gesture.
+ */
+export interface DrawAssetRepository {
+  getDocument(documentId: DrawDocumentId): Promise<DrawDocument | null>;
+  listDocumentsByOwner(childId: ChildId): Promise<readonly DrawDocument[]>;
+  saveDocument(document: DrawDocument): Promise<void>;
+  getMarkSnapshot(snapshotId: MarkSnapshotId): Promise<MarkSnapshot | null>;
+  listMarkSnapshotsByTool(toolId: ToolId): Promise<readonly MarkSnapshot[]>;
+  /** Rejects duplicate ids: an approved source mark cannot be replaced. */
+  saveMarkSnapshot(snapshot: MarkSnapshot): Promise<void>;
+  deleteByTool(toolId: ToolId): Promise<void>;
+}
+
 /** The complete persistence surface the domain is allowed to ask for. */
 export interface Repositories {
   readonly profiles: ChildProfileRepository;
@@ -101,4 +126,5 @@ export interface Repositories {
   readonly trials: ExperimentTrialRepository;
   readonly grants: PermissionGrantRepository;
   readonly summaries: ParentSummaryRepository;
+  readonly drawAssets: DrawAssetRepository;
 }

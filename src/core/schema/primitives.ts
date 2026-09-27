@@ -45,6 +45,30 @@ export type EventId = z.infer<typeof EventId>;
 export const TrialId = z.string().regex(/^trial_\d{3,}$/u, 'must look like trial_004');
 export type TrialId = z.infer<typeof TrialId>;
 
+/** Stable identifiers for the deliberately small Draw source model. */
+export const DrawDocumentId = z
+  .string()
+  .regex(/^draw_document_[a-z0-9]+(?:_[a-z0-9]+)*$/u, 'must look like draw_document_001');
+export type DrawDocumentId = z.infer<typeof DrawDocumentId>;
+
+export const MarkSnapshotId = z
+  .string()
+  .regex(/^mark_snapshot_[a-z0-9]+(?:_[a-z0-9]+)*$/u, 'must look like mark_snapshot_001');
+export type MarkSnapshotId = z.infer<typeof MarkSnapshotId>;
+
+export const DrawPathId = z
+  .string()
+  .regex(/^draw_path_[a-z0-9]+(?:_[a-z0-9]+)*$/u, 'must look like draw_path_001');
+export type DrawPathId = z.infer<typeof DrawPathId>;
+
+export const StrokeId = z
+  .string()
+  .regex(/^stroke_[a-z0-9]+(?:_[a-z0-9]+)*$/u, 'must look like stroke_scale_001');
+export type StrokeId = z.infer<typeof StrokeId>;
+
+export const Sha256Digest = z.string().regex(/^[a-f0-9]{64}$/u, 'must be a SHA-256 hex digest');
+export type Sha256Digest = z.infer<typeof Sha256Digest>;
+
 export const SummaryId = z.string().regex(/^summary_\d{3,}$/u, 'must look like summary_001');
 export type SummaryId = z.infer<typeof SummaryId>;
 

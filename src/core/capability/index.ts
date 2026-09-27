@@ -30,6 +30,10 @@ export {
   ModelIntent,
 } from './types';
 export { assertCandidateCanBeApproved, buildDrawApprovalBundle, createDrawMarkSnapshot, DrawAuthorityError } from './drawAuthority';
+export { groundDrawInterpretation } from './drawGrounding';
+export type { DrawGroundingResult } from './drawGrounding';
+export { CapabilityTeachingRouteRequest } from './routeRequest';
+export type { CapabilityTeachingRouteRequest as CapabilityTeachingRouteRequestType } from './routeRequest';
 export type {
   CapabilityKind as CapabilityKindType,
   CapabilityDefinition as CapabilityDefinitionType,

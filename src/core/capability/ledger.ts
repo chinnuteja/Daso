@@ -21,7 +21,9 @@ export const CapabilityChildIntentEntry = EntryBase.extend({
 
 export const CapabilityCandidateEntry = EntryBase.extend({
   type: z.literal('capability_candidate'),
-  actor: z.literal(Actor.enum.ai),
+  actor: Actor,
+  /** A local/manual candidate is never presented as an AI suggestion. */
+  origin: z.enum(['model', 'manual']),
   sourceIntentEventId: EventId,
   proposal: CapabilityProposal,
 });

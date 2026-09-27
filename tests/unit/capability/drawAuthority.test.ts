@@ -17,7 +17,7 @@ async function drawing() {
 
 const entries: readonly CapabilityLedgerEntry[] = [
   { type: 'child_intent', eventId: 'event_101', toolId: 'my-dragon-scales', sequence: 1, occurredAt: NOW, actor: 'child', childWords: 'Make my scale repeat and shrink.', contextDigest: 'a'.repeat(64) },
-  { type: 'capability_candidate', eventId: 'event_102', toolId: 'my-dragon-scales', sequence: 2, occurredAt: NOW, actor: 'ai', sourceIntentEventId: 'event_101', proposal: PROPOSAL },
+  { type: 'capability_candidate', eventId: 'event_102', toolId: 'my-dragon-scales', sequence: 2, occurredAt: NOW, actor: 'ai', origin: 'model', sourceIntentEventId: 'event_101', proposal: PROPOSAL },
   { type: 'child_edit', eventId: 'event_103', toolId: 'my-dragon-scales', sequence: 3, occurredAt: NOW, actor: 'child', candidateEventId: 'event_102', proposal: { ...PROPOSAL, spacing: 'wide' } },
 ];
 

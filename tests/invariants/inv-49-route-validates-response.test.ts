@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { interpretTeachingMove } from '../../src/app/api/agents/teaching/route';
+import { interpretCapabilityIntent, interpretTeachingMove } from '../../src/app/api/agents/teaching/route';
+import { buildTeachingRequestV2 } from '../../src/core/capability';
 import { FLIGHT_LAB_TEACHING_SCRIPT } from '../../src/adapters/teaching/scripted';
 import type { TeachingRequest } from '../../src/core/ports/teaching';
 
@@ -57,5 +58,31 @@ describe('INV-49 — the route validates the model response server-side (§7.3, 
     }
     const result = await interpretTeachingMove(REQUEST, async () => move);
     expect(result).toEqual({ status: 200, payload: { ok: true, move } });
+  });
+
+  it('INV-49: the capability protocol rejects model approval and accepts only a closed bounded proposal', async () => {
+    const request = await buildTeachingRequestV2('Repeat my mark along here.', {
+      kind: 'draw_pattern',
+      toolId: 'my-dragon-scales',
+      activeVersionId: null,
+      ledgerSequence: 0,
+      sourceDocumentId: 'draw_document_001',
+      sourceRevision: 1,
+      selectedMarkSnapshotId: 'mark_snapshot_001',
+      guidePathId: 'draw_path_001',
+      guidePathRevision: 1,
+    });
+    const envelope = { protocol: 'capability_v2' as const, request };
+    const approval = await interpretCapabilityIntent(envelope, async () => ({ type: 'approve', kind: 'draw_pattern' }));
+    expect(approval).toMatchObject({ status: 422, payload: { ok: false } });
+
+    const accepted = await interpretCapabilityIntent(envelope, async () => ({
+      type: 'propose_capability',
+      kind: 'draw_pattern',
+      operation: 'repeat_selected_mark',
+      spacing: 'even',
+      sizeProfile: 'constant',
+    }));
+    expect(accepted).toMatchObject({ status: 200, payload: { ok: true, intent: { kind: 'draw_pattern' } } });
   });
 });

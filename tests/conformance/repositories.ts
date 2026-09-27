@@ -140,7 +140,7 @@ export function defineRepositoryConformance(
       const candidate = {
         type: 'capability_candidate' as const,
         eventId: 'event_201', toolId: 'my-draw-tool', sequence: 1, occurredAt: '2026-09-27T10:00:00Z',
-        actor: 'ai' as const, sourceIntentEventId: 'event_200',
+        actor: 'ai' as const, origin: 'model' as const, sourceIntentEventId: 'event_200',
         proposal: { type: 'propose_capability' as const, kind: 'draw_pattern' as const, operation: 'repeat_selected_mark' as const, spacing: 'even' as const, sizeProfile: 'smaller_toward_end' as const },
       };
       const approval = {

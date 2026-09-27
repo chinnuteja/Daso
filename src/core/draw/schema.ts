@@ -36,6 +36,8 @@ export const DrawDocument = z.strictObject({
   height: z.number().int().min(1).max(4096),
   revision: PositiveInt,
   strokes: z.array(DrawStroke).max(512),
+  /** Hash of canonical source geometry only; derived previews never participate. */
+  contentDigest: Sha256Digest,
   createdAt: IsoTimestamp,
   updatedAt: IsoTimestamp,
 });

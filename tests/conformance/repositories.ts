@@ -107,6 +107,7 @@ export function defineRepositoryConformance(
             ],
           },
         ],
+        contentDigest: 'b'.repeat(64),
         createdAt: '2026-09-27T10:00:00Z',
         updatedAt: '2026-09-27T10:00:00Z',
       };

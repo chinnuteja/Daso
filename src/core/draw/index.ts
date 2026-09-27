@@ -5,3 +5,16 @@ export type {
   DrawStroke as DrawStrokeType,
   MarkSnapshot as MarkSnapshotType,
 } from './schema';
+export {
+  appendStroke,
+  clearStrokes,
+  createDrawDocument,
+  digestDrawSource,
+  DRAW_HEIGHT,
+  DRAW_WIDTH,
+  PRACTICE_DRAGON_STROKES,
+  removeLastStroke,
+  restoreStroke,
+  samplePoint,
+  withDrawSourceDigest,
+} from './document';

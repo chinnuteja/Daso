@@ -6,6 +6,9 @@ import { PermissionGrant } from '../../core/schema/permissionGrant';
 import { ToolDefinition } from '../../core/schema/toolDefinition';
 import { ToolVersion } from '../../core/schema/toolVersion';
 import type { LedgerEntry } from '../../core/ledger/types';
+import type { DrawAssetRepository } from '../../core/ports/repositories';
+import { createMemoryPersistence } from './memory';
+import { openIndexedDbRepositories } from './indexedDb';
 
 export { DATABASE_NAME, DATABASE_VERSION, STORE, openTeachDasoDatabase, PersistenceError } from './database';
 export type { TeachDasoDatabase } from './database';
@@ -19,6 +22,30 @@ export { createIndexedDbRepositories, openIndexedDbRepositories } from './indexe
 export { createMemoryPersistence, createMemoryRepositories } from './memory';
 export type { MemoryPersistence } from './memory';
 export type { MemoryRecords } from './memory/store';
+
+/**
+ * The UI can remain usable in browser sandboxes that intentionally do not expose IndexedDB.
+ * That fallback is explicitly ephemeral; normal product browsers still use the local database.
+ */
+export async function openBrowserDrawAssets(): Promise<{
+  readonly drawAssets: DrawAssetRepository;
+  readonly durable: boolean;
+  readonly close: () => void;
+}> {
+  if (typeof indexedDB === 'undefined') {
+    return {
+      drawAssets: createMemoryPersistence().repositories.drawAssets,
+      durable: false,
+      close: () => undefined,
+    };
+  }
+  const opened = await openIndexedDbRepositories();
+  return {
+    drawAssets: opened.repositories.drawAssets,
+    durable: true,
+    close: () => opened.database.close(),
+  };
+}
 
 export interface PersistableGraph {
   readonly profile: ChildProfile;

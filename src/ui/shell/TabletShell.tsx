@@ -21,6 +21,7 @@ export function TabletShell(props: {
           </div>
         </div>
         <nav className={styles.nav} aria-label="Kale Memory Lab">
+          <Link href="/draw">Draw</Link>
           <Link href="/">Writing preference</Link>
           <Link href="/lab">Bridge Bench</Link>
           <Link href="/library">Saved tools</Link>

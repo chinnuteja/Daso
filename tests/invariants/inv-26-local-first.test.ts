@@ -23,7 +23,7 @@ describe('INV-26 — child data is local-first (§11.1, §11.2)', () => {
   it('INV-26: both implementations expose the shared local-first persistence surface', () => {
     const memory = createMemoryRepositories();
     expect(Object.keys(memory).sort()).toEqual(
-      ['drawAssets', 'grants', 'ledger', 'profiles', 'summaries', 'tools', 'trials', 'versions'].sort(),
+      ['capabilities', 'drawAssets', 'grants', 'ledger', 'profiles', 'summaries', 'tools', 'trials', 'versions'].sort(),
     );
     expect(typeof createIndexedDbRepositories).toBe('function');
   });

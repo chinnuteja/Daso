@@ -19,6 +19,9 @@ export {
   CapabilityProposal,
   CapabilityTeachingContext,
   CapabilityVersionMetadata,
+  CapabilityDefinition,
+  DrawCapabilityControls,
+  DrawCapabilityVersion,
   ClarifyIntent,
   DrawPatternProposal,
   DrawTeachingContext,
@@ -26,8 +29,12 @@ export {
   FlightValidityProposal,
   ModelIntent,
 } from './types';
+export { assertCandidateCanBeApproved, buildDrawApprovalBundle, createDrawMarkSnapshot, DrawAuthorityError } from './drawAuthority';
 export type {
   CapabilityKind as CapabilityKindType,
+  CapabilityDefinition as CapabilityDefinitionType,
+  DrawCapabilityControls as DrawCapabilityControlsType,
+  DrawCapabilityVersion as DrawCapabilityVersionType,
   CapabilityProposal as CapabilityProposalType,
   CapabilityTeachingContext as CapabilityTeachingContextType,
   ModelIntent as ModelIntentType,

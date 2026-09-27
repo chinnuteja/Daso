@@ -12,8 +12,8 @@ afterEach(async () => {
   await deleteDB(name);
 });
 
-describe('Phase 01 — additive v1 to v2 migration', () => {
-  it('keeps a v1 profile byte-for-byte while adding Draw stores and indexes', async () => {
+describe('Additive persistence migration', () => {
+  it('keeps a v1 profile byte-for-byte while adding Draw and capability-lifecycle stores', async () => {
     const legacy = await openDB(name, 1, {
       upgrade(database) {
         database.createObjectStore('childProfiles', { keyPath: 'childId' });
@@ -38,14 +38,18 @@ describe('Phase 01 — additive v1 to v2 migration', () => {
     legacy.close();
 
     const migrated = await openTeachDasoDatabase(name);
-    expect(DATABASE_VERSION).toBe(2);
+    expect(DATABASE_VERSION).toBe(3);
     expect(await migrated.get(STORE.childProfiles, profile.childId)).toEqual(profile);
     expect(migrated.objectStoreNames.contains(STORE.drawDocuments)).toBe(true);
     expect(migrated.objectStoreNames.contains(STORE.markSnapshots)).toBe(true);
     expect(migrated.transaction(STORE.drawDocuments).store.indexNames.contains('ownerChildId')).toBe(true);
     expect(migrated.transaction(STORE.markSnapshots).store.indexNames.contains('toolId')).toBe(true);
+    expect(migrated.objectStoreNames.contains(STORE.capabilityDefinitions)).toBe(true);
+    expect(migrated.objectStoreNames.contains(STORE.capabilityVersions)).toBe(true);
+    expect(migrated.objectStoreNames.contains(STORE.capabilityEntries)).toBe(true);
     const repositories = createIndexedDbRepositories(migrated);
     expect(await repositories.drawAssets.listDocumentsByOwner('child_local_01')).toEqual([]);
+    expect(await repositories.capabilities.listDefinitionsByOwner('child_local_01')).toEqual([]);
     migrated.close();
   });
 });

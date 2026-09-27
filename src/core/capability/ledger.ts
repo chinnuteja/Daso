@@ -45,6 +45,8 @@ export const CapabilityApprovalEntry = EntryBase.extend({
   actor: z.literal(Actor.enum.child),
   candidateEventId: EventId,
   approvedProposal: CapabilityProposal,
+  /** Caller-supplied retry key; the repository turns a repeated save into the original result. */
+  idempotencyKey: z.string().trim().min(1).max(160),
 });
 
 export const CapabilityLedgerEntry = z.discriminatedUnion('type', [

@@ -6,7 +6,7 @@ import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
  */
 
 export const DATABASE_NAME = 'teach-daso';
-export const DATABASE_VERSION = 2;
+export const DATABASE_VERSION = 3;
 
 export const STORE = {
   childProfiles: 'childProfiles',
@@ -18,6 +18,9 @@ export const STORE = {
   summaries: 'summaries',
   drawDocuments: 'drawDocuments',
   markSnapshots: 'markSnapshots',
+  capabilityDefinitions: 'capabilityDefinitions',
+  capabilityVersions: 'capabilityVersions',
+  capabilityEntries: 'capabilityEntries',
   meta: 'meta',
 } as const;
 
@@ -45,6 +48,13 @@ export interface TeachDasoDb extends DBSchema {
     key: string;
     value: unknown;
     indexes: { toolId: string; sourceDocumentId: string };
+  };
+  capabilityDefinitions: { key: string; value: unknown; indexes: { ownerChildId: string } };
+  capabilityVersions: { key: string; value: unknown; indexes: { toolId: string } };
+  capabilityEntries: {
+    key: string;
+    value: unknown;
+    indexes: { toolId: string; toolIdSequence: [string, number]; idempotencyKey: string };
   };
   meta: { key: string; value: unknown };
 }
@@ -87,6 +97,16 @@ export async function openTeachDasoDatabase(
         const snapshots = database.createObjectStore(STORE.markSnapshots, { keyPath: 'snapshotId' });
         snapshots.createIndex('toolId', 'toolId');
         snapshots.createIndex('sourceDocumentId', 'sourceDocumentId');
+      }
+      if (oldVersion < 3) {
+        const definitions = database.createObjectStore(STORE.capabilityDefinitions, { keyPath: 'toolId' });
+        definitions.createIndex('ownerChildId', 'ownerChildId');
+        const versions = database.createObjectStore(STORE.capabilityVersions, { keyPath: 'versionId' });
+        versions.createIndex('toolId', 'toolId');
+        const entries = database.createObjectStore(STORE.capabilityEntries, { keyPath: 'eventId' });
+        entries.createIndex('toolId', 'toolId');
+        entries.createIndex('toolIdSequence', ['toolId', 'sequence'], { unique: true });
+        entries.createIndex('idempotencyKey', 'idempotencyKey', { unique: true });
       }
     },
   });

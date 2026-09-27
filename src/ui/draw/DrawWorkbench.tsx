@@ -3,6 +3,8 @@
 import { type CSSProperties, type PointerEvent, useEffect, useRef, useState } from 'react';
 
 import { openBrowserDrawAssets } from '../../adapters/persistence';
+import { buildDrawApprovalBundle, digestCapabilityContext } from '../../core/capability';
+import type { CapabilityLedgerEntry } from '../../core/capability/ledger';
 import {
   appendStroke,
   buildDeterministicDrawPreview,
@@ -24,7 +26,7 @@ import {
   withDrawSourceDigest,
 } from '../../core/draw';
 import type { DrawDocument, DrawPoint, DrawPreviewControls, DrawStroke } from '../../core/draw';
-import type { DrawAssetRepository } from '../../core/ports/repositories';
+import type { CapabilityLifecycleRepository, DrawAssetRepository } from '../../core/ports/repositories';
 
 import styles from './DrawWorkbench.module.css';
 
@@ -35,6 +37,15 @@ const PALETTE = ['#294f46', '#c45b3f', '#5c55a6', '#15737c', '#d18827'] as const
 
 type Mode = 'choose' | 'workbench';
 type ToolMode = 'draw' | 'select' | 'path';
+
+type AuthoritySession = Readonly<{
+  toolId: string;
+  snapshotId: string;
+  candidateEventId: string;
+  events: readonly CapabilityLedgerEntry[];
+  proposal: Extract<Extract<CapabilityLedgerEntry, { type: 'capability_candidate' }>['proposal'], { kind: 'draw_pattern' }>;
+  state: 'reviewing' | 'rejected' | 'saved';
+}>;
 
 function timestamp(): string {
   return new Date().toISOString();
@@ -59,10 +70,14 @@ export function DrawWorkbench() {
   const [width, setWidth] = useState(7);
   const [previewVisible, setPreviewVisible] = useState(false);
   const [previewControls, setPreviewControls] = useState<DrawPreviewControls>(DEFAULT_DRAW_PREVIEW_CONTROLS);
+  const [authority, setAuthority] = useState<AuthoritySession | null>(null);
+  const [toolName, setToolName] = useState('My repeating mark');
+  const [saving, setSaving] = useState(false);
   const [ready, setReady] = useState(false);
   const [status, setStatus] = useState('Opening your drawing desk…');
   const [error, setError] = useState<string | null>(null);
   const repository = useRef<DrawAssetRepository | null>(null);
+  const capabilityRepository = useRef<CapabilityLifecycleRepository | null>(null);
   const documentRef = useRef<DrawDocument | null>(null);
   const draftRef = useRef<DrawStroke | null>(null);
   const guideRef = useRef<readonly DrawPoint[] | null>(null);
@@ -75,6 +90,7 @@ export function DrawWorkbench() {
       const opened = await openBrowserDrawAssets();
       close = opened.close;
       repository.current = opened.drawAssets;
+      capabilityRepository.current = opened.capabilities;
       const documents = await repository.current.listDocumentsByOwner(DRAW_OWNER_ID);
       if (cancelled) return;
       const latest = documents.at(-1) ?? null;
@@ -127,6 +143,7 @@ export function DrawWorkbench() {
     setActive(created);
     setRedo([]);
     setPreviewVisible(false);
+    setAuthority(null);
     setMode('workbench');
     setStatus(kind === 'practice' ? 'Practice drawing loaded. Every line is still yours to change.' : 'A blank page is ready for your mark.');
     await persist(created, kind === 'practice' ? 'Practice drawing saved on this device.' : 'Blank drawing saved on this device.');
@@ -143,6 +160,7 @@ export function DrawWorkbench() {
       const next = setMarkSelection(document, [stroke.strokeId], timestamp());
       setActive(next);
       setPreviewVisible(false);
+      setAuthority(null);
       void persist(next, 'That mark is yours. Now show where it should travel.');
       setToolMode('path');
       return;
@@ -208,6 +226,7 @@ export function DrawWorkbench() {
     setActive(next);
     setRedo([]);
     setPreviewVisible(false);
+    setAuthority(null);
     void persist(next, 'Stroke saved locally.');
   }
 
@@ -255,7 +274,64 @@ export function DrawWorkbench() {
     setActive(next);
     setToolMode('select');
     setPreviewVisible(false);
+    setAuthority(null);
     void persist(next, 'Tap the exact mark you want to use.');
+  }
+
+  async function beginReview(): Promise<void> {
+    if (document === null || !isMarkSelectionCurrent(document) || document.guidePath === undefined || capabilityRepository.current === null) return;
+    const nonce = `${Date.now()}${(++strokeCounter.current).toString().padStart(2, '0')}`;
+    const toolId = `my-repeat-${nonce}`;
+    const snapshotId = `mark_snapshot_${nonce}`;
+    const occurredAt = timestamp();
+    const intentEventId = `event_${nonce}`;
+    const candidateEventId = `event_${Number(nonce) + 1}`;
+    const contextDigest = await digestCapabilityContext({ toolId, activeVersionId: null, ledgerSequence: 0, kind: 'draw_pattern', sourceDocumentId: document.documentId, sourceRevision: document.revision, selectedMarkSnapshotId: snapshotId, guidePathId: document.guidePath.pathId, guidePathRevision: document.guidePath.revision });
+    const proposal = { type: 'propose_capability' as const, kind: 'draw_pattern' as const, operation: 'repeat_selected_mark' as const, spacing: 'even' as const, sizeProfile: 'smaller_toward_end' as const };
+    const intent: CapabilityLedgerEntry = { type: 'child_intent', eventId: intentEventId, toolId, sequence: 1, occurredAt, actor: 'child', childWords: 'Repeat my selected mark along this path, smaller at the end.', contextDigest };
+    const candidate: CapabilityLedgerEntry = { type: 'capability_candidate', eventId: candidateEventId, toolId, sequence: 2, occurredAt, actor: 'ai', sourceIntentEventId: intentEventId, proposal };
+    try {
+      await capabilityRepository.current.append(intent);
+      await capabilityRepository.current.append(candidate);
+      setAuthority({ toolId, snapshotId, candidateEventId, events: [intent, candidate], proposal, state: 'reviewing' });
+      setStatus('Here is a starting idea. Change it, reject it, or save it only if it feels like yours.');
+    } catch { setError('We could not prepare that review yet. Your drawing and preview are still safe.'); }
+  }
+
+  async function editProposal(patch: { readonly spacing?: 'close' | 'wide'; readonly sizeProfile?: 'constant' | 'smaller_toward_end' }): Promise<void> {
+    if (authority === null || authority.state !== 'reviewing' || capabilityRepository.current === null) return;
+    const proposal = { ...authority.proposal, ...patch };
+    const edit: CapabilityLedgerEntry = { type: 'child_edit', eventId: `event_${Date.now()}${(++strokeCounter.current).toString().padStart(2, '0')}`, toolId: authority.toolId, sequence: authority.events.length + 1, occurredAt: timestamp(), actor: 'child', candidateEventId: authority.candidateEventId, proposal };
+    try {
+      await capabilityRepository.current.append(edit);
+      setAuthority({ ...authority, events: [...authority.events, edit], proposal });
+      setPreviewControls((controls) => ({ ...controls, spacing: proposal.spacing === 'close' ? 36 : proposal.spacing === 'wide' ? 92 : 56, endScale: proposal.sizeProfile === 'smaller_toward_end' ? .45 : 1 }));
+      setStatus('Your change is recorded separately. The starting idea did not overwrite your choice.');
+    } catch { setError('We could not record that change. Try it again; nothing has been saved.'); }
+  }
+
+  async function rejectProposal(): Promise<void> {
+    if (authority === null || authority.state !== 'reviewing' || capabilityRepository.current === null) return;
+    const rejection: CapabilityLedgerEntry = { type: 'child_rejection', eventId: `event_${Date.now()}${(++strokeCounter.current).toString().padStart(2, '0')}`, toolId: authority.toolId, sequence: authority.events.length + 1, occurredAt: timestamp(), actor: 'child', candidateEventId: authority.candidateEventId, reason: 'I do not want to save this starting idea.' };
+    try {
+      await capabilityRepository.current.append(rejection);
+      setAuthority({ ...authority, events: [...authority.events, rejection], state: 'rejected' });
+      setStatus('Rejected. Nothing became a tool. You can keep drawing or start a new review.');
+    } catch { setError('We could not record the rejection. Nothing has been saved.'); }
+  }
+
+  async function approveProposal(): Promise<void> {
+    if (authority === null || authority.state !== 'reviewing' || document === null || capabilityRepository.current === null) return;
+    setSaving(true);
+    const approval: CapabilityLedgerEntry = { type: 'child_approval', eventId: `event_${Date.now()}${(++strokeCounter.current).toString().padStart(2, '0')}`, toolId: authority.toolId, sequence: authority.events.length + 1, occurredAt: timestamp(), actor: 'child', candidateEventId: authority.candidateEventId, approvedProposal: authority.proposal, idempotencyKey: `save_${authority.toolId}` };
+    try {
+      const existing = await capabilityRepository.current.listDrawVersionsByTool(authority.toolId);
+      const bundle = await buildDrawApprovalBundle({ drawing: document, toolId: authority.toolId, ownerChildId: DRAW_OWNER_ID, displayName: toolName, existingVersionCount: existing.length, snapshotId: authority.snapshotId, versionId: `tool_version_${Date.now()}`, approvalEvent: approval, entries: authority.events, createdAt: timestamp() });
+      const version = await capabilityRepository.current.commitDrawApproval({ ...bundle, approval });
+      setAuthority({ ...authority, events: [...authority.events, approval], state: 'saved' });
+      setStatus(`Saved ${toolName} as ${version.versionId}. It is a local tool now, not a preview.`);
+    } catch (caught) { setError(caught instanceof Error ? caught.message : 'We could not save that tool. Your drawing is still safe.'); }
+    finally { setSaving(false); }
   }
 
   if (mode === 'choose') {
@@ -388,6 +464,26 @@ export function DrawWorkbench() {
             </div> : null}
             {previewError !== null ? <p className={styles.previewError} role="alert">{previewError}</p> : null}
           </div>
+          {previewVisible && canPreview ? <div className={styles.authorityCard}>
+            <div><b>Make this a tool</b><span>Nothing is saved until you choose it.</span></div>
+            {authority === null ? <button className={styles.previewButton} type="button" onClick={() => { void beginReview(); }}>Review this idea</button> : null}
+            {authority !== null ? <ol className={styles.provenanceRail}>
+              <li data-done>You drew the mark and path.</li>
+              <li data-done>You asked for a repeat that shrinks at the end.</li>
+              <li>A starting idea: {authority.proposal.spacing} spacing, {authority.proposal.sizeProfile.replaceAll('_', ' ')}.</li>
+              <li data-done={authority.events.some((entry) => entry.type === 'child_edit') ? '' : undefined}>Your changes stay separate from the starting idea.</li>
+              <li data-done={authority.state === 'saved' ? '' : undefined}>{authority.state === 'saved' ? 'You saved an immutable local version.' : authority.state === 'rejected' ? 'You rejected it. Nothing was saved.' : 'Only you can save it.'}</li>
+            </ol> : null}
+            {authority?.state === 'reviewing' ? <div className={styles.authorityActions}>
+              <p>Change the starting idea</p>
+              <div><button type="button" onClick={() => { void editProposal({ spacing: 'close' }); }}>Closer</button><button type="button" onClick={() => { void editProposal({ spacing: 'wide' }); }}>Farther</button></div>
+              <div><button type="button" onClick={() => { void editProposal({ sizeProfile: 'constant' }); }}>Same size</button><button type="button" onClick={() => { void editProposal({ sizeProfile: 'smaller_toward_end' }); }}>Smaller at the end</button></div>
+              <label>Tool name<input aria-label="Tool name" value={toolName} maxLength={80} onChange={(event) => setToolName(event.target.value)} /></label>
+              <button className={styles.saveButton} type="button" disabled={saving || toolName.trim().length === 0} onClick={() => { void approveProposal(); }}>{saving ? 'Saving your tool…' : 'Save my tool'}</button>
+              <button className={styles.rejectButton} type="button" disabled={saving} onClick={() => { void rejectProposal(); }}>Reject this idea</button>
+              <small>This browser treats your choice as the product authority. It is local-device authority, not a login or identity check.</small>
+            </div> : null}
+          </div> : null}
           <p className={styles.layerNote}><b>Source</b> is your drawing. Guide and preview layers never change it.</p>
         </aside>
 

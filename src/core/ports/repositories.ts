@@ -14,6 +14,8 @@ import type {
 } from '../schema/primitives';
 import type { DrawDocument, MarkSnapshot } from '../draw/schema';
 import type { ForkSnapshot } from '../reuse/types';
+import type { CapabilityLedgerEntry } from '../capability/ledger';
+import type { CapabilityDefinition, DrawCapabilityVersion } from '../capability/types';
 import type { ToolDefinition } from '../schema/toolDefinition';
 import type { ToolVersion } from '../schema/toolVersion';
 import type { LedgerEntry } from '../ledger/types';
@@ -117,6 +119,26 @@ export interface DrawAssetRepository {
   deleteByTool(toolId: ToolId): Promise<void>;
 }
 
+/**
+ * The generic v2 authority stream. Draw uses it first; Flight will use the same append/review/
+ * approval ordering later rather than inventing a second approval mechanism.
+ */
+export interface CapabilityLifecycleRepository {
+  getDefinition(toolId: ToolId): Promise<CapabilityDefinition | null>;
+  listDefinitionsByOwner(childId: ChildId): Promise<readonly CapabilityDefinition[]>;
+  listEntriesByTool(toolId: ToolId): Promise<readonly CapabilityLedgerEntry[]>;
+  append(entry: CapabilityLedgerEntry): Promise<void>;
+  /** Approval is the only method that creates the immutable snapshot/version and active pointer. */
+  commitDrawApproval(input: {
+    readonly definition: CapabilityDefinition;
+    readonly version: DrawCapabilityVersion;
+    readonly snapshot: MarkSnapshot;
+    readonly approval: CapabilityLedgerEntry;
+  }): Promise<DrawCapabilityVersion>;
+  getDrawVersion(versionId: ToolVersionId): Promise<DrawCapabilityVersion | null>;
+  listDrawVersionsByTool(toolId: ToolId): Promise<readonly DrawCapabilityVersion[]>;
+}
+
 /** The complete persistence surface the domain is allowed to ask for. */
 export interface Repositories {
   readonly profiles: ChildProfileRepository;
@@ -127,4 +149,5 @@ export interface Repositories {
   readonly grants: PermissionGrantRepository;
   readonly summaries: ParentSummaryRepository;
   readonly drawAssets: DrawAssetRepository;
+  readonly capabilities: CapabilityLifecycleRepository;
 }

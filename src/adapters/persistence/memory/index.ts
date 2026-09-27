@@ -1,6 +1,7 @@
 import type { Repositories } from '../../../core/ports/repositories';
 import { createMemoryGrantRepository } from './grants';
 import { createMemoryDrawAssetRepository } from './drawAssets';
+import { createMemoryCapabilityLifecycleRepository } from './capabilities';
 import { createMemoryLedgerRepository } from './ledger';
 import { createMemoryProfileRepository } from './profiles';
 import { createEmptyMemoryRecords, type MemoryRecords } from './store';
@@ -27,6 +28,7 @@ export function createMemoryPersistence(): MemoryPersistence {
       grants: createMemoryGrantRepository(records),
       summaries: createMemorySummaryRepository(records),
       drawAssets: createMemoryDrawAssetRepository(records),
+      capabilities: createMemoryCapabilityLifecycleRepository(records),
     },
   };
 }

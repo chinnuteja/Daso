@@ -30,7 +30,7 @@ export async function listByToolIndex<T>(
   database: TeachDasoDatabase,
   storeName: Exclude<
     StoreNames<TeachDasoDb>,
-    'childProfiles' | 'meta' | 'tools' | 'drawDocuments'
+    'childProfiles' | 'meta' | 'tools' | 'drawDocuments' | 'capabilityDefinitions'
   >,
   toolId: string,
   schema: z.ZodType<T>,

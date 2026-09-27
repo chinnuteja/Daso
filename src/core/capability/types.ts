@@ -1,9 +1,11 @@
 import { z } from 'zod';
 
 import {
+  ChildId,
   DrawDocumentId,
   DrawPathId,
   EventId,
+  IsoTimestamp,
   MarkSnapshotId,
   Sha256Digest,
   ToolId,
@@ -91,3 +93,34 @@ export const CapabilityVersionMetadata = z.strictObject({
   approvalEventId: EventId,
 });
 export type CapabilityVersionMetadata = z.infer<typeof CapabilityVersionMetadata>;
+
+/** Durable v2 identities are intentionally separate from the legacy Flight compiler records. */
+export const CapabilityDefinition = z.strictObject({
+  toolId: ToolId,
+  ownerChildId: ChildId,
+  displayName: z.string().trim().min(1).max(80),
+  kind: CapabilityKind,
+  currentVersionId: ToolVersionId.nullable(),
+  createdAt: IsoTimestamp,
+});
+export type CapabilityDefinition = z.infer<typeof CapabilityDefinition>;
+
+export const DrawCapabilityControls = z.strictObject({
+  spacing: z.number().finite().min(16).max(240),
+  startScale: z.number().finite().min(0.2).max(2.5),
+  endScale: z.number().finite().min(0.2).max(2.5),
+  followPath: z.boolean(),
+});
+export type DrawCapabilityControls = z.infer<typeof DrawCapabilityControls>;
+
+export const DrawCapabilityVersion = z.strictObject({
+  toolId: ToolId,
+  versionId: ToolVersionId,
+  kind: z.literal('draw_pattern'),
+  version: z.number().int().positive(),
+  markSnapshotId: MarkSnapshotId,
+  controls: DrawCapabilityControls,
+  metadata: CapabilityVersionMetadata,
+  createdAt: IsoTimestamp,
+});
+export type DrawCapabilityVersion = z.infer<typeof DrawCapabilityVersion>;

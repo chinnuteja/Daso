@@ -9,6 +9,8 @@ import { ParentSummary } from '../../../core/schema/parentSummary';
 import { PermissionGrant } from '../../../core/schema/permissionGrant';
 import { ToolDefinition } from '../../../core/schema/toolDefinition';
 import { ToolVersion } from '../../../core/schema/toolVersion';
+import { CapabilityDefinition, DrawCapabilityVersion } from '../../../core/capability/types';
+import { CapabilityLedgerEntry } from '../../../core/capability/ledger';
 import { shouldFailAfterDeleteWrite } from '../atomicCommit';
 import { STORE, type TeachDasoDatabase, type TeachDasoDb } from '../database';
 import { abortTransaction } from './access';
@@ -22,6 +24,9 @@ const PROFILE_GRAPH_STORES = [
   STORE.summaries,
   STORE.drawDocuments,
   STORE.markSnapshots,
+  STORE.capabilityDefinitions,
+  STORE.capabilityVersions,
+  STORE.capabilityEntries,
   STORE.childProfiles,
 ] as const;
 
@@ -60,6 +65,17 @@ async function scheduleToolGraph(tx: DeleteTx, toolId: ToolId): Promise<Schedule
   const snapshots = await tx.objectStore(STORE.markSnapshots).index('toolId').getAll(toolId);
   for (const raw of snapshots) {
     scheduled.push({ kind: 'delete', store: STORE.markSnapshots, key: MarkSnapshot.parse(raw).snapshotId });
+  }
+  if ((await tx.objectStore(STORE.capabilityDefinitions).get(toolId)) !== undefined) {
+    scheduled.push({ kind: 'delete', store: STORE.capabilityDefinitions, key: toolId });
+  }
+  const capabilityVersions = await tx.objectStore(STORE.capabilityVersions).index('toolId').getAll(toolId);
+  for (const raw of capabilityVersions) {
+    scheduled.push({ kind: 'delete', store: STORE.capabilityVersions, key: DrawCapabilityVersion.parse(raw).versionId });
+  }
+  const capabilityEntries = await tx.objectStore(STORE.capabilityEntries).index('toolId').getAll(toolId);
+  for (const raw of capabilityEntries) {
+    scheduled.push({ kind: 'delete', store: STORE.capabilityEntries, key: CapabilityLedgerEntry.parse(raw).eventId });
   }
   return scheduled;
 }
@@ -142,6 +158,10 @@ export async function deleteIndexedDbProfileGraph(
   for (const raw of ownedRaw) {
     const tool = ToolDefinition.parse(raw);
     scheduled.push(...(await scheduleToolGraph(tx, tool.toolId)));
+  }
+  const ownedCapabilities = await tx.objectStore(STORE.capabilityDefinitions).index('ownerChildId').getAll(childId);
+  for (const raw of ownedCapabilities) {
+    scheduled.push(...(await scheduleToolGraph(tx, CapabilityDefinition.parse(raw).toolId)));
   }
   const profile = await tx.objectStore(STORE.childProfiles).get(childId);
   if (profile !== undefined) {

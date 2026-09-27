@@ -7,6 +7,8 @@ import { ExperimentTrial } from '../../../core/schema/experimentTrial';
 import { DrawDocument, MarkSnapshot } from '../../../core/draw/schema';
 import { ToolDefinition } from '../../../core/schema/toolDefinition';
 import { ToolVersion } from '../../../core/schema/toolVersion';
+import { CapabilityDefinition, DrawCapabilityVersion } from '../../../core/capability/types';
+import { CapabilityLedgerEntry } from '../../../core/capability/ledger';
 import { PersistenceError } from '../database';
 import { shouldFailAfterDeleteWrite } from '../atomicCommit';
 import type { MemoryRecords } from './store';
@@ -21,6 +23,9 @@ interface MemorySnapshot {
   readonly summaries: Map<string, unknown>;
   readonly drawDocuments: Map<string, unknown>;
   readonly markSnapshots: Map<string, unknown>;
+  readonly capabilityDefinitions: Map<string, unknown>;
+  readonly capabilityVersions: Map<string, unknown>;
+  readonly capabilityEntries: Map<string, unknown>;
 }
 
 type StoreName = Exclude<keyof MemoryRecords, 'meta'>;
@@ -40,6 +45,9 @@ function snapshotRecords(records: MemoryRecords): MemorySnapshot {
     summaries: new Map(records.summaries),
     drawDocuments: new Map(records.drawDocuments),
     markSnapshots: new Map(records.markSnapshots),
+    capabilityDefinitions: new Map(records.capabilityDefinitions),
+    capabilityVersions: new Map(records.capabilityVersions),
+    capabilityEntries: new Map(records.capabilityEntries),
   };
 }
 
@@ -54,6 +62,9 @@ function restoreRecords(records: MemoryRecords, snapshot: MemorySnapshot): void 
     'summaries',
     'drawDocuments',
     'markSnapshots',
+    'capabilityDefinitions',
+    'capabilityVersions',
+    'capabilityEntries',
   ];
   for (const store of stores) {
     records[store].clear();
@@ -105,6 +116,13 @@ function scheduleToolGraph(records: MemoryRecords, toolId: ToolId): ScheduledMut
     if (MarkSnapshot.parse(raw).toolId === toolId) {
       scheduled.push({ kind: 'delete', store: 'markSnapshots', key: snapshotId });
     }
+  }
+  if (records.capabilityDefinitions.has(toolId)) scheduled.push({ kind: 'delete', store: 'capabilityDefinitions', key: toolId });
+  for (const [versionId, raw] of records.capabilityVersions.entries()) {
+    if (DrawCapabilityVersion.parse(raw).toolId === toolId) scheduled.push({ kind: 'delete', store: 'capabilityVersions', key: versionId });
+  }
+  for (const [eventId, raw] of records.capabilityEntries.entries()) {
+    if (CapabilityLedgerEntry.parse(raw).toolId === toolId) scheduled.push({ kind: 'delete', store: 'capabilityEntries', key: eventId });
   }
   return scheduled;
 }
@@ -166,6 +184,10 @@ export function deleteMemoryProfileGraph(records: MemoryRecords, childId: ChildI
     if (parsed.ownerChildId === childId) {
       owned.push(parsed.toolId);
     }
+  }
+  for (const raw of records.capabilityDefinitions.values()) {
+    const parsed = CapabilityDefinition.parse(raw);
+    if (parsed.ownerChildId === childId) owned.push(parsed.toolId);
   }
   const scheduled: ScheduledMutation[] = [];
   for (const toolId of owned) {

@@ -7,6 +7,7 @@ import { ToolDefinition } from '../../core/schema/toolDefinition';
 import { ToolVersion } from '../../core/schema/toolVersion';
 import type { LedgerEntry } from '../../core/ledger/types';
 import type { DrawAssetRepository } from '../../core/ports/repositories';
+import type { CapabilityLifecycleRepository } from '../../core/ports/repositories';
 import { createMemoryPersistence } from './memory';
 import { openIndexedDbRepositories } from './indexedDb';
 
@@ -14,6 +15,7 @@ export { DATABASE_NAME, DATABASE_VERSION, STORE, openTeachDasoDatabase, Persiste
 export type { TeachDasoDatabase } from './database';
 export {
   setFailAfterDeleteWrite,
+  setFailAfterCapabilityWrite,
   setFailAfterForkWrite,
   setFailAfterVersionWrite,
 } from './atomicCommit';
@@ -29,11 +31,18 @@ export type { MemoryRecords } from './memory/store';
  */
 export async function openBrowserDrawAssets(): Promise<{
   readonly drawAssets: DrawAssetRepository;
+  readonly capabilities: CapabilityLifecycleRepository;
   readonly durable: boolean;
   readonly close: () => void;
 }> {
   const fallback = () => ({
-    drawAssets: createMemoryPersistence().repositories.drawAssets,
+    ...(() => {
+      const persistence = createMemoryPersistence();
+      return {
+        drawAssets: persistence.repositories.drawAssets,
+        capabilities: persistence.repositories.capabilities,
+      };
+    })(),
     durable: false,
     close: () => undefined,
   });
@@ -51,6 +60,7 @@ export async function openBrowserDrawAssets(): Promise<{
     ]);
     return {
       drawAssets: opened.repositories.drawAssets,
+    capabilities: opened.repositories.capabilities,
       durable: true,
       close: () => opened.database.close(),
     };

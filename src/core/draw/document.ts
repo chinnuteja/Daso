@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import type { DrawDocument, DrawPoint, DrawStroke } from './schema';
+import type { DrawDocument, DrawGuidePath, DrawMarkSelection, DrawPoint, DrawStroke } from './schema';
 import { DrawDocument as DrawDocumentSchema } from './schema';
 import { Sha256Digest } from '../schema/primitives';
 
@@ -132,6 +132,48 @@ export function restoreStroke(drawing: DrawDocument, stroke: DrawStroke, updated
 export function clearStrokes(drawing: DrawDocument, updatedAt: string): DrawDocument | null {
   if (drawing.strokes.length === 0) return null;
   return DrawDocumentSchema.parse({ ...drawing, revision: drawing.revision + 1, strokes: [], updatedAt });
+}
+
+export function setMarkSelection(
+  drawing: DrawDocument,
+  strokeIds: readonly string[],
+  selectedAt: string,
+): DrawDocument {
+  const unique = [...new Set(strokeIds)];
+  const known = new Set(drawing.strokes.map((stroke) => stroke.strokeId));
+  if (unique.length === 0 || unique.some((id) => !known.has(id))) {
+    throw new Error('Choose a mark from this drawing before continuing.');
+  }
+  const selection: DrawMarkSelection = {
+    strokeIds: unique as DrawMarkSelection['strokeIds'],
+    sourceDigest: drawing.contentDigest,
+    selectedAt,
+  };
+  return DrawDocumentSchema.parse({ ...drawing, selection, revision: drawing.revision + 1, updatedAt: selectedAt });
+}
+
+export function clearMarkSelection(drawing: DrawDocument, updatedAt: string): DrawDocument {
+  return DrawDocumentSchema.parse({ ...drawing, selection: undefined, revision: drawing.revision + 1, updatedAt });
+}
+
+export function setGuidePath(
+  drawing: DrawDocument,
+  path: { readonly pathId: DrawGuidePath['pathId']; readonly points: readonly DrawPoint[] },
+  updatedAt: string,
+): DrawDocument {
+  const previous = drawing.guidePath;
+  const guidePath: DrawGuidePath = {
+    pathId: path.pathId,
+    points: [...path.points],
+    revision: (previous?.revision ?? 0) + 1,
+    createdAt: previous?.createdAt ?? updatedAt,
+    updatedAt,
+  };
+  return DrawDocumentSchema.parse({ ...drawing, guidePath, revision: drawing.revision + 1, updatedAt });
+}
+
+export function isMarkSelectionCurrent(drawing: DrawDocument): boolean {
+  return drawing.selection !== undefined && drawing.selection.sourceDigest === drawing.contentDigest;
 }
 
 export function samplePoint(points: readonly DrawPoint[], next: DrawPoint, minDistance: number = 1.5): DrawPoint[] {

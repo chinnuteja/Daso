@@ -6,13 +6,19 @@ import { openBrowserDrawAssets } from '../../adapters/persistence';
 import {
   appendStroke,
   clearStrokes,
+  clearMarkSelection,
   createDrawDocument,
   DRAW_HEIGHT,
   DRAW_WIDTH,
+  hitTestStroke,
+  isMarkSelectionCurrent,
+  isUsableGuidePath,
   PRACTICE_DRAGON_STROKES,
   removeLastStroke,
   restoreStroke,
   samplePoint,
+  setGuidePath,
+  setMarkSelection,
   withDrawSourceDigest,
 } from '../../core/draw';
 import type { DrawDocument, DrawPoint, DrawStroke } from '../../core/draw';
@@ -26,6 +32,7 @@ const BLANK_ID = 'draw_document_canvas_001';
 const PALETTE = ['#294f46', '#c45b3f', '#5c55a6', '#15737c', '#d18827'] as const;
 
 type Mode = 'choose' | 'workbench';
+type ToolMode = 'draw' | 'select' | 'path';
 
 function timestamp(): string {
   return new Date().toISOString();
@@ -47,6 +54,8 @@ export function DrawWorkbench() {
   const [mode, setMode] = useState<Mode>('choose');
   const [document, setDocument] = useState<DrawDocument | null>(null);
   const [draftStroke, setDraftStroke] = useState<DrawStroke | null>(null);
+  const [guideDraft, setGuideDraft] = useState<readonly DrawPoint[] | null>(null);
+  const [toolMode, setToolMode] = useState<ToolMode>('draw');
   const [redo, setRedo] = useState<readonly DrawStroke[]>([]);
   const [color, setColor] = useState<(typeof PALETTE)[number]>('#294f46');
   const [width, setWidth] = useState(7);
@@ -56,6 +65,7 @@ export function DrawWorkbench() {
   const repository = useRef<DrawAssetRepository | null>(null);
   const documentRef = useRef<DrawDocument | null>(null);
   const draftRef = useRef<DrawStroke | null>(null);
+  const guideRef = useRef<readonly DrawPoint[] | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -121,7 +131,26 @@ export function DrawWorkbench() {
 
   function startStroke(event: PointerEvent<SVGSVGElement>): void {
     if (document === null || event.button !== 0) return;
+    if (toolMode === 'select') {
+      const stroke = hitTestStroke(document.strokes, pointFromEvent(event), 18);
+      if (stroke === null) {
+        setStatus('Tap a line you made. The practice scale is one small orange diamond.');
+        return;
+      }
+      const next = setMarkSelection(document, [stroke.strokeId], timestamp());
+      setActive(next);
+      void persist(next, 'That mark is yours. Now show where it should travel.');
+      setToolMode('path');
+      return;
+    }
     event.currentTarget.setPointerCapture(event.pointerId);
+    if (toolMode === 'path') {
+      const points = [pointFromEvent(event)];
+      guideRef.current = points;
+      setGuideDraft(points);
+      setStatus('Draw the direction: start here, end there.');
+      return;
+    }
     const stroke: DrawStroke = {
       strokeId: nextStrokeId(),
       color,
@@ -134,6 +163,14 @@ export function DrawWorkbench() {
   }
 
   function extendStroke(event: PointerEvent<SVGSVGElement>): void {
+    if (toolMode === 'path') {
+      const activePath = guideRef.current;
+      if (activePath === null) return;
+      const nextPath = samplePoint(activePath, pointFromEvent(event), 3);
+      guideRef.current = nextPath;
+      setGuideDraft(nextPath);
+      return;
+    }
     const active = draftRef.current;
     if (active === null) return;
     const next = { ...active, points: samplePoint(active.points, pointFromEvent(event)) };
@@ -142,6 +179,22 @@ export function DrawWorkbench() {
   }
 
   function finishStroke(event: PointerEvent<SVGSVGElement>): void {
+    if (toolMode === 'path') {
+      const activePath = guideRef.current;
+      guideRef.current = null;
+      setGuideDraft(null);
+      if (documentRef.current === null || activePath === null) return;
+      if (!isUsableGuidePath(activePath)) {
+        setStatus('Make that path a little longer so its direction is clear.');
+        return;
+      }
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+      const next = setGuidePath(documentRef.current, { pathId: 'draw_path_workbench_001', points: [...activePath] }, timestamp());
+      setActive(next);
+      void persist(next, 'Path saved. It starts at the dot and ends at the arrow.');
+      setToolMode('draw');
+      return;
+    }
     const active = draftRef.current;
     if (active === null || documentRef.current === null) return;
     if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
@@ -157,6 +210,8 @@ export function DrawWorkbench() {
     if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
     draftRef.current = null;
     setDraftStroke(null);
+    guideRef.current = null;
+    setGuideDraft(null);
     setStatus('That unfinished stroke was left out.');
   }
 
@@ -189,6 +244,14 @@ export function DrawWorkbench() {
     void persist(next, 'Canvas cleared. Your earlier version is not saved as a tool.');
   }
 
+  function changeMark(): void {
+    if (documentRef.current === null) return;
+    const next = clearMarkSelection(documentRef.current, timestamp());
+    setActive(next);
+    setToolMode('select');
+    void persist(next, 'Tap the exact mark you want to use.');
+  }
+
   if (mode === 'choose') {
     return (
       <section className={styles.choose} aria-labelledby="draw-start-title">
@@ -215,6 +278,9 @@ export function DrawWorkbench() {
   }
 
   const strokes = document === null ? [] : [...document.strokes, ...(draftStroke === null ? [] : [draftStroke])];
+  const selectionCurrent = document !== null && isMarkSelectionCurrent(document);
+  const selectedIds = selectionCurrent ? new Set(document.selection?.strokeIds ?? []) : new Set<string>();
+  const pathPoints = guideDraft ?? document?.guidePath?.points ?? [];
   return (
     <section className={styles.workbench} aria-labelledby="draw-workbench-title">
       <header className={styles.workbenchHeader}>
@@ -227,6 +293,20 @@ export function DrawWorkbench() {
 
       <div className={styles.stage}>
         <aside className={styles.dock} aria-label="Drawing tools">
+          <div className={styles.steps} aria-label="Make this tool steps">
+            <button type="button" data-active={toolMode === 'draw'} onClick={() => setToolMode('draw')}>
+              <span>1</span> Draw
+            </button>
+            <button type="button" data-active={toolMode === 'select'} onClick={() => setToolMode('select')}>
+              <span>2</span> Pick a mark
+            </button>
+            <button type="button" data-active={toolMode === 'path'} disabled={!selectionCurrent} onClick={() => setToolMode('path')}>
+              <span>3</span> Show its path
+            </button>
+          </div>
+          <p className={styles.modePrompt}>
+            {toolMode === 'draw' ? 'Add or change your source drawing.' : toolMode === 'select' ? 'Tap exactly the mark you made.' : 'Drag from where the pattern starts to where it ends.'}
+          </p>
           <div>
             <p className={styles.toolLabel}>Ink</p>
             <div className={styles.palette}>
@@ -253,6 +333,11 @@ export function DrawWorkbench() {
             <button type="button" onClick={redoStroke} disabled={redo.length === 0}>Redo</button>
             <button type="button" onClick={clear} disabled={(document?.strokes.length ?? 0) === 0}>Clear</button>
           </div>
+          <div className={styles.selectionCard} data-stale={document?.selection !== undefined && !selectionCurrent}>
+            <b>{selectionCurrent ? 'Your selected mark' : document?.selection !== undefined ? 'Your mark changed' : 'No mark selected yet'}</b>
+            <span>{selectionCurrent ? 'Kept in your drawing. Nothing has been copied or saved as a tool.' : document?.selection !== undefined ? 'You changed the source drawing. Pick the mark again before using it.' : 'Pick a source mark when you are ready.'}</span>
+            <button type="button" onClick={changeMark}>{selectionCurrent ? 'Change mark' : 'Pick a mark'}</button>
+          </div>
           <p className={styles.layerNote}><b>Source</b> is your drawing. Guide and preview layers arrive later—and will never change it.</p>
         </aside>
 
@@ -268,8 +353,16 @@ export function DrawWorkbench() {
             onPointerCancel={cancelStroke}
             onPointerLeave={(event) => { if (draftRef.current !== null && event.buttons === 0) cancelStroke(event); }}
           >
+            <defs>
+              <marker id="guide-arrow" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M 0 0 L 12 6 L 0 12 z" fill="#a65636" />
+              </marker>
+            </defs>
             <rect x="0" y="0" width={DRAW_WIDTH} height={DRAW_HEIGHT} rx="26" className={styles.canvasPaper} />
             <g data-layer="source" aria-label="Your source marks">
+              {strokes.filter((stroke) => selectedIds.has(stroke.strokeId)).map((stroke) => (
+                <polyline key={`highlight-${stroke.strokeId}`} points={stroke.points.map((point) => `${point.x},${point.y}`).join(' ')} fill="none" stroke="#8bd5c0" strokeWidth={stroke.width + 14} strokeLinecap="round" strokeLinejoin="round" opacity=".7" />
+              ))}
               {strokes.map((stroke) => (
                 <polyline
                   key={stroke.strokeId}
@@ -282,7 +375,11 @@ export function DrawWorkbench() {
                 />
               ))}
             </g>
-            <g data-layer="guide" aria-hidden="true" />
+            <g data-layer="guide" aria-label="Child-directed guide path">
+              {pathPoints.length >= 2 ? <polyline points={pathPoints.map((point) => `${point.x},${point.y}`).join(' ')} fill="none" stroke="#a65636" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="13 10" markerEnd="url(#guide-arrow)" /> : null}
+              {pathPoints[0] !== undefined ? <><circle cx={pathPoints[0].x} cy={pathPoints[0].y} r="10" fill="#fffdf7" stroke="#a65636" strokeWidth="5" /><text x={pathPoints[0].x + 15} y={pathPoints[0].y - 14} fill="#8d432d" fontSize="20" fontWeight="700">starts here</text></> : null}
+              {pathPoints.at(-1) !== undefined && pathPoints.length >= 2 ? <text x={pathPoints.at(-1)!.x + 15} y={pathPoints.at(-1)!.y + 28} fill="#8d432d" fontSize="20" fontWeight="700">ends here</text> : null}
+            </g>
             <g data-layer="derived-preview" aria-hidden="true" />
           </svg>
           {document?.strokes.length === 0 && draftStroke === null ? <p className={styles.emptyCanvas}>Make one little mark. It can become something useful later.</p> : null}

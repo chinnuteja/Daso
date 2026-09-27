@@ -16,5 +16,10 @@ export {
   removeLastStroke,
   restoreStroke,
   samplePoint,
+  setGuidePath,
+  setMarkSelection,
+  clearMarkSelection,
+  isMarkSelectionCurrent,
   withDrawSourceDigest,
 } from './document';
+export { distanceToSegment, hitTestStroke, isUsableGuidePath } from './interaction';

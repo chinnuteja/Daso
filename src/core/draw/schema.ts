@@ -3,6 +3,7 @@ import { z } from 'zod';
 import {
   ChildId,
   DrawDocumentId,
+  DrawPathId,
   IsoTimestamp,
   MarkSnapshotId,
   PositiveInt,
@@ -29,6 +30,24 @@ export const DrawStroke = z.strictObject({
 });
 export type DrawStroke = z.infer<typeof DrawStroke>;
 
+/** A direct child selection; it references their existing source strokes without copying them. */
+export const DrawMarkSelection = z.strictObject({
+  strokeIds: z.array(StrokeId).min(1).max(32),
+  sourceDigest: Sha256Digest,
+  selectedAt: IsoTimestamp,
+});
+export type DrawMarkSelection = z.infer<typeof DrawMarkSelection>;
+
+/** The ordered points make direction explicit: first point is “starts here”, last is “ends here”. */
+export const DrawGuidePath = z.strictObject({
+  pathId: DrawPathId,
+  revision: PositiveInt,
+  points: z.array(DrawPoint).min(2).max(2048),
+  createdAt: IsoTimestamp,
+  updatedAt: IsoTimestamp,
+});
+export type DrawGuidePath = z.infer<typeof DrawGuidePath>;
+
 export const DrawDocument = z.strictObject({
   documentId: DrawDocumentId,
   ownerChildId: ChildId,
@@ -38,6 +57,9 @@ export const DrawDocument = z.strictObject({
   strokes: z.array(DrawStroke).max(512),
   /** Hash of canonical source geometry only; derived previews never participate. */
   contentDigest: Sha256Digest,
+  /** Workbench-only teaching references. Absent fields keep Phase 2 records readable. */
+  selection: DrawMarkSelection.optional(),
+  guidePath: DrawGuidePath.optional(),
   createdAt: IsoTimestamp,
   updatedAt: IsoTimestamp,
 });

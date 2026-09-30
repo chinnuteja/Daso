@@ -2,9 +2,9 @@
 
 **Base:** `52ef73b` (Phase 5 child authority and atomic activation)
 
-**Status:** local interpretation boundary and manual-authority experience implemented and gated;
-not architecturally accepted. Live model connection is deliberately pending owner approval of the
-configured provider destination.
+**Status:** bounded interpretation, grounding confirmation, and manual authority are implemented
+and gated; not architecturally accepted. Live requests activate only after a server-only
+`OPENROUTER_API_KEY` is present locally.
 
 ## What landed
 
@@ -24,29 +24,33 @@ configured provider destination.
   default. A child writes what the selected mark should do, sees the exact bounded settings that
   will be reviewed, and can change them before creating a `manual` / `child` candidate. The
   provenance rail displays their real words and says **You chose**, not **Kale suggested**.
-- The existing model-backed client adapter is implemented and tested at the serialization boundary,
-  but is intentionally not connected to the browser button yet. No child words are sent to an
-  unverified provider host. The visible experience therefore says so plainly and remains fully
-  usable without a model.
+- The Draw button is connected to the existing teaching route. It calls the owner-approved
+  OpenRouter host, pins `dots-studio/dots-3-note-preview:free` to `atlas-cloud/fp8`, disables
+  provider fallbacks, requests structured JSON, and enables provider reasoning without returning
+  it to the browser. The route discards `reasoning_details` and parses only the model’s JSON
+  content through the closed `ModelIntent` schema.
+- The interaction makes meaning visible before a review record exists: **You said**, **Kale
+  thinks**, and why it matches. A child can review that suggestion, or ignore it and review their
+  own settings instead. Editing a grounded preview returns ownership to the child instead of
+  laundering the changed behavior through the model.
 
 ## Proofs
 
 | Check | Result |
 | --- | --- |
-| Focused semantic grounding, client minimization, route validation and authority tests | 4 files, 14 tests passed |
+| Focused semantic grounding, client minimization, route validation and authority tests | 4 files, 15 tests passed |
 | `npm run typecheck` | exit 0 |
 | `npm run lint` | exit 0 |
-| `npm test` | 110 files, 322 tests passed |
+| `npm test` | 110 files, 323 tests passed before and after the production build |
 | Production build | exit 0 — optimized Next build compiled and typechecked |
 
-## Explicit boundary before live model use
+## Local activation
 
-The application already has an environment-configured route from earlier work, but this phase does
-not assume that a URL supplied through `MODEL_PROVIDER_BASE_ADDRESS` is an approved processor for a
-child’s words. Before wiring the browser action to that route, the product owner must approve the
-provider destination and data-processing choice. Once approved, the click will use the existing
-`requestDrawInterpretation` adapter, run `groundDrawInterpretation` locally, show the quote plus
-bounded explanation, and still require the child to edit/reject/approve.
+The approved endpoint is `https://openrouter.ai/api/v1/chat/completions`. Put the key in the
+untracked local file `DASO/.env.local` as `OPENROUTER_API_KEY=…`; do not paste it into source,
+browser fields, or chat. The app sends a request only when the child explicitly presses **Let Kale
+read this**. It sends their typed sentence and bounded availability facts only. Once it returns,
+`groundDrawInterpretation` runs locally, then the child must still edit/reject/approve.
 
 No model approval or automatic save is possible in either state.
 

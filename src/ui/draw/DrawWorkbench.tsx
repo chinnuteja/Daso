@@ -2,13 +2,16 @@
 
 import { type CSSProperties, type PointerEvent, useEffect, useRef, useState } from 'react';
 
+import { requestDrawInterpretation } from '../../adapters/agents/drawTeaching';
 import { openBrowserDrawAssets } from '../../adapters/persistence';
 import {
   buildDrawApprovalBundle,
+  buildTeachingRequestV2,
   digestCapabilityContext,
+  groundDrawInterpretation,
 } from '../../core/capability';
 import type { CapabilityLedgerEntry } from '../../core/capability/ledger';
-import type { DrawPatternProposal } from '../../core/capability';
+import type { DrawPatternProposal, TeachingRequestV2 } from '../../core/capability';
 import {
   appendStroke,
   buildDeterministicDrawPreview,
@@ -57,6 +60,16 @@ type ReviewSeed = Readonly<{
   proposal: DrawPatternProposal;
   childWords: string;
   origin: 'model' | 'manual';
+  sourceDigest?: string;
+  guidePathRevision?: number;
+}>;
+
+type GroundedDrawIdea = Readonly<{
+  request: TeachingRequestV2;
+  proposal: DrawPatternProposal;
+  reasons: readonly string[];
+  sourceDigest: string;
+  guidePathRevision: number;
 }>;
 
 function timestamp(): string {
@@ -84,6 +97,9 @@ export function DrawWorkbench() {
   const [previewControls, setPreviewControls] = useState<DrawPreviewControls>(DEFAULT_DRAW_PREVIEW_CONTROLS);
   const [authority, setAuthority] = useState<AuthoritySession | null>(null);
   const [childWords, setChildWords] = useState('');
+  const [groundedIdea, setGroundedIdea] = useState<GroundedDrawIdea | null>(null);
+  const [interpretationNote, setInterpretationNote] = useState<string | null>(null);
+  const [interpreting, setInterpreting] = useState(false);
   const [toolName, setToolName] = useState('My repeating mark');
   const [saving, setSaving] = useState(false);
   const [ready, setReady] = useState(false);
@@ -145,6 +161,11 @@ export function DrawWorkbench() {
     setDocument(next);
   }
 
+  function clearInterpretation(): void {
+    setGroundedIdea(null);
+    setInterpretationNote(null);
+  }
+
   function proposalFromControls(): DrawPatternProposal {
     return {
       type: 'propose_capability',
@@ -163,6 +184,14 @@ export function DrawWorkbench() {
     }));
   }
 
+  function editPreviewControls(change: (controls: DrawPreviewControls) => DrawPreviewControls): void {
+    setPreviewControls(change);
+    if (groundedIdea !== null) {
+      setGroundedIdea(null);
+      setInterpretationNote('You changed the settings, so they are now your own starting choice.');
+    }
+  }
+
   async function start(kind: 'practice' | 'blank'): Promise<void> {
     const suffix = Date.now().toString(36);
     const created = createDrawDocument({
@@ -175,6 +204,7 @@ export function DrawWorkbench() {
     setRedo([]);
     setPreviewVisible(false);
     setAuthority(null);
+    clearInterpretation();
     setMode('workbench');
     setStatus(kind === 'practice' ? 'Practice drawing loaded. Every line is still yours to change.' : 'A blank page is ready for your mark.');
     await persist(created, kind === 'practice' ? 'Practice drawing saved on this device.' : 'Blank drawing saved on this device.');
@@ -192,6 +222,7 @@ export function DrawWorkbench() {
       setActive(next);
       setPreviewVisible(false);
       setAuthority(null);
+      clearInterpretation();
       void persist(next, 'That mark is yours. Now show where it should travel.');
       setToolMode('path');
       return;
@@ -245,6 +276,7 @@ export function DrawWorkbench() {
       const next = setGuidePath(documentRef.current, { pathId: 'draw_path_workbench_001', points: [...activePath] }, timestamp());
       setActive(next);
       setAuthority(null);
+      clearInterpretation();
       void persist(next, 'Path saved. It starts at the dot and ends at the arrow.');
       setToolMode('draw');
       return;
@@ -259,6 +291,7 @@ export function DrawWorkbench() {
     setRedo([]);
     setPreviewVisible(false);
     setAuthority(null);
+    clearInterpretation();
     void persist(next, 'Stroke saved locally.');
   }
 
@@ -279,6 +312,7 @@ export function DrawWorkbench() {
     setActive(next);
     setRedo((items) => [...items, last]);
     setAuthority(null);
+    clearInterpretation();
     void persist(next, 'Last stroke removed.');
   }
 
@@ -290,6 +324,7 @@ export function DrawWorkbench() {
     setActive(next);
     setRedo((items) => items.slice(0, -1));
     setAuthority(null);
+    clearInterpretation();
     void persist(next, 'Stroke returned.');
   }
 
@@ -300,6 +335,7 @@ export function DrawWorkbench() {
     setActive(next);
     setRedo([]);
     setAuthority(null);
+    clearInterpretation();
     void persist(next, 'Canvas cleared. Your earlier version is not saved as a tool.');
   }
 
@@ -310,11 +346,62 @@ export function DrawWorkbench() {
     setToolMode('select');
     setPreviewVisible(false);
     setAuthority(null);
+    clearInterpretation();
     void persist(next, 'Tap the exact mark you want to use.');
+  }
+
+  async function askKaleToReadWords(): Promise<void> {
+    if (document === null || !isMarkSelectionCurrent(document) || document.guidePath === undefined) return;
+    const words = childWords.trim();
+    if (words.length === 0) {
+      setInterpretationNote('Write what you want your mark to do first. Kale only works from your words.');
+      return;
+    }
+    setInterpreting(true);
+    setInterpretationNote(null);
+    try {
+      const request = await buildTeachingRequestV2(words, {
+        toolId: 'draw-review',
+        activeVersionId: null,
+        ledgerSequence: 0,
+        kind: 'draw_pattern',
+        sourceDocumentId: document.documentId,
+        sourceRevision: document.revision,
+        selectedMarkSnapshotId: 'mark_snapshot_review_001',
+        guidePathId: document.guidePath.pathId,
+        guidePathRevision: document.guidePath.revision,
+      });
+      const intent = await requestDrawInterpretation(request);
+      const grounded = groundDrawInterpretation(request, intent);
+      if (!grounded.ok) {
+        setGroundedIdea(null);
+        setInterpretationNote(grounded.question);
+        return;
+      }
+      applyProposalToPreview(grounded.proposal);
+      setGroundedIdea({
+        request,
+        proposal: grounded.proposal,
+        reasons: grounded.reasons,
+        sourceDigest: document.contentDigest,
+        guidePathRevision: document.guidePath.revision,
+      });
+      setStatus('Kale made a bounded starting suggestion. Read it, change it, or ignore it.');
+    } catch (caught) {
+      setGroundedIdea(null);
+      setInterpretationNote(caught instanceof Error ? caught.message : 'Kale is unavailable right now. You can still review your own settings.');
+    } finally {
+      setInterpreting(false);
+    }
   }
 
   async function beginReview(seed: ReviewSeed): Promise<void> {
     if (document === null || !isMarkSelectionCurrent(document) || document.guidePath === undefined || capabilityRepository.current === null) return;
+    if (seed.sourceDigest !== undefined && (seed.sourceDigest !== document.contentDigest || seed.guidePathRevision !== document.guidePath.revision)) {
+      clearInterpretation();
+      setStatus('Your source changed, so Kale’s suggestion was cleared. Read your words again when you are ready.');
+      return;
+    }
     const nonce = `${Date.now()}${(++strokeCounter.current).toString().padStart(2, '0')}`;
     const toolId = `my-repeat-${nonce}`;
     const snapshotId = `mark_snapshot_${nonce}`;
@@ -329,6 +416,7 @@ export function DrawWorkbench() {
       await capabilityRepository.current.append(intent);
       await capabilityRepository.current.append(candidate);
       setAuthority({ toolId, snapshotId, candidateEventId, events: [intent, candidate], proposal, childWords: seed.childWords, origin: seed.origin, state: 'reviewing' });
+      clearInterpretation();
       setStatus('Here is a starting idea. Change it, reject it, or save it only if it feels like yours.');
     } catch { setError('We could not prepare that review yet. Your drawing and preview are still safe.'); }
   }
@@ -484,23 +572,23 @@ export function DrawWorkbench() {
             {previewVisible && canPreview ? <div className={styles.previewControls}>
               <label>
                 <span>Space between <b>{previewControls.spacing}</b></span>
-                <input aria-label="Repeat spacing" type="range" min="16" max="160" step="4" value={previewControls.spacing} onChange={(event) => setPreviewControls((controls) => ({ ...controls, spacing: Number(event.target.value) }))} />
+                <input aria-label="Repeat spacing" type="range" min="16" max="160" step="4" value={previewControls.spacing} onChange={(event) => editPreviewControls((controls) => ({ ...controls, spacing: Number(event.target.value) }))} />
               </label>
               <label>
                 <span>First size <b>{previewControls.startScale.toFixed(1)}×</b></span>
-                <input aria-label="First repeat size" type="range" min="0.2" max="2" step="0.1" value={previewControls.startScale} onChange={(event) => setPreviewControls((controls) => ({ ...controls, startScale: Number(event.target.value) }))} />
+                <input aria-label="First repeat size" type="range" min="0.2" max="2" step="0.1" value={previewControls.startScale} onChange={(event) => editPreviewControls((controls) => ({ ...controls, startScale: Number(event.target.value) }))} />
               </label>
               <label>
                 <span>Last size <b>{previewControls.endScale.toFixed(1)}×</b></span>
-                <input aria-label="Last repeat size" type="range" min="0.2" max="2" step="0.1" value={previewControls.endScale} onChange={(event) => setPreviewControls((controls) => ({ ...controls, endScale: Number(event.target.value) }))} />
+                <input aria-label="Last repeat size" type="range" min="0.2" max="2" step="0.1" value={previewControls.endScale} onChange={(event) => editPreviewControls((controls) => ({ ...controls, endScale: Number(event.target.value) }))} />
               </label>
-              <label className={styles.followPath}><input aria-label="Turn repeats along path" type="checkbox" checked={previewControls.followPath} onChange={(event) => setPreviewControls((controls) => ({ ...controls, followPath: event.target.checked }))} /> Turn marks along my path</label>
+              <label className={styles.followPath}><input aria-label="Turn repeats along path" type="checkbox" checked={previewControls.followPath} onChange={(event) => editPreviewControls((controls) => ({ ...controls, followPath: event.target.checked }))} /> Turn marks along my path</label>
               <p>This is a temporary local preview. It has not changed your drawing or become a tool.</p>
             </div> : null}
             {previewError !== null ? <p className={styles.previewError} role="alert">{previewError}</p> : null}
           </div>
           {previewVisible && canPreview ? <div className={styles.authorityCard}>
-            <div><b>Make this a tool</b><span>Describe what you want, then decide whether these settings are worth saving. Nothing is saved until you choose it.</span></div>
+            <div><b>Make this a tool</b><span>Describe what you want. Kale can suggest one small behavior, but you decide whether it belongs in your tool.</span></div>
             {authority === null ? <div className={styles.intentStart}>
               <label>
                 <span>What should your selected mark do?</span>
@@ -509,19 +597,24 @@ export function DrawWorkbench() {
                   value={childWords}
                   maxLength={800}
                   placeholder="Repeat my scale along this path, smaller toward the end."
-                  onChange={(event) => setChildWords(event.target.value)}
+                  onChange={(event) => { setChildWords(event.target.value); clearInterpretation(); }}
                 />
               </label>
-              <p>These are your starting settings: {proposalFromControls().spacing} spacing, {proposalFromControls().sizeProfile.replaceAll('_', ' ')}. You can change them before saving.</p>
-              <button
-                className={styles.previewButton}
-                type="button"
-                disabled={childWords.trim().length === 0}
-                onClick={() => { void beginReview({ proposal: proposalFromControls(), childWords: childWords.trim(), origin: 'manual' }); }}
-              >
-                Review my settings
+              <button className={styles.previewButton} type="button" disabled={childWords.trim().length === 0 || interpreting} onClick={() => { void askKaleToReadWords(); }}>
+                {interpreting ? 'Kale is reading…' : 'Let Kale read this'}
               </button>
-              <small>Kale is not connected to a model in this demo. It does not pretend to have interpreted your words.</small>
+              {interpretationNote !== null ? <p className={styles.interpretationNote} role="status">Kale needs one detail: {interpretationNote}</p> : null}
+              {groundedIdea !== null ? <div className={styles.groundingCard}>
+                <p><b>You said</b> “{groundedIdea.request.childWords}”</p>
+                <p><b>Kale thinks</b> Repeat your selected mark along your path with {groundedIdea.proposal.spacing} spacing and {groundedIdea.proposal.sizeProfile.replaceAll('_', ' ')}.</p>
+                <ul>{groundedIdea.reasons.map((reason) => <li key={reason}>{reason}</li>)}</ul>
+                <button className={styles.previewButton} type="button" onClick={() => { void beginReview({ proposal: groundedIdea.proposal, childWords: groundedIdea.request.childWords, origin: 'model', sourceDigest: groundedIdea.sourceDigest, guidePathRevision: groundedIdea.guidePathRevision }); }}>Review Kale’s suggestion</button>
+              </div> : null}
+              <div className={styles.manualChoice}>
+                <p>Your current settings: {proposalFromControls().spacing} spacing, {proposalFromControls().sizeProfile.replaceAll('_', ' ')}.</p>
+                <button type="button" disabled={childWords.trim().length === 0} onClick={() => { void beginReview({ proposal: proposalFromControls(), childWords: childWords.trim(), origin: 'manual' }); }}>Review my settings instead</button>
+              </div>
+              <small>Kale receives your typed sentence plus only “a selected mark exists” and “a path exists.” It never receives your drawing.</small>
             </div> : null}
             {authority !== null ? <ol className={styles.provenanceRail}>
               <li data-done>You drew the mark and path.</li>

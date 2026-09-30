@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { interpretCapabilityIntent, interpretTeachingMove } from '../../src/app/api/agents/teaching/route';
+import {
+  interpretCapabilityIntent,
+  interpretTeachingMove,
+  openRouterCapabilityRequestBody,
+  parseOpenRouterCapabilityResponse,
+} from '../../src/app/api/agents/teaching/route';
 import { buildTeachingRequestV2 } from '../../src/core/capability';
 import { FLIGHT_LAB_TEACHING_SCRIPT } from '../../src/adapters/teaching/scripted';
 import type { TeachingRequest } from '../../src/core/ports/teaching';
@@ -84,5 +89,39 @@ describe('INV-49 — the route validates the model response server-side (§7.3, 
       sizeProfile: 'constant',
     }));
     expect(accepted).toMatchObject({ status: 200, payload: { ok: true, intent: { kind: 'draw_pattern' } } });
+  });
+
+  it('INV-49: the OpenRouter request is minimized and response reasoning is discarded before validation', async () => {
+    const request = await buildTeachingRequestV2('Repeat my mark along here.', {
+      kind: 'draw_pattern',
+      toolId: 'my-dragon-scales',
+      activeVersionId: null,
+      ledgerSequence: 0,
+      sourceDocumentId: 'draw_document_001',
+      sourceRevision: 1,
+      selectedMarkSnapshotId: 'mark_snapshot_001',
+      guidePathId: 'draw_path_001',
+      guidePathRevision: 1,
+    });
+    const body = JSON.stringify(openRouterCapabilityRequestBody(request));
+    expect(body).toContain('dots-studio/dots-3-note-preview:free');
+    expect(body).toContain('atlas-cloud/fp8');
+    expect(body).not.toContain('draw_document_001');
+    expect(body).not.toContain('mark_snapshot_001');
+    expect(body).not.toContain('contextDigest');
+
+    const raw = {
+      choices: [{
+        message: {
+          content: JSON.stringify({
+            type: 'propose_capability', kind: 'draw_pattern', operation: 'repeat_selected_mark', spacing: 'even', sizeProfile: 'constant',
+          }),
+          reasoning_details: [{ type: 'reasoning.text', text: 'This must never leave the route.' }],
+        },
+      }],
+    };
+    expect(parseOpenRouterCapabilityResponse(raw)).toEqual({
+      type: 'propose_capability', kind: 'draw_pattern', operation: 'repeat_selected_mark', spacing: 'even', sizeProfile: 'constant',
+    });
   });
 });

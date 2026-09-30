@@ -12,7 +12,7 @@ import { REPO_ROOT, SRC_ROOT, listSourceFiles } from '../support/sourceTree';
 const TEACHING_ROUTE = 'src/app/api/agents/teaching/route.ts';
 const EVIDENCE_ROUTE = 'src/app/api/agents/evidence/route.ts';
 const PERMITTED_ROUTES = [TEACHING_ROUTE, EVIDENCE_ROUTE] as const;
-const CREDENTIAL = /TEACHING_AGENT_CREDENTIAL|EVIDENCE_AGENT_CREDENTIAL|MODEL_PROVIDER_BASE_ADDRESS/u;
+const CREDENTIAL = /TEACHING_AGENT_CREDENTIAL|EVIDENCE_AGENT_CREDENTIAL|MODEL_PROVIDER_BASE_ADDRESS|OPENROUTER_API_KEY|openrouter\.ai/u;
 const KEY_SHAPED = /\bsk-[a-zA-Z0-9]{10,}\b/u;
 const NEXT_PUBLIC_MODEL = /NEXT_PUBLIC_.*(MODEL|TEACH|OPENAI|ANTHROPIC|CREDENTIAL|API_KEY)/iu;
 
@@ -43,6 +43,7 @@ describe('INV-52 — no model credential or host reaches the client (E.10)', () 
     const teaching = listSourceFiles(SRC_ROOT).find((file) => file.path === TEACHING_ROUTE);
     const evidence = listSourceFiles(SRC_ROOT).find((file) => file.path === EVIDENCE_ROUTE);
     expect(teaching?.text).toMatch(/process\.env\.TEACHING_AGENT_CREDENTIAL/u);
+    expect(teaching?.text).toMatch(/process\.env\.OPENROUTER_API_KEY/u);
     expect(evidence?.text).toMatch(/process\.env\.EVIDENCE_AGENT_CREDENTIAL/u);
   });
 
@@ -50,6 +51,7 @@ describe('INV-52 — no model credential or host reaches the client (E.10)', () 
     const envExample = readFileSync(join(REPO_ROOT, '.env.example'), 'utf8');
     expect(envExample).not.toMatch(/^NEXT_PUBLIC_/mu);
     expect(envExample).toMatch(/^TEACHING_AGENT_CREDENTIAL=/mu);
+    expect(envExample).toMatch(/^OPENROUTER_API_KEY=/mu);
 
     const offenders = listSourceFiles(SRC_ROOT)
       .filter((file) => NEXT_PUBLIC_MODEL.test(file.text) || /NEXT_PUBLIC_/u.test(file.text))

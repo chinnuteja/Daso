@@ -20,6 +20,17 @@ export type CapabilityTeachingRoutePayload =
   | { readonly ok: true; readonly intent: ModelIntent }
   | { readonly ok: false; readonly reasons: readonly string[] };
 
+const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
+const OPENROUTER_MODEL = 'dots-studio/dots-3-note-preview:free';
+const OPENROUTER_PROVIDER = 'atlas-cloud/fp8';
+const CAPABILITY_SYSTEM_PROMPT = [
+  'You interpret one child statement for a bounded learning tool.',
+  'Return only a JSON object, with no Markdown, explanation, or reasoning.',
+  'Allowed object A: {"type":"propose_capability","kind":"draw_pattern","operation":"repeat_selected_mark","spacing":"even"|"close"|"wide","sizeProfile":"constant"|"smaller_toward_end"}.',
+  'Allowed object B: {"type":"clarify","unresolved":"selected_mark"|"guide_path"|"spacing"|"size_profile"|"reason","question":"one short question"}.',
+  'Never approve, save, replace artwork, infer pictured anatomy, create a new capability, or return any other key.',
+].join('\n');
+
 export async function interpretTeachingMove(
   body: unknown,
   transport: ModelTransport,
@@ -81,6 +92,59 @@ async function postToConfiguredProvider(body: unknown): Promise<unknown> {
   return response.json() as Promise<unknown>;
 }
 
+export function parseOpenRouterCapabilityResponse(raw: unknown): unknown {
+  if (raw === null || typeof raw !== 'object') return raw;
+  const choices = (raw as { choices?: unknown }).choices;
+  if (!Array.isArray(choices)) return raw;
+  const first = choices[0];
+  if (first === null || typeof first !== 'object') return raw;
+  const message = (first as { message?: unknown }).message;
+  if (message === null || typeof message !== 'object') return raw;
+  const content = (message as { content?: unknown }).content;
+  if (typeof content !== 'string') return raw;
+  try {
+    return JSON.parse(content) as unknown;
+  } catch {
+    return raw;
+  }
+}
+
+export function openRouterCapabilityRequestBody(request: TeachingRequestV2): Record<string, unknown> {
+  return {
+    model: OPENROUTER_MODEL,
+    messages: [
+      { role: 'system', content: CAPABILITY_SYSTEM_PROMPT },
+      { role: 'user', content: JSON.stringify({ childWords: request.childWords, context: request.context }) },
+    ],
+    response_format: { type: 'json_object' },
+    temperature: 0,
+    max_tokens: 180,
+    provider: { only: [OPENROUTER_PROVIDER], allow_fallbacks: false },
+    reasoning: { enabled: true },
+  };
+}
+
+/**
+ * This is the sole external step for Draw interpretation. The model receives no drawing or
+ * identifiers: only the child sentence and the already-minimized availability facts.
+ */
+async function postToOpenRouter(request: TeachingRequestV2): Promise<unknown> {
+  const credential = process.env.OPENROUTER_API_KEY;
+  if (credential === undefined || credential.length === 0) {
+    throw new Error('OPENROUTER_API_KEY is missing; refusing to call a provider');
+  }
+  const response = await fetch(OPENROUTER_URL, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${credential}`,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify(openRouterCapabilityRequestBody(request)),
+  });
+  if (!response.ok) throw new Error(`OpenRouter returned ${response.status}`);
+  return parseOpenRouterCapabilityResponse(await response.json() as unknown);
+}
+
 export function createProviderTransport(): ModelTransport {
   return async (request: TeachingRequest): Promise<unknown> => {
     return postToConfiguredProvider({
@@ -91,12 +155,7 @@ export function createProviderTransport(): ModelTransport {
 }
 
 export function createCapabilityProviderTransport(): CapabilityModelTransport {
-  return async (request: TeachingRequestV2): Promise<unknown> => postToConfiguredProvider({
-    protocol: 'capability_v2',
-    childWords: request.childWords,
-    contextDigest: request.contextDigest,
-    context: request.context,
-  });
+  return async (request: TeachingRequestV2): Promise<unknown> => postToOpenRouter(request);
 }
 
 export async function POST(request: Request): Promise<Response> {

@@ -25,6 +25,7 @@ export {
 export { distanceToSegment, hitTestStroke, isUsableGuidePath } from './interaction';
 export {
   buildDeterministicDrawPreview,
+  buildDrawPreviewFromSource,
   DEFAULT_DRAW_PREVIEW_CONTROLS,
   MAX_PREVIEW_POINTS,
   MAX_PREVIEW_STAMPS,

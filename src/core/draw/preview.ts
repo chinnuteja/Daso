@@ -40,6 +40,46 @@ export type DrawPreview = Readonly<{
   strokes: readonly DerivedPreviewStroke[];
 }>;
 
+/**
+ * The small, reusable geometry kernel. A saved capability supplies an immutable source mark;
+ * a new drawing session supplies only a fresh child-directed path. Nothing here knows about
+ * models, repositories, approval, or UI state.
+ */
+export function buildDrawPreviewFromSource(input: {
+  readonly sourceDigest: string;
+  readonly sourceStrokes: readonly DrawStroke[];
+  readonly guidePath: Readonly<{ pathId: string; points: readonly DrawPoint[] }>;
+  readonly controls?: Partial<DrawPreviewControls>;
+}): DrawPreview {
+  if (input.sourceStrokes.length === 0) {
+    throw new Error('This saved tool has no source mark. It cannot be used safely.');
+  }
+  const controls = normaliseControls(input.controls ?? {});
+  const route = placements(input.guidePath.points, controls.spacing);
+  const totalPoints = route.length * input.sourceStrokes.reduce((sum, stroke) => sum + stroke.points.length, 0);
+  if (totalPoints > MAX_PREVIEW_POINTS) {
+    throw new Error('That path is too detailed for this tool. Make the path shorter or use wider spacing.');
+  }
+  const centre = sourceCentre(input.sourceStrokes);
+  const strokes = route.flatMap((placement, stampIndex) => {
+    const scale = round(controls.startScale + (controls.endScale - controls.startScale) * placement.progress);
+    return input.sourceStrokes.map((stroke) => ({
+      previewStrokeId: `preview_${stampIndex + 1}_${stroke.strokeId}`,
+      sourceStrokeId: stroke.strokeId,
+      color: stroke.color,
+      width: round(stroke.width * scale),
+      points: stroke.points.map((point) => transformPoint(point, centre, placement, scale, controls.followPath)),
+    }));
+  });
+  return {
+    sourceDigest: input.sourceDigest,
+    guidePathId: input.guidePath.pathId,
+    controls,
+    stampCount: route.length,
+    strokes,
+  };
+}
+
 type PathPlacement = Readonly<{ point: DrawPoint; angle: number; progress: number }>;
 
 function round(value: number): number {
@@ -136,28 +176,10 @@ export function buildDeterministicDrawPreview(
   const sourceStrokes = selectSourceStrokes(drawing);
   const guidePath = drawing.guidePath;
   if (guidePath === undefined) throw new Error('Show where your mark should travel before making a preview.');
-  const controls = normaliseControls(requestedControls);
-  const route = placements(guidePath.points, controls.spacing);
-  const totalPoints = route.length * sourceStrokes.reduce((sum, stroke) => sum + stroke.points.length, 0);
-  if (totalPoints > MAX_PREVIEW_POINTS) {
-    throw new Error('That preview is too detailed to draw safely. Pick fewer marks or make the spacing wider.');
-  }
-  const centre = sourceCentre(sourceStrokes);
-  const strokes = route.flatMap((placement, stampIndex) => {
-    const scale = round(controls.startScale + (controls.endScale - controls.startScale) * placement.progress);
-    return sourceStrokes.map((stroke) => ({
-      previewStrokeId: `preview_${stampIndex + 1}_${stroke.strokeId}`,
-      sourceStrokeId: stroke.strokeId,
-      color: stroke.color,
-      width: round(stroke.width * scale),
-      points: stroke.points.map((point) => transformPoint(point, centre, placement, scale, controls.followPath)),
-    }));
-  });
-  return {
+  return buildDrawPreviewFromSource({
     sourceDigest: drawing.contentDigest,
-    guidePathId: guidePath.pathId,
-    controls,
-    stampCount: route.length,
-    strokes,
-  };
+    sourceStrokes,
+    guidePath,
+    controls: requestedControls,
+  });
 }

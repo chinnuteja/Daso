@@ -27,8 +27,9 @@ and gated; not architecturally accepted. Live requests activate only after a ser
 - The Draw button is connected to the existing teaching route. It calls the owner-approved
   OpenRouter host, pins `dots-studio/dots-3-note-preview:free` to `atlas-cloud/fp8`, disables
   provider fallbacks, requests structured JSON, and enables provider reasoning without returning
-  it to the browser. The route discards `reasoning_details` and parses only the model’s JSON
-  content through the closed `ModelIntent` schema.
+  it to the browser. Reasoning gets a server-only 2,048-token ceiling so the provider can emit its
+  final JSON. The route discards `reasoning_details` and parses only the model’s JSON content
+  through the closed `ModelIntent` schema.
 - The interaction makes meaning visible before a review record exists: **You said**, **Kale
   thinks**, and why it matches. A child can review that suggestion, or ignore it and review their
   own settings instead. Editing a grounded preview returns ownership to the child instead of
@@ -43,6 +44,7 @@ and gated; not architecturally accepted. Live requests activate only after a ser
 | `npm run lint` | exit 0 |
 | `npm test` | 110 files, 323 tests passed before and after the production build |
 | Production build | exit 0 — optimized Next build compiled and typechecked |
+| Live synthetic provider check | HTTP 200: `repeat_selected_mark`, `even`, `smaller_toward_end` |
 
 ## Local activation
 

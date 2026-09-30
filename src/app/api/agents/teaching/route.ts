@@ -28,6 +28,8 @@ const CAPABILITY_SYSTEM_PROMPT = [
   'Return only a JSON object, with no Markdown, explanation, or reasoning.',
   'Allowed object A: {"type":"propose_capability","kind":"draw_pattern","operation":"repeat_selected_mark","spacing":"even"|"close"|"wide","sizeProfile":"constant"|"smaller_toward_end"}.',
   'Allowed object B: {"type":"clarify","unresolved":"selected_mark"|"guide_path"|"spacing"|"size_profile"|"reason","question":"one short question"}.',
+  'When a child asks to repeat and does not name spacing, choose editable "even" spacing. When they ask for smaller toward the end, choose "smaller_toward_end".',
+  'The supplied availability facts already guarantee that the selected mark and path exist; do not ask for either one.',
   'Never approve, save, replace artwork, infer pictured anatomy, create a new capability, or return any other key.',
 ].join('\n');
 
@@ -118,7 +120,8 @@ export function openRouterCapabilityRequestBody(request: TeachingRequestV2): Rec
     ],
     response_format: { type: 'json_object' },
     temperature: 0,
-    max_tokens: 180,
+      // Reasoning tokens count toward this provider's cap; leave room for the final JSON object.
+      max_tokens: 2048,
     provider: { only: [OPENROUTER_PROVIDER], allow_fallbacks: false },
     reasoning: { enabled: true },
   };

@@ -106,6 +106,7 @@ describe('INV-49 — the route validates the model response server-side (§7.3, 
     const body = JSON.stringify(openRouterCapabilityRequestBody(request));
     expect(body).toContain('dots-studio/dots-3-note-preview:free');
     expect(body).toContain('atlas-cloud/fp8');
+    expect(body).toContain('"max_tokens":2048');
     expect(body).not.toContain('draw_document_001');
     expect(body).not.toContain('mark_snapshot_001');
     expect(body).not.toContain('contextDigest');

@@ -30,3 +30,6 @@ export async function requestDrawInterpretation(
   }
   return ModelIntent.parse((payload as { intent: unknown }).intent);
 }
+
+/** The same minimized transport is used by both capability kinds. */
+export const requestCapabilityInterpretation = requestDrawInterpretation;

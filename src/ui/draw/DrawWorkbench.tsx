@@ -6,12 +6,13 @@ import { requestDrawInterpretation } from '../../adapters/agents/drawTeaching';
 import { openBrowserDrawAssets } from '../../adapters/persistence';
 import {
   buildDrawApprovalBundle,
+  beginCapabilityReview,
   buildTeachingRequestV2,
-  digestCapabilityContext,
   groundDrawInterpretation,
 } from '../../core/capability';
 import type { CapabilityLedgerEntry } from '../../core/capability/ledger';
 import type { DrawPatternProposal, TeachingRequestV2 } from '../../core/capability';
+import type { DrawTeachingContext } from '../../core/capability/types';
 import {
   appendStroke,
   buildDeterministicDrawPreview,
@@ -54,6 +55,7 @@ type AuthoritySession = Readonly<{
   childWords: string;
   origin: 'model' | 'manual';
   state: 'reviewing' | 'rejected' | 'saved';
+  reviewedContext: DrawTeachingContext;
 }>;
 
 type ReviewSeed = Readonly<{
@@ -408,14 +410,11 @@ export function DrawWorkbench() {
     const occurredAt = timestamp();
     const intentEventId = `event_${nonce}`;
     const candidateEventId = `event_${Number(nonce) + 1}`;
-    const contextDigest = await digestCapabilityContext({ toolId, activeVersionId: null, ledgerSequence: 0, kind: 'draw_pattern', sourceDocumentId: document.documentId, sourceRevision: document.revision, selectedMarkSnapshotId: snapshotId, guidePathId: document.guidePath.pathId, guidePathRevision: document.guidePath.revision });
+    const reviewedContext: DrawTeachingContext = { toolId, activeVersionId: null, ledgerSequence: 0, kind: 'draw_pattern', sourceDocumentId: document.documentId, sourceRevision: document.revision, selectedMarkSnapshotId: snapshotId, guidePathId: document.guidePath.pathId, guidePathRevision: document.guidePath.revision };
     const proposal = seed.proposal;
-    const intent: CapabilityLedgerEntry = { type: 'child_intent', eventId: intentEventId, toolId, sequence: 1, occurredAt, actor: 'child', childWords: seed.childWords, contextDigest };
-    const candidate: CapabilityLedgerEntry = { type: 'capability_candidate', eventId: candidateEventId, toolId, sequence: 2, occurredAt, actor: seed.origin === 'model' ? 'ai' : 'child', origin: seed.origin, sourceIntentEventId: intentEventId, proposal };
     try {
-      await capabilityRepository.current.append(intent);
-      await capabilityRepository.current.append(candidate);
-      setAuthority({ toolId, snapshotId, candidateEventId, events: [intent, candidate], proposal, childWords: seed.childWords, origin: seed.origin, state: 'reviewing' });
+      const events = await beginCapabilityReview(capabilityRepository.current, { context: reviewedContext, childWords: seed.childWords, proposal, origin: seed.origin, intentEventId, candidateEventId, occurredAt });
+      setAuthority({ toolId, snapshotId, candidateEventId, events, proposal, childWords: seed.childWords, origin: seed.origin, state: 'reviewing', reviewedContext });
       clearInterpretation();
       setStatus('Here is a starting idea. Change it, reject it, or save it only if it feels like yours.');
     } catch { setError('We could not prepare that review yet. Your drawing and preview are still safe.'); }
@@ -449,8 +448,8 @@ export function DrawWorkbench() {
     const approval: CapabilityLedgerEntry = { type: 'child_approval', eventId: `event_${Date.now()}${(++strokeCounter.current).toString().padStart(2, '0')}`, toolId: authority.toolId, sequence: authority.events.length + 1, occurredAt: timestamp(), actor: 'child', candidateEventId: authority.candidateEventId, approvedProposal: authority.proposal, idempotencyKey: `save_${authority.toolId}` };
     try {
       const existing = await capabilityRepository.current.listDrawVersionsByTool(authority.toolId);
-      const bundle = await buildDrawApprovalBundle({ drawing: document, toolId: authority.toolId, ownerChildId: DRAW_OWNER_ID, displayName: toolName, existingVersionCount: existing.length, snapshotId: authority.snapshotId, versionId: `tool_version_${Date.now()}`, approvalEvent: approval, entries: authority.events, createdAt: timestamp() });
-      const version = await capabilityRepository.current.commitDrawApproval({ ...bundle, approval });
+      const bundle = await buildDrawApprovalBundle({ drawing: document, toolId: authority.toolId, ownerChildId: DRAW_OWNER_ID, displayName: toolName, existingVersionCount: existing.length, snapshotId: authority.snapshotId, versionId: `tool_version_${Date.now()}`, approvalEvent: approval, entries: authority.events, createdAt: timestamp(), reviewedContext: authority.reviewedContext });
+      const version = await capabilityRepository.current.commitApprovedCapability({ ...bundle, approval, reviewedContext: authority.reviewedContext });
       setAuthority({ ...authority, events: [...authority.events, approval], state: 'saved' });
       setStatus(`Saved ${toolName} as ${version.versionId}. It is a local tool now, not a preview.`);
     } catch (caught) { setError(caught instanceof Error ? caught.message : 'We could not save that tool. Your drawing is still safe.'); }

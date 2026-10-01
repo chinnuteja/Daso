@@ -9,7 +9,7 @@ import { ParentSummary } from '../../../core/schema/parentSummary';
 import { PermissionGrant } from '../../../core/schema/permissionGrant';
 import { ToolDefinition } from '../../../core/schema/toolDefinition';
 import { ToolVersion } from '../../../core/schema/toolVersion';
-import { CapabilityDefinition, DrawCapabilityVersion } from '../../../core/capability/types';
+import { CapabilityDefinition, SavedCapabilityVersion } from '../../../core/capability/types';
 import { CapabilityLedgerEntry } from '../../../core/capability/ledger';
 import { shouldFailAfterDeleteWrite } from '../atomicCommit';
 import { STORE, type TeachDasoDatabase, type TeachDasoDb } from '../database';
@@ -71,7 +71,7 @@ async function scheduleToolGraph(tx: DeleteTx, toolId: ToolId): Promise<Schedule
   }
   const capabilityVersions = await tx.objectStore(STORE.capabilityVersions).index('toolId').getAll(toolId);
   for (const raw of capabilityVersions) {
-    scheduled.push({ kind: 'delete', store: STORE.capabilityVersions, key: DrawCapabilityVersion.parse(raw).versionId });
+    scheduled.push({ kind: 'delete', store: STORE.capabilityVersions, key: SavedCapabilityVersion.parse(raw).versionId });
   }
   const capabilityEntries = await tx.objectStore(STORE.capabilityEntries).index('toolId').getAll(toolId);
   for (const raw of capabilityEntries) {

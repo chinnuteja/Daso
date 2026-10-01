@@ -124,3 +124,17 @@ export const DrawCapabilityVersion = z.strictObject({
   createdAt: IsoTimestamp,
 });
 export type DrawCapabilityVersion = z.infer<typeof DrawCapabilityVersion>;
+
+export const FlightCapabilityVersion = z.strictObject({
+  toolId: ToolId,
+  versionId: ToolVersionId,
+  kind: z.literal('flight_validity'),
+  version: z.number().int().positive(),
+  rule: z.literal('exclude_obstructed_trial'),
+  metadata: CapabilityVersionMetadata,
+  createdAt: IsoTimestamp,
+});
+export type FlightCapabilityVersion = z.infer<typeof FlightCapabilityVersion>;
+
+export const SavedCapabilityVersion = z.discriminatedUnion('kind', [DrawCapabilityVersion, FlightCapabilityVersion]);
+export type SavedCapabilityVersion = z.infer<typeof SavedCapabilityVersion>;

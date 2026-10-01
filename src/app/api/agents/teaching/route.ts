@@ -28,6 +28,8 @@ const CAPABILITY_SYSTEM_PROMPT = [
   'Return only a JSON object, with no Markdown, explanation, or reasoning.',
   'Allowed object A: {"type":"propose_capability","kind":"draw_pattern","operation":"repeat_selected_mark","spacing":"even"|"close"|"wide","sizeProfile":"constant"|"smaller_toward_end"}.',
   'Allowed object B: {"type":"clarify","unresolved":"selected_mark"|"guide_path"|"spacing"|"size_profile"|"reason","question":"one short question"}.',
+  'For flight_validity only: {"type":"propose_capability","kind":"flight_validity","rule":"exclude_obstructed_trial"}, or object B.',
+  'Flight: propose exclusion only when the child says a throw should not count because it hit an obstacle AND selectedTrial.obstruction is true. Distance is never a reason. Unknown timing, doubt or conflicting facts require clarification. No IDs, numbers or arbitrary predicates.',
   'When a child asks to repeat and does not name spacing, choose editable "even" spacing. When they ask for smaller toward the end, choose "smaller_toward_end".',
   'The supplied availability facts already guarantee that the selected mark and path exist; do not ask for either one.',
   'Never approve, save, replace artwork, infer pictured anatomy, create a new capability, or return any other key.',
@@ -137,6 +139,7 @@ async function postToOpenRouter(request: TeachingRequestV2): Promise<unknown> {
     throw new Error('OPENROUTER_API_KEY is missing; refusing to call a provider');
   }
   const response = await fetch(OPENROUTER_URL, {
+    signal: AbortSignal.timeout(60_000),
     method: 'POST',
     headers: {
       authorization: `Bearer ${credential}`,

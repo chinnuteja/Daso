@@ -9,8 +9,10 @@ import {
   DrawCapabilityControls,
   DrawCapabilityVersion,
   type CapabilityProposal,
+  type DrawTeachingContext,
 } from './types';
 import { digestCapabilityContext } from './context';
+import { reviewedProposal } from './approval';
 
 export class DrawAuthorityError extends Error {}
 
@@ -37,16 +39,6 @@ export function createDrawMarkSnapshot(input: {
   });
 }
 
-function latestChildEdit(
-  entries: readonly z.infer<typeof CapabilityLedgerEntry>[],
-  candidateEventId: string,
-): CapabilityProposal | null {
-  const edit = [...entries].reverse().find((entry): entry is Extract<z.infer<typeof CapabilityLedgerEntry>, { type: 'child_edit' }> =>
-    entry.type === 'child_edit' && entry.candidateEventId === candidateEventId,
-  );
-  return edit?.proposal ?? null;
-}
-
 /** A rejection is final for this candidate. The child starts a fresh candidate to continue. */
 export function assertCandidateCanBeApproved(
   entries: readonly z.infer<typeof CapabilityLedgerEntry>[],
@@ -57,7 +49,7 @@ export function assertCandidateCanBeApproved(
   if (entries.some((entry) => entry.type === 'child_rejection' && entry.candidateEventId === candidateEventId)) {
     throw new DrawAuthorityError('You rejected this suggestion. Start a new one if you want to save a different idea.');
   }
-  const proposal = latestChildEdit(entries, candidateEventId) ?? candidate.proposal;
+  const proposal = reviewedProposal(entries, candidateEventId);
   if (proposal.kind !== 'draw_pattern') throw new DrawAuthorityError('This is not a Draw suggestion.');
   return proposal;
 }
@@ -73,6 +65,7 @@ export async function buildDrawApprovalBundle(input: {
   readonly approvalEvent: z.infer<typeof CapabilityLedgerEntry>;
   readonly entries: readonly z.infer<typeof CapabilityLedgerEntry>[];
   readonly createdAt: string;
+  readonly reviewedContext?: DrawTeachingContext;
 }): Promise<{
   readonly definition: z.infer<typeof CapabilityDefinition>;
   readonly version: z.infer<typeof DrawCapabilityVersion>;
@@ -98,7 +91,7 @@ export async function buildDrawApprovalBundle(input: {
     endScale: proposal.sizeProfile === 'smaller_toward_end' ? 0.45 : 1,
     followPath: true,
   });
-  const contextDigest = await digestCapabilityContext({
+  const contextDigest = await digestCapabilityContext(input.reviewedContext ?? {
     toolId: input.toolId,
     activeVersionId: null,
     ledgerSequence: input.approvalEvent.sequence,

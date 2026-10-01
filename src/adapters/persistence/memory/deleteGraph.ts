@@ -7,7 +7,7 @@ import { ExperimentTrial } from '../../../core/schema/experimentTrial';
 import { DrawDocument, MarkSnapshot } from '../../../core/draw/schema';
 import { ToolDefinition } from '../../../core/schema/toolDefinition';
 import { ToolVersion } from '../../../core/schema/toolVersion';
-import { CapabilityDefinition, DrawCapabilityVersion } from '../../../core/capability/types';
+import { CapabilityDefinition, SavedCapabilityVersion } from '../../../core/capability/types';
 import { CapabilityLedgerEntry } from '../../../core/capability/ledger';
 import { PersistenceError } from '../database';
 import { shouldFailAfterDeleteWrite } from '../atomicCommit';
@@ -119,7 +119,7 @@ function scheduleToolGraph(records: MemoryRecords, toolId: ToolId): ScheduledMut
   }
   if (records.capabilityDefinitions.has(toolId)) scheduled.push({ kind: 'delete', store: 'capabilityDefinitions', key: toolId });
   for (const [versionId, raw] of records.capabilityVersions.entries()) {
-    if (DrawCapabilityVersion.parse(raw).toolId === toolId) scheduled.push({ kind: 'delete', store: 'capabilityVersions', key: versionId });
+    if (SavedCapabilityVersion.parse(raw).toolId === toolId) scheduled.push({ kind: 'delete', store: 'capabilityVersions', key: versionId });
   }
   for (const [eventId, raw] of records.capabilityEntries.entries()) {
     if (CapabilityLedgerEntry.parse(raw).toolId === toolId) scheduled.push({ kind: 'delete', store: 'capabilityEntries', key: eventId });

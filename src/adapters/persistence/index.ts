@@ -8,6 +8,7 @@ import { ToolVersion } from '../../core/schema/toolVersion';
 import type { LedgerEntry } from '../../core/ledger/types';
 import type { DrawAssetRepository } from '../../core/ports/repositories';
 import type { CapabilityLifecycleRepository } from '../../core/ports/repositories';
+import type { ExperimentTrialRepository } from '../../core/ports/repositories';
 import { createMemoryPersistence } from './memory';
 import { openIndexedDbRepositories } from './indexedDb';
 
@@ -32,6 +33,7 @@ export type { MemoryRecords } from './memory/store';
 export async function openBrowserDrawAssets(): Promise<{
   readonly drawAssets: DrawAssetRepository;
   readonly capabilities: CapabilityLifecycleRepository;
+  readonly trials: ExperimentTrialRepository;
   readonly durable: boolean;
   readonly close: () => void;
 }> {
@@ -41,6 +43,7 @@ export async function openBrowserDrawAssets(): Promise<{
       return {
         drawAssets: persistence.repositories.drawAssets,
         capabilities: persistence.repositories.capabilities,
+        trials: persistence.repositories.trials,
       };
     })(),
     durable: false,
@@ -61,6 +64,7 @@ export async function openBrowserDrawAssets(): Promise<{
     return {
       drawAssets: opened.repositories.drawAssets,
     capabilities: opened.repositories.capabilities,
+      trials: opened.repositories.trials,
       durable: true,
       close: () => opened.database.close(),
     };

@@ -31,6 +31,11 @@ export {
 } from './types';
 export { assertCandidateCanBeApproved, buildDrawApprovalBundle, createDrawMarkSnapshot, DrawAuthorityError } from './drawAuthority';
 export { runSavedDrawCapability } from './drawReuse';
+export { beginCapabilityReview } from './review';
+export { reviewedProposal } from './approval';
+export { groundFlightInterpretation, flightContext, replayFlightCapability, buildFlightApprovalBundle, FLIGHT_PROPOSAL } from './flight';
+export { FlightCapabilityVersion, SavedCapabilityVersion } from './types';
+export { recordFlightObservation } from './captureFlight';
 export { groundDrawInterpretation } from './drawGrounding';
 export type { DrawGroundingResult } from './drawGrounding';
 export { CapabilityTeachingRouteRequest } from './routeRequest';

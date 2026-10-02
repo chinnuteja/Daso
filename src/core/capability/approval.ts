@@ -2,6 +2,7 @@ import type { DrawDocument, MarkSnapshot } from '../draw/schema';
 import type { ExperimentTrial } from '../schema/experimentTrial';
 import { digestCapabilityContext } from './context';
 import { CapabilityLedgerEntry } from './ledger';
+import { canonicalJson } from '../serialization/canonicalJson';
 import { CapabilityDefinition, DrawCapabilityVersion, FlightCapabilityVersion, type CapabilityProposal, type CapabilityTeachingContext, type SavedCapabilityVersion } from './types';
 
 /** Internal compatibility input for the pre-v2 Draw entry point. */
@@ -50,6 +51,8 @@ export function assertApprovalCommit(input: ApprovalStorageInput, state: {
   const candidate = entries.find((entry) => entry.eventId === approval.candidateEventId);
   const intent = candidate?.type === 'capability_candidate' ? entries.find((entry) => entry.eventId === candidate.sourceIntentEventId) : undefined;
   if (intent?.type !== 'child_intent' || intent.sequence >= (candidate?.sequence ?? 0)) throw new Error('The child’s words are missing from this review.');
+  if (intent.ownerChildId !== undefined && intent.ownerChildId !== definition.ownerChildId) throw new Error('These words belong to another child.');
+  if (intent.reviewedContext !== undefined && canonicalJson(intent.reviewedContext) !== canonicalJson(input.reviewedContext)) throw new Error('The saved context differs from the review.');
   if (version.metadata.approvalEventId !== approval.eventId || JSON.stringify(version.metadata.sourceEventIds) !== JSON.stringify(entries.filter((entry) => entry.type !== 'child_rejection').map((entry) => entry.eventId))) throw new Error('This version has incorrect authorship references.');
   if (state.activeDefinition === null && version.version !== 1) throw new Error('A new tool must start at version 1.');
   if (state.activeDefinition !== null && (state.activeDefinition.ownerChildId !== definition.ownerChildId || state.activeDefinition.kind !== definition.kind)) throw new Error('The owner or kind of a saved tool cannot change.');
@@ -68,6 +71,7 @@ export function assertApprovalCommit(input: ApprovalStorageInput, state: {
   if (context.kind === 'draw_pattern') {
     if (input.snapshot?.snapshotId !== context.selectedMarkSnapshotId) throw new Error('This is not the mark you reviewed. Pick the mark and review again.');
     const drawing = state.drawing;
+    if (intent.sourcePath !== undefined && canonicalJson(intent.sourcePath) !== canonicalJson(drawing?.guidePath)) throw new Error('The reviewed path changed. Review it again.');
     if (drawing == null || drawing.ownerChildId !== definition.ownerChildId || drawing.revision !== context.sourceRevision || drawing.guidePath?.pathId !== context.guidePathId || drawing.guidePath.revision !== context.guidePathRevision || drawing.selection?.sourceDigest !== drawing.contentDigest || input.snapshot === undefined || input.snapshot.sourceDigest !== drawing.contentDigest || input.snapshot.sourceDocumentId !== drawing.documentId || JSON.stringify(input.snapshot.strokes) !== JSON.stringify(drawing.strokes.filter((stroke) => drawing.selection?.strokeIds.includes(stroke.strokeId)))) throw new Error('Your drawing or path changed. Pick the mark and review again.');
   } else {
     const trial = state.trials?.find((item) => item.trialId === context.selectedTrial.trialId);

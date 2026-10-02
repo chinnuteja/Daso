@@ -1,5 +1,8 @@
 'use client';
 
+import Link from 'next/link';
+import { pointerPoint } from './pointerPoint';
+
 import { type CSSProperties, type PointerEvent, useEffect, useRef, useState } from 'react';
 
 import { requestDrawInterpretation } from '../../adapters/agents/drawTeaching';
@@ -79,11 +82,7 @@ function timestamp(): string {
 }
 
 function pointFromEvent(event: PointerEvent<SVGSVGElement>): DrawPoint {
-  const bounds = event.currentTarget.getBoundingClientRect();
-  return {
-    x: Math.max(0, Math.min(DRAW_WIDTH, ((event.clientX - bounds.left) / bounds.width) * DRAW_WIDTH)),
-    y: Math.max(0, Math.min(DRAW_HEIGHT, ((event.clientY - bounds.top) / bounds.height) * DRAW_HEIGHT)),
-  };
+  return pointerPoint(event.currentTarget, event.clientX, event.clientY);
 }
 
 export function DrawWorkbench() {
@@ -413,7 +412,7 @@ export function DrawWorkbench() {
     const reviewedContext: DrawTeachingContext = { toolId, activeVersionId: null, ledgerSequence: 0, kind: 'draw_pattern', sourceDocumentId: document.documentId, sourceRevision: document.revision, selectedMarkSnapshotId: snapshotId, guidePathId: document.guidePath.pathId, guidePathRevision: document.guidePath.revision };
     const proposal = seed.proposal;
     try {
-      const events = await beginCapabilityReview(capabilityRepository.current, { context: reviewedContext, childWords: seed.childWords, proposal, origin: seed.origin, intentEventId, candidateEventId, occurredAt });
+      const events = await beginCapabilityReview(capabilityRepository.current, { context: reviewedContext, ownerChildId: DRAW_OWNER_ID, sourcePath: document.guidePath, childWords: seed.childWords, proposal, origin: seed.origin, intentEventId, candidateEventId, occurredAt });
       setAuthority({ toolId, snapshotId, candidateEventId, events, proposal, childWords: seed.childWords, origin: seed.origin, state: 'reviewing', reviewedContext });
       clearInterpretation();
       setStatus('Here is a starting idea. Change it, reject it, or save it only if it feels like yours.');
@@ -451,7 +450,7 @@ export function DrawWorkbench() {
       const bundle = await buildDrawApprovalBundle({ drawing: document, toolId: authority.toolId, ownerChildId: DRAW_OWNER_ID, displayName: toolName, existingVersionCount: existing.length, snapshotId: authority.snapshotId, versionId: `tool_version_${Date.now()}`, approvalEvent: approval, entries: authority.events, createdAt: timestamp(), reviewedContext: authority.reviewedContext });
       const version = await capabilityRepository.current.commitApprovedCapability({ ...bundle, approval, reviewedContext: authority.reviewedContext });
       setAuthority({ ...authority, events: [...authority.events, approval], state: 'saved' });
-      setStatus(`Saved ${toolName} as ${version.versionId}. It is a local tool now, not a preview.`);
+      setStatus(`Saved ${toolName}. It is a local tool now, not a preview.`);
     } catch (caught) { setError(caught instanceof Error ? caught.message : 'We could not save that tool. Your drawing is still safe.'); }
     finally { setSaving(false); }
   }
@@ -549,7 +548,7 @@ export function DrawWorkbench() {
           </div>
           <div className={styles.selectionCard} data-stale={document?.selection !== undefined && !selectionCurrent}>
             <b>{selectionCurrent ? 'Your selected mark' : document?.selection !== undefined ? 'Your mark changed' : 'No mark selected yet'}</b>
-            <span>{selectionCurrent ? 'Kept in your drawing. Nothing has been copied or saved as a tool.' : document?.selection !== undefined ? 'You changed the source drawing. Pick the mark again before using it.' : 'Pick a source mark when you are ready.'}</span>
+            <span>{authority?.state === 'saved' ? 'Your saved tool keeps its own exact mark copy. The original drawing is unchanged.' : selectionCurrent ? 'Kept in your drawing. Nothing has been copied or saved as a tool.' : document?.selection !== undefined ? 'You changed the source drawing. Pick the mark again before using it.' : 'Pick a source mark when you are ready.'}</span>
             <button type="button" onClick={changeMark}>{selectionCurrent ? 'Change mark' : 'Pick a mark'}</button>
           </div>
           <div className={styles.previewCard} data-ready={canPreview}>
@@ -582,7 +581,7 @@ export function DrawWorkbench() {
                 <input aria-label="Last repeat size" type="range" min="0.2" max="2" step="0.1" value={previewControls.endScale} onChange={(event) => editPreviewControls((controls) => ({ ...controls, endScale: Number(event.target.value) }))} />
               </label>
               <label className={styles.followPath}><input aria-label="Turn repeats along path" type="checkbox" checked={previewControls.followPath} onChange={(event) => editPreviewControls((controls) => ({ ...controls, followPath: event.target.checked }))} /> Turn marks along my path</label>
-              <p>This is a temporary local preview. It has not changed your drawing or become a tool.</p>
+                <p>{authority?.state === 'saved' ? 'Your tool is saved. This on-canvas preview is temporary; adjusting it does not rewrite your saved version.' : 'This is a temporary local preview. It has not changed your drawing or become a tool.'}</p>
             </div> : null}
             {previewError !== null ? <p className={styles.previewError} role="alert">{previewError}</p> : null}
           </div>
@@ -620,7 +619,7 @@ export function DrawWorkbench() {
               <li data-done>You said: “{authority.childWords}”</li>
               <li>{authority.origin === 'model' ? 'Kale suggested' : 'You chose'}: {authority.proposal.spacing} spacing, {authority.proposal.sizeProfile.replaceAll('_', ' ')}.</li>
               <li data-done={authority.events.some((entry) => entry.type === 'child_edit') ? '' : undefined}>Your changes stay separate from the starting idea.</li>
-              <li data-done={authority.state === 'saved' ? '' : undefined}>{authority.state === 'saved' ? 'You saved an immutable local version.' : authority.state === 'rejected' ? 'You rejected it. Nothing was saved.' : 'Only you can save it.'}</li>
+              <li data-done={authority.state === 'saved' ? '' : undefined}>{authority.state === 'saved' ? <>You saved an immutable local version. <Link href={`/parent/tools?tool=${encodeURIComponent(authority.toolId)}`}>Show its story →</Link></> : authority.state === 'rejected' ? 'You rejected it. Nothing was saved.' : 'Only you can save it.'}</li>
             </ol> : null}
             {authority?.state === 'reviewing' ? <div className={styles.authorityActions}>
               <p>Change the starting idea</p>

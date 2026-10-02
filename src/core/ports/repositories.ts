@@ -18,6 +18,7 @@ import type { CapabilityLedgerEntry } from '../capability/ledger';
 import type { CapabilityDefinition, DrawCapabilityVersion } from '../capability/types';
 import type { SavedCapabilityVersion } from '../capability/types';
 import type { ApprovedCapabilityCommit } from '../capability/approval';
+import type { CapabilityGraph } from '../capability/graph';
 import type { ToolDefinition } from '../schema/toolDefinition';
 import type { ToolVersion } from '../schema/toolVersion';
 import type { LedgerEntry } from '../ledger/types';
@@ -114,6 +115,8 @@ export interface DrawAssetRepository {
   getDocument(documentId: DrawDocumentId): Promise<DrawDocument | null>;
   listDocumentsByOwner(childId: ChildId): Promise<readonly DrawDocument[]>;
   saveDocument(document: DrawDocument): Promise<void>;
+  /** Only the mutable drawing; approved tool-owned mark/path copies remain. */
+  deleteDocument(documentId: DrawDocumentId): Promise<void>;
   getMarkSnapshot(snapshotId: MarkSnapshotId): Promise<MarkSnapshot | null>;
   listMarkSnapshotsByTool(toolId: ToolId): Promise<readonly MarkSnapshot[]>;
   /** Rejects duplicate ids: an approved source mark cannot be replaced. */
@@ -126,6 +129,8 @@ export interface DrawAssetRepository {
  * approval ordering later rather than inventing a second approval mechanism.
  */
 export interface CapabilityLifecycleRepository {
+  /** One consistent read snapshot for local evidence and export. */
+  getGraph(toolId: ToolId): Promise<CapabilityGraph | null>;
   commitApprovedCapability(input: ApprovedCapabilityCommit): Promise<SavedCapabilityVersion>;
   getVersion(versionId: ToolVersionId): Promise<SavedCapabilityVersion | null>;
   getDefinition(toolId: ToolId): Promise<CapabilityDefinition | null>;

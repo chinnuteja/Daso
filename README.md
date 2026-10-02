@@ -2,13 +2,23 @@
 
 **The computer that grows with your child should grow because of your child.**
 
-A child tells Kale how they want help, reviews what Kale understood, and activates a lasting preference. The same authorship architecture also lets a child build a fair-test tool from observations and rules.
+A child makes something, says what it should do, checks a bounded interpretation, and approves a lasting tool. AI suggests; the child authors; saved behavior runs locally without a model.
+
+## Current two-slice capability proof
+
+Start at **`/draw`**: make a mark, select it, draw its path, say what you mean, review/edit the behavior and **Save my tool**. `/draw/library` applies the original saved mark to a fresh path with zero AI access. The model never receives or regenerates the drawing.
+
+**`/flight`** proves the same approval/version engine generalizes beyond art. Pick a labelled practice observation, explain an obstruction, inspect a clear throw at the same distance, preview the actual ranking change and approve the rule. Recorded practice data is not a claim that a child physically performed those throws.
+
+**`/parent/tools`** shows the exact work, typed words, model suggestion or manual choice, child edits/approval, and deterministic replay. Technical receipts stay secondary. Export and explicit source/tool/profile deletion are local. An unsaved review is not shown as a saved tool. No learning gains or emotions are inferred; old missing context is labelled honestly. See [the current shared architecture](docs/ARCHITECTURE.md).
+
+This is the implemented Phase 9 proof, not a claim of final UX or production readiness. Unified landing/visual polish, robustness and founder packaging remain Phases 10–12. The existing `/` writing prototype and legacy routes below are preserved; Draw has not yet replaced the landing page.
 
 The current landing experience starts with the result, not a setup wizard. See [the UX rebuild and research](docs/UX_REBUILD.md).
 
 This is a local tablet prototype. It is not affiliated with or endorsed by Daso.
 
-## The idea
+## The earlier writing prototype (preserved)
 
 Kale Memory Lab explores one adjacent question: can a child teach their computer a durable capability without quietly handing authorship to the AI?
 
@@ -33,7 +43,7 @@ npm install
 npm run dev
 ```
 
-Open `http://localhost:3000`. Teaching stays scripted so the path works with the network off.
+Open `http://localhost:3000/draw`. Draw/Flight interpretation uses the configured server-side provider when available and also offers explicitly manual review. Saved tools and the new parent evidence view run locally without model calls. Older writing/builder paths retain their scripted prototype interpreters.
 
 ```text
 npm run typecheck
@@ -83,7 +93,7 @@ Honest product-spec deviations:
 
 ## Routes
 
-`/` Writing preference · `/lab` Bridge Bench · `/library` Saved tools · `/journey` Full builder · `/run` Runner · `/parent` Parent evidence · `/inspect` inspection projection · `/api/agents/teaching` and `/api/agents/evidence` (the only two model paths)
+`/draw` Draw workbench · `/draw/library` Saved Draw tools · `/flight` Shared-engine Flight Lab · `/parent/tools` Local capability stories/data rights · `/` Legacy writing preference · `/lab` Bridge Bench · `/library` Legacy saved tools · `/journey` Legacy builder · `/run` Legacy Runner · `/parent` Legacy parent evidence · `/inspect` Inspection · `/api/agents/teaching` and `/api/agents/evidence` (the only two model paths)
 
 ## Docs
 

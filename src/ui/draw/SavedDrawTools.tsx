@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { pointerPoint } from './pointerPoint';
 import { type PointerEvent, useEffect, useRef, useState } from 'react';
 
 import { openBrowserDrawAssets } from '../../adapters/persistence';
@@ -22,11 +23,7 @@ type SavedDrawTool = Readonly<{
 }>;
 
 function pointFromEvent(event: PointerEvent<SVGSVGElement>): DrawPoint {
-  const bounds = event.currentTarget.getBoundingClientRect();
-  return {
-    x: Math.max(0, Math.min(DRAW_WIDTH, ((event.clientX - bounds.left) / bounds.width) * DRAW_WIDTH)),
-    y: Math.max(0, Math.min(DRAW_HEIGHT, ((event.clientY - bounds.top) / bounds.height) * DRAW_HEIGHT)),
-  };
+  return pointerPoint(event.currentTarget, event.clientX, event.clientY);
 }
 
 function renderStroke(stroke: { readonly previewStrokeId?: string; readonly strokeId?: string; readonly points: readonly DrawPoint[]; readonly color: string; readonly width: number }, opacity = 1) {
@@ -177,7 +174,7 @@ export function SavedDrawTools() {
             <div><b>{selected?.definition.displayName ?? 'Choose a tool'}</b><span>{selected === null ? 'Choose a saved tool first.' : `Uses your saved Version ${selected.version.version}; no AI call.`}</span></div>
             <button className={styles.primary} type="button" disabled={selected === null || path.length < 2} onClick={applySavedTool}>Use on this path</button>
           </div>
-          {selected !== null ? <div className={styles.provenance}><b>Your original mark remains the source.</b><span>Saved from version {selected.version.version} · selected mark snapshot {selected.snapshot.snapshotId}</span></div> : null}
+          {selected !== null ? <div className={styles.provenance}><b>Your original mark remains the source.</b><span>Saved from version {selected.version.version} · selected mark snapshot {selected.snapshot.snapshotId}</span><Link href={`/parent/tools?tool=${encodeURIComponent(selected.definition.toolId)}`}>Show how this became a tool →</Link></div> : null}
         </div>
       </div>
       <p className={styles.status} role="status">{status}</p>

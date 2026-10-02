@@ -11,6 +11,7 @@ import { ToolDefinition } from '../../../core/schema/toolDefinition';
 import { ToolVersion } from '../../../core/schema/toolVersion';
 import { CapabilityDefinition, SavedCapabilityVersion } from '../../../core/capability/types';
 import { CapabilityLedgerEntry } from '../../../core/capability/ledger';
+import { FLIGHT_OWNER_ID, FLIGHT_PRACTICE_TOOL_ID } from '../../../core/capability/flightPractice';
 import { shouldFailAfterDeleteWrite } from '../atomicCommit';
 import { STORE, type TeachDasoDatabase, type TeachDasoDb } from '../database';
 import { abortTransaction } from './access';
@@ -144,8 +145,8 @@ export async function deleteIndexedDbToolGraph(
   toolId: ToolId,
 ): Promise<void> {
   const tx = database.transaction([...PROFILE_GRAPH_STORES], 'readwrite');
-  const scheduled = await scheduleToolGraph(tx, toolId);
-  await applyScheduled(tx, scheduled);
+  try { const scheduled = await scheduleToolGraph(tx, toolId); await applyScheduled(tx, scheduled); }
+  catch (error) { try { tx.abort(); } catch { /* Already aborted. */ } await tx.done.catch(() => undefined); throw error; }
 }
 
 export async function deleteIndexedDbProfileGraph(
@@ -153,6 +154,7 @@ export async function deleteIndexedDbProfileGraph(
   childId: ChildId,
 ): Promise<void> {
   const tx = database.transaction([...PROFILE_GRAPH_STORES], 'readwrite');
+  try {
   const ownedRaw = await tx.objectStore(STORE.tools).index('ownerChildId').getAll(childId);
   const scheduled: ScheduledMutation[] = [];
   for (const raw of ownedRaw) {
@@ -163,6 +165,14 @@ export async function deleteIndexedDbProfileGraph(
   for (const raw of ownedCapabilities) {
     scheduled.push(...(await scheduleToolGraph(tx, CapabilityDefinition.parse(raw).toolId)));
   }
+  const definitions = new Set((await tx.objectStore(STORE.capabilityDefinitions).getAll()).map((raw) => CapabilityDefinition.parse(raw).toolId));
+  const unfinished = new Set<string>();
+  if (childId === FLIGHT_OWNER_ID && !definitions.has(FLIGHT_PRACTICE_TOOL_ID)) unfinished.add(FLIGHT_PRACTICE_TOOL_ID);
+  for (const raw of await tx.objectStore(STORE.capabilityEntries).getAll()) {
+    const entry = CapabilityLedgerEntry.parse(raw);
+    if (entry.type === 'child_intent' && !definitions.has(entry.toolId) && (entry.ownerChildId ?? 'child_local_01') === childId) unfinished.add(entry.toolId);
+  }
+  for (const toolId of unfinished) scheduled.push(...(await scheduleToolGraph(tx, toolId)));
   const profile = await tx.objectStore(STORE.childProfiles).get(childId);
   if (profile !== undefined) {
     scheduled.push({ kind: 'delete', store: STORE.childProfiles, key: childId });
@@ -177,4 +187,5 @@ export async function deleteIndexedDbProfileGraph(
   }
   scheduled.push(...(await scheduleSurvivingForkRedaction(tx, childId)));
   await applyScheduled(tx, scheduled);
+  } catch (error) { try { tx.abort(); } catch { /* Already aborted. */ } await tx.done.catch(() => undefined); throw error; }
 }

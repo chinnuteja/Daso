@@ -7,6 +7,7 @@ import { ExperimentTrial } from '../../../core/schema/experimentTrial';
 import { PersistenceError } from '../database';
 import { shouldFailAfterCapabilityWrite } from '../atomicCommit';
 import type { MemoryRecords } from './store';
+import { CapabilityGraph } from '../../../core/capability/graph';
 
 export function createMemoryCapabilityLifecycleRepository(records: MemoryRecords): CapabilityLifecycleRepository {
   const entriesFor = (toolId: string) => [...records.capabilityEntries.values()].map((value) => CapabilityLedgerEntry.parse(value)).filter((entry) => entry.toolId === toolId).sort((a, b) => a.sequence - b.sequence);
@@ -44,6 +45,15 @@ export function createMemoryCapabilityLifecycleRepository(records: MemoryRecords
     }
   }
   return {
+    async getGraph(toolId) {
+      const tool = records.capabilityDefinitions.get(toolId);
+      if (tool === undefined || CapabilityDefinition.parse(tool).currentVersionId === null) return null;
+      const definition = CapabilityDefinition.parse(tool);
+      const snapshots = [...records.markSnapshots.values()].map((value) => MarkSnapshot.parse(value)).filter((value) => value.toolId === toolId);
+      const documentIds = new Set(snapshots.map((value) => value.sourceDocumentId));
+      const scoped = (map: Map<string, unknown>) => [...map.values()].filter((raw) => (raw as { toolId: string }).toolId === toolId);
+      return CapabilityGraph.parse({ tool: definition, ownerProfile: records.profiles.get(definition.ownerChildId) ?? null, versions: versionsFor(toolId), ledger: entriesFor(toolId), snapshots, documents: [...records.drawDocuments.values()].map((value) => DrawDocument.parse(value)).filter((value) => documentIds.has(value.documentId)), trials: scoped(records.trials), grants: scoped(records.grants), summaries: scoped(records.summaries) });
+    },
     async commitApprovedCapability(input) {
       if (input.reviewedContext === undefined) throw new PersistenceError('shared approval requires a reviewed source context');
       return commit(input);

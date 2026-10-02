@@ -1,6 +1,26 @@
-# Teach Daso architecture
+# Kale Memory Lab architecture
 
-Flight Lab is the only implemented tool. The kernel is portable; Next.js is the tablet host.
+Draw and Flight Lab are the current two-slice capability proof. The kernel is portable; Next.js is the browser/tablet host. Older writing and experiment-builder routes remain available as legacy prototypes, not claims that their orchestrator drives the new Draw workbench.
+
+## Shared capability primitive
+
+`child work + intent → bounded interpretation → grounding → visible review → child approval → immutable version → deterministic reuse`.
+
+Draw retains the exact selected vector mark; the model does not discover, redraw or beautify it. Flight retains a selected recorded obstruction and a same-distance clear contrast. Both call `beginCapabilityReview` and the same `commitApprovedCapability` repository boundary. Only a child-approval event can save a version or move the active pointer. Manual choices are never credited to AI.
+
+New reviews also retain local owner, trusted context and (for Draw) the reviewed guide path. These fields are optional when decoding older history; missing history is labelled, never retroactively invented. Runtime geometry and Flight ranking remain domain-specific pure executors.
+
+## Local parent evidence and data rights
+
+`/parent/tools` reads a tool graph from one memory snapshot or one IndexedDB read transaction. It verifies ownership, history, active version, approval/control correspondence and local source context before rendering. Human work and choices lead; IDs and SHA-256 canonical-input/output receipts sit in an expandable section. Unknown profiles are labelled “Child on this device”, not given an invented name.
+
+The v2 closed-ID evidence projection and selector are local. The optional selector seam is stub-tested only; no new external evidence payload or model call is enabled. Deterministic code writes the story and makes no mastery, emotion or developmental assessment. The legacy `/parent` evidence path is unchanged.
+
+Canonical v2 export includes the scoped graph, artwork copies, versions, ledger and runs explicitly labelled `recomputed_for_evidence`. Those are new local replays, not a stored usage history. SHA-256 checks bytes and reproducibility, not authentication or a cryptographic signature.
+
+Deleting a source drawing leaves a disclosed immutable mark copy and retained reviewed path in its saved tool. Deleting that tool removes the copy and its review graph; deleting the local child removes their profile, owned tools, unfinished reviews and artwork together, failure-atomically. Historical ownerless unsaved Kale reviews and pre-review Flight practice records use the old fixed `child_local_01` compatibility owner, without overriding a saved definition’s owner. Existing legacy fork deletion/anonymity remains unchanged. Downloaded files and another browser/device are outside these deletion operations.
+
+## Legacy experiment-builder architecture
 
 ```mermaid
 flowchart LR
@@ -44,7 +64,7 @@ Model access exists at exactly two files: `src/app/api/agents/teaching/route.ts`
 
 ## Storage
 
-Seven repository families: profiles, tools, versions, ledger, trials, grants, summaries. No eighth store. Deletes are whole-graph and failure-atomic. After a source profile is deleted, a surviving fork keeps an anonymous title and teacher; `forkedFrom` remains unresolvable provenance.
+The original seven repository families (profiles, tools, versions, ledger, trials, grants, summaries) are joined by Draw assets and shared capability lifecycle ports. IndexedDB remains at version 3; Phase 9 adds no object store, repository family or dependency. Deletes are whole-graph and failure-atomic. After a source profile is deleted, a surviving legacy fork keeps an anonymous title and teacher; `forkedFrom` remains unresolvable provenance.
 
 ## Invariant map
 

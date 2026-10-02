@@ -6,6 +6,7 @@ import type { MemoryRecords } from './store';
 
 export function createMemoryDrawAssetRepository(records: MemoryRecords): DrawAssetRepository {
   return {
+    async deleteDocument(documentId) { records.drawDocuments.delete(documentId); },
     async getDocument(documentId: DrawDocumentId): Promise<DrawDocument | null> {
       const raw = records.drawDocuments.get(documentId);
       return raw === undefined ? null : DrawDocument.parse(raw);

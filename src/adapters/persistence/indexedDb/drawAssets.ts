@@ -6,6 +6,7 @@ import { getParsed } from './access';
 
 export function createIndexedDbDrawAssetRepository(database: TeachDasoDatabase): DrawAssetRepository {
   return {
+    async deleteDocument(documentId) { await database.delete(STORE.drawDocuments, documentId); },
     async getDocument(documentId: DrawDocumentId): Promise<DrawDocument | null> {
       return getParsed(database, STORE.drawDocuments, documentId, DrawDocument);
     },

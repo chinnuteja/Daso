@@ -6,6 +6,7 @@ import { DrawDocument, MarkSnapshot } from '../../../core/draw/schema';
 import { ExperimentTrial } from '../../../core/schema/experimentTrial';
 import { PersistenceError, STORE, type TeachDasoDatabase } from '../database';
 import { shouldFailAfterCapabilityWrite } from '../atomicCommit';
+import { CapabilityGraph } from '../../../core/capability/graph';
 
 export function createIndexedDbCapabilityLifecycleRepository(database: TeachDasoDatabase): CapabilityLifecycleRepository {
   async function commit(input: ApprovalStorageInput) {
@@ -45,6 +46,19 @@ export function createIndexedDbCapabilityLifecycleRepository(database: TeachDaso
     }
   }
   return {
+    async getGraph(toolId) {
+      const tx = database.transaction([STORE.capabilityDefinitions, STORE.capabilityVersions, STORE.capabilityEntries, STORE.markSnapshots, STORE.drawDocuments, STORE.trials, STORE.grants, STORE.summaries, STORE.childProfiles], 'readonly');
+      const raw = await tx.objectStore(STORE.capabilityDefinitions).get(toolId);
+      if (raw === undefined || CapabilityDefinition.parse(raw).currentVersionId === null) { await tx.done; return null; }
+      const tool = CapabilityDefinition.parse(raw);
+      const [versions, ledger, snapshots, trials, grants, summaries, ownerProfile] = await Promise.all([
+        tx.objectStore(STORE.capabilityVersions).index('toolId').getAll(toolId), tx.objectStore(STORE.capabilityEntries).index('toolId').getAll(toolId), tx.objectStore(STORE.markSnapshots).index('toolId').getAll(toolId), tx.objectStore(STORE.trials).index('toolId').getAll(toolId), tx.objectStore(STORE.grants).index('toolId').getAll(toolId), tx.objectStore(STORE.summaries).index('toolId').getAll(toolId), tx.objectStore(STORE.childProfiles).get(tool.ownerChildId),
+      ]);
+      const documentIds = [...new Set(snapshots.map((value) => MarkSnapshot.parse(value).sourceDocumentId))];
+      const documents = (await Promise.all(documentIds.map((id) => tx.objectStore(STORE.drawDocuments).get(id)))).filter((value) => value !== undefined);
+      await tx.done;
+      return CapabilityGraph.parse({ tool, ownerProfile: ownerProfile ?? null, versions, ledger, snapshots, documents, trials, grants, summaries });
+    },
     async commitApprovedCapability(input) {
       if (input.reviewedContext === undefined) throw new PersistenceError('shared approval requires a reviewed source context');
       return commit(input);

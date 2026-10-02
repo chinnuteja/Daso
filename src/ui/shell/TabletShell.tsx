@@ -26,6 +26,7 @@ export function TabletShell(props: {
           <Link href="/">Writing preference</Link>
           <Link href="/lab">Bridge Bench</Link>
           <Link href="/library">Saved tools</Link>
+          <Link href="/parent/tools">Parent view</Link>
         </nav>
         {props.headerActions}
       </header>

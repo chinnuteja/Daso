@@ -1,8 +1,9 @@
 import { z } from 'zod';
 
 import { Actor } from '../schema/vocabulary';
-import { EventId, IsoTimestamp, LedgerSequence, Sha256Digest, ToolId } from '../schema/primitives';
-import { CapabilityProposal } from './types';
+import { ChildId, EventId, IsoTimestamp, LedgerSequence, Sha256Digest, ToolId } from '../schema/primitives';
+import { DrawGuidePath } from '../draw/schema';
+import { CapabilityProposal, CapabilityTeachingContext } from './types';
 
 const EntryBase = z.strictObject({
   eventId: EventId,
@@ -17,6 +18,10 @@ export const CapabilityChildIntentEntry = EntryBase.extend({
   actor: z.literal(Actor.enum.child),
   childWords: z.string().trim().min(1).max(800),
   contextDigest: Sha256Digest,
+  /** Added without rewriting old records. Historical Kale UI used only child_local_01. */
+  ownerChildId: ChildId.optional(),
+  reviewedContext: CapabilityTeachingContext.optional(),
+  sourcePath: DrawGuidePath.optional(),
 });
 
 export const CapabilityCandidateEntry = EntryBase.extend({

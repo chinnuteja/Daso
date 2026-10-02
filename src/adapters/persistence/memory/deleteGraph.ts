@@ -9,6 +9,7 @@ import { ToolDefinition } from '../../../core/schema/toolDefinition';
 import { ToolVersion } from '../../../core/schema/toolVersion';
 import { CapabilityDefinition, SavedCapabilityVersion } from '../../../core/capability/types';
 import { CapabilityLedgerEntry } from '../../../core/capability/ledger';
+import { FLIGHT_OWNER_ID, FLIGHT_PRACTICE_TOOL_ID } from '../../../core/capability/flightPractice';
 import { PersistenceError } from '../database';
 import { shouldFailAfterDeleteWrite } from '../atomicCommit';
 import type { MemoryRecords } from './store';
@@ -189,8 +190,16 @@ export function deleteMemoryProfileGraph(records: MemoryRecords, childId: ChildI
     const parsed = CapabilityDefinition.parse(raw);
     if (parsed.ownerChildId === childId) owned.push(parsed.toolId);
   }
+  for (const raw of records.capabilityEntries.values()) {
+    const entry = CapabilityLedgerEntry.parse(raw);
+    if (entry.type !== 'child_intent' || records.capabilityDefinitions.has(entry.toolId)) continue;
+    // Before P9 the Kale UI used one fixed local child. Never override a saved owner.
+    if ((entry.ownerChildId ?? 'child_local_01') === childId) owned.push(entry.toolId);
+  }
   const scheduled: ScheduledMutation[] = [];
-  for (const toolId of owned) {
+  // Historical practice observations exist before the first review/definition.
+  if (childId === FLIGHT_OWNER_ID && !records.capabilityDefinitions.has(FLIGHT_PRACTICE_TOOL_ID)) owned.push(FLIGHT_PRACTICE_TOOL_ID);
+  for (const toolId of new Set(owned)) {
     scheduled.push(...scheduleToolGraph(records, toolId));
   }
   if (records.profiles.has(childId)) {

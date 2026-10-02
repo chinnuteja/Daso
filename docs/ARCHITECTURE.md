@@ -10,6 +10,14 @@ Draw retains the exact selected vector mark; the model does not discover, redraw
 
 New reviews also retain local owner, trusted context and (for Draw) the reviewed guide path. These fields are optional when decoding older history; missing history is labelled, never retroactively invented. Runtime geometry and Flight ranking remain domain-specific pure executors.
 
+## Draw-first presentation (Phase 10)
+
+`/` and `/draw` host one studio: creation stays mounted while the user switches to deterministic reuse. The artwork precedes the context dock on small screens. Mark confirmation and child-chosen keyboard path endpoints supplement pointer input; freehand drawing is still pointer-based. The immutable initial proposal and later child edits are displayed separately. Save success appears only after the existing approved-capability commit finishes; an ephemeral memory fallback cannot advertise a durable save.
+
+New labelled Draw practice belongs to `child_kale_practice_01`. The explicitly confirmed practice reset calls the existing atomic profile-graph deletion for that owner only, not a database clear. Real blank drawings, legacy practice and Flight graphs remain separate. Tests cover scope, idempotency and rollback; concurrent reset versus an in-flight writer still needs Phase 11 hardening. Earlier writing is preserved at `/writing`. No capability vocabulary, object store, database version or model route is added by this presentation phase.
+
+The app-owned axe control is local and development-only. It checks a visible DOM state and reports incomplete checks, not universal accessibility compliance.
+
 ## Local parent evidence and data rights
 
 `/parent/tools` reads a tool graph from one memory snapshot or one IndexedDB read transaction. It verifies ownership, history, active version, approval/control correspondence and local source context before rendering. Human work and choices lead; IDs and SHA-256 canonical-input/output receipts sit in an expandable section. Unknown profiles are labelled “Child on this device”, not given an invented name.

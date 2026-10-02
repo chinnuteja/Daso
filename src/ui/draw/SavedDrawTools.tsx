@@ -2,6 +2,8 @@
 
 import Link from 'next/link';
 import { pointerPoint } from './pointerPoint';
+import { KeyboardPath } from './KeyboardPath';
+import { DRAW_PRACTICE_OWNER } from './practiceSession';
 import { type PointerEvent, useEffect, useRef, useState } from 'react';
 
 import { openBrowserDrawAssets } from '../../adapters/persistence';
@@ -13,6 +15,7 @@ import type { DrawCapabilityVersion } from '../../core/capability/types';
 import type { CapabilityDefinition } from '../../core/capability/types';
 
 import styles from './SavedDrawTools.module.css';
+import polish from './ReusePolish.module.css';
 
 const DRAW_OWNER_ID = 'child_local_01';
 
@@ -34,7 +37,7 @@ function renderStroke(stroke: { readonly previewStrokeId?: string; readonly stro
   return <polyline key={key} points={stroke.points.map((point) => `${point.x},${point.y}`).join(' ')} fill="none" stroke={stroke.color} strokeWidth={stroke.width} strokeLinecap="round" strokeLinejoin="round" opacity={opacity} />;
 }
 
-export function SavedDrawTools() {
+export function SavedDrawTools({ embedded = false }: { embedded?: boolean } = {}) {
   const [tools, setTools] = useState<readonly SavedDrawTool[]>([]);
   const [selectedToolId, setSelectedToolId] = useState<string | null>(null);
   const [path, setPath] = useState<readonly DrawPoint[]>([]);
@@ -50,7 +53,7 @@ export function SavedDrawTools() {
     void (async () => {
       const opened = await openBrowserDrawAssets();
       close = opened.close;
-      const definitions = (await opened.capabilities.listDefinitionsByOwner(DRAW_OWNER_ID))
+      const definitions = [...await opened.capabilities.listDefinitionsByOwner(DRAW_OWNER_ID), ...await opened.capabilities.listDefinitionsByOwner(DRAW_PRACTICE_OWNER)]
         .filter((definition) => definition.kind === 'draw_pattern' && definition.currentVersionId !== null);
       const resolved = await Promise.all(definitions.map(async (definition) => {
         const version = await opened.capabilities.getDrawVersion(definition.currentVersionId!);
@@ -61,7 +64,8 @@ export function SavedDrawTools() {
       if (cancelled) return;
       const loaded = resolved.filter((tool): tool is SavedDrawTool => tool !== null);
       setTools(loaded);
-      setSelectedToolId(loaded[0]?.definition.toolId ?? null);
+      setSelectedToolId(loaded.at(-1)?.definition.toolId ?? null);
+      if (loaded.length !== definitions.length) setError('A saved tool has missing records and cannot be used safely. Other verified tools are shown; we did not recreate the missing mark.');
       setStatus(loaded.length === 0 ? 'No saved Draw tools yet.' : 'Pick a saved tool, then draw a new path for it.');
     })().catch(() => {
       if (!cancelled) {
@@ -130,7 +134,7 @@ export function SavedDrawTools() {
     return (
       <section className={styles.empty} aria-labelledby="saved-draw-title">
         <p className={styles.eyebrow}>Your saved Draw tools</p>
-        <h2 id="saved-draw-title">A mark becomes useful after you save it.</h2>
+        <h2 id="saved-draw-title">Your next tool starts with a mark.</h2>
         <p>Make one small mark, choose it, try it on a path, and approve it. It will appear here as a tool you can use later without asking Kale again.</p>
         <Link href="/draw" className={styles.primary}>Make a Draw tool</Link>
         <p role="status">{status}</p>
@@ -139,14 +143,14 @@ export function SavedDrawTools() {
   }
 
   return (
-    <section className={styles.library} aria-labelledby="saved-draw-title">
-      <header className={styles.header}>
+    <section className={`${styles.library} ${polish.library}`} aria-labelledby="saved-draw-title">
+      <header className={`${styles.header} ${polish.header}`}>
         <div>
           <p className={styles.eyebrow}>Your saved Draw tools</p>
-          <h2 id="saved-draw-title">Use something you already made.</h2>
-          <p>These tools keep your original mark and your approved settings. A new path is the only thing you add today.</p>
+          <h2 id="saved-draw-title">Your mark. A new path.</h2>
+          <p>Pick your tool. Give it a new path. No AI needed.</p>
         </div>
-        <Link href="/draw" className={styles.quietLink}>Make another tool</Link>
+        {!embedded ? <Link href="/draw" className={styles.quietLink}>Make another tool</Link> : null}
       </header>
 
       <div className={styles.layout}>
@@ -154,27 +158,28 @@ export function SavedDrawTools() {
           {tools.map((tool) => (
             <button key={tool.definition.toolId} type="button" className={styles.toolCard} data-selected={selected?.definition.toolId === tool.definition.toolId} onClick={() => chooseTool(tool.definition.toolId)}>
               <svg viewBox="0 0 100 70" aria-hidden="true">{tool.snapshot.strokes.map((stroke) => renderStroke({ ...stroke, points: stroke.points.map((point) => ({ x: point.x / 8, y: point.y / 8 })) }))}</svg>
-              <span><b>{tool.definition.displayName}</b><small>Version {tool.version.version} · your original mark</small></span>
+              <span><b>{tool.definition.displayName}</b><small>Version {tool.version.version} · {tool.definition.ownerChildId === DRAW_PRACTICE_OWNER ? 'practice mark' : 'your original mark'}</small></span>
             </button>
           ))}
         </aside>
 
-        <div className={styles.workspace}>
+        <div className={`${styles.workspace} ${polish.workspace}`}>
           <div className={styles.instruction}>
-            <span>1</span><p><b>Draw a new path.</b> This is only where the tool will go; it cannot change the tool you saved.</p>
+            <span>1</span><p><b>Draw a new path.</b> The saved mark stays unchanged.</p>
             <button type="button" onClick={() => { setPath([]); setDraftPath(null); setPreview(null); setStatus('Path cleared. Draw a fresh path.'); }}>Clear path</button>
           </div>
-          <svg className={styles.canvas} viewBox={`0 0 ${DRAW_WIDTH} ${DRAW_HEIGHT}`} role="img" aria-label="New path canvas. Drag to draw where the saved mark should repeat." onPointerDown={startPath} onPointerMove={extendPath} onPointerUp={finishPath} onPointerCancel={finishPath}>
+          <svg className={`${styles.canvas} ${polish.canvas}`} viewBox={`0 0 ${DRAW_WIDTH} ${DRAW_HEIGHT}`} role="img" aria-label="New path canvas. Drag to draw where the saved mark should repeat." onPointerDown={startPath} onPointerMove={extendPath} onPointerUp={finishPath} onPointerCancel={() => { drawing.current = false; setDraftPath(null); setStatus('Unfinished path left out. Your saved tool is unchanged.'); }}>
             <rect x="0" y="0" width={DRAW_WIDTH} height={DRAW_HEIGHT} rx="26" className={styles.paper} />
             {livePath.length >= 2 ? <polyline points={livePath.map((point) => `${point.x},${point.y}`).join(' ')} fill="none" stroke="#a65636" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="14 10" /> : null}
             {preview?.strokes.map((stroke) => renderStroke(stroke, .82))}
             {path.length < 2 && draftPath === null ? <text x="400" y="275" textAnchor="middle" className={styles.canvasHint}>Drag a fresh path here</text> : null}
           </svg>
+          <KeyboardPath onChoose={(points) => { setPath(points); setPreview(null); setStatus('You chose a new path. Apply your saved tool when ready.'); }} />
           <div className={styles.applyBar}>
             <div><b>{selected?.definition.displayName ?? 'Choose a tool'}</b><span>{selected === null ? 'Choose a saved tool first.' : `Uses your saved Version ${selected.version.version}; no AI call.`}</span></div>
             <button className={styles.primary} type="button" disabled={selected === null || path.length < 2} onClick={applySavedTool}>Use on this path</button>
           </div>
-          {selected !== null ? <div className={styles.provenance}><b>Your original mark remains the source.</b><span>Saved from version {selected.version.version} · selected mark snapshot {selected.snapshot.snapshotId}</span><Link href={`/parent/tools?tool=${encodeURIComponent(selected.definition.toolId)}`}>Show how this became a tool →</Link></div> : null}
+          {selected !== null ? <div className={styles.provenance}><b>{selected.definition.ownerChildId === DRAW_PRACTICE_OWNER ? 'Practice mark · your approved behavior.' : 'Your original mark remains the source.'}</b><span>Saved version {selected.version.version} · runs locally without AI</span><Link href={`/parent/tools?tool=${encodeURIComponent(selected.definition.toolId)}`}>Show how this became a tool →</Link></div> : null}
         </div>
       </div>
       <p className={styles.status} role="status">{status}</p>

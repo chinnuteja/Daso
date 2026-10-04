@@ -15,6 +15,7 @@ import { FLIGHT_OWNER_ID, FLIGHT_PRACTICE_TOOL_ID } from '../../../core/capabili
 import { shouldFailAfterDeleteWrite } from '../atomicCommit';
 import { STORE, type TeachDasoDatabase, type TeachDasoDb } from '../database';
 import { abortTransaction } from './access';
+import { drawOwnerGenerationKey, parseDrawGenerationRecord } from '../drawWriteGuard';
 
 const PROFILE_GRAPH_STORES = [
   STORE.tools,
@@ -29,13 +30,15 @@ const PROFILE_GRAPH_STORES = [
   STORE.capabilityVersions,
   STORE.capabilityEntries,
   STORE.childProfiles,
+  STORE.meta,
 ] as const;
 
 type DeleteTx = IDBPTransaction<TeachDasoDb, (typeof PROFILE_GRAPH_STORES)[number][], 'readwrite'>;
 
 type ScheduledMutation =
   | { readonly kind: 'delete'; readonly store: (typeof PROFILE_GRAPH_STORES)[number]; readonly key: string }
-  | { readonly kind: 'put'; readonly store: typeof STORE.tools; readonly value: ToolDefinition };
+  | { readonly kind: 'put'; readonly store: typeof STORE.tools; readonly value: ToolDefinition }
+  | { readonly kind: 'generation'; readonly key: string; readonly value: number };
 
 async function scheduleToolGraph(tx: DeleteTx, toolId: ToolId): Promise<ScheduledMutation[]> {
   const scheduled: ScheduledMutation[] = [];
@@ -113,6 +116,7 @@ async function scheduleSurvivingForkRedaction(
 }
 
 async function applyMutation(tx: DeleteTx, mutation: ScheduledMutation): Promise<void> {
+  if (mutation.kind === 'generation') { await tx.objectStore(STORE.meta).put({ key: mutation.key, value: mutation.value }); return; }
   if (mutation.kind === 'delete') {
     await tx.objectStore(mutation.store).delete(mutation.key);
     return;
@@ -186,6 +190,8 @@ export async function deleteIndexedDbProfileGraph(
     });
   }
   scheduled.push(...(await scheduleSurvivingForkRedaction(tx, childId)));
+  const generationKey = drawOwnerGenerationKey(childId);
+  scheduled.push({ kind: 'generation', key: generationKey, value: parseDrawGenerationRecord((await tx.objectStore(STORE.meta).get(generationKey))) + 1 });
   await applyScheduled(tx, scheduled);
   } catch (error) { try { tx.abort(); } catch { /* Already aborted. */ } await tx.done.catch(() => undefined); throw error; }
 }

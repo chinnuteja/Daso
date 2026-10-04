@@ -162,7 +162,11 @@ describe.each(['memory', 'idb', 'idb-v1'] as const)('Phase 9 evidence and rights
       const { ownerChildId: _owner, reviewedContext: _context, sourcePath: _path, ...old } = template;
       void _owner; void _context; void _path;
       await opened.repositories.capabilities.append({ ...old, toolId: 'old-unfinished-review', eventId: 'event_940', sequence: 1 });
-      await opened.repositories.capabilities.append({ ...template, toolId: 'other-child-draft', ownerChildId: 'child_local_02', eventId: 'event_941', sequence: 1 });
+      // The other child's review must actually reference their own source, not a copied
+      // trusted context from the first child (P11 now validates this at append time).
+      const otherDrawing = { ...seeded.drawing, documentId: 'draw_document_942', ownerChildId: 'child_local_02' };
+      await opened.repositories.drawAssets.saveDocument(otherDrawing);
+      await opened.repositories.capabilities.append({ ...template, toolId: 'other-child-draft', ownerChildId: 'child_local_02', reviewedContext: { ...seeded.context, toolId: 'other-child-draft', sourceDocumentId: otherDrawing.documentId }, eventId: 'event_941', sequence: 1 });
       await opened.repositories.tools.deleteToolGraph(seeded.flightToolId);
       for (const trial of flightPracticeTrials()) await opened.repositories.trials.save(trial);
       await opened.repositories.profiles.deleteProfileGraph(seeded.ownerChildId);

@@ -8,6 +8,7 @@ import { PersistenceError } from '../database';
 import { shouldFailAfterCapabilityWrite } from '../atomicCommit';
 import type { MemoryRecords } from './store';
 import { CapabilityGraph } from '../../../core/capability/graph';
+import { assertCapabilityAppend } from '../capabilityAppendGuard';
 
 export function createMemoryCapabilityLifecycleRepository(records: MemoryRecords): CapabilityLifecycleRepository {
   const entriesFor = (toolId: string) => [...records.capabilityEntries.values()].map((value) => CapabilityLedgerEntry.parse(value)).filter((entry) => entry.toolId === toolId).sort((a, b) => a.sequence - b.sequence);
@@ -62,7 +63,14 @@ export function createMemoryCapabilityLifecycleRepository(records: MemoryRecords
     async getDefinition(toolId) { const raw = records.capabilityDefinitions.get(toolId); return raw === undefined ? null : CapabilityDefinition.parse(raw); },
     async listDefinitionsByOwner(childId) { return [...records.capabilityDefinitions.values()].map((value) => CapabilityDefinition.parse(value)).filter((definition) => definition.ownerChildId === childId).sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.toolId.localeCompare(b.toolId)); },
     async listEntriesByTool(toolId) { return entriesFor(toolId); },
-    async append(entry) { const parsed = CapabilityLedgerEntry.parse(entry); if (records.capabilityEntries.has(parsed.eventId) || parsed.sequence !== entriesFor(parsed.toolId).length + 1) throw new PersistenceError('capability events must have unique, contiguous sequences'); records.capabilityEntries.set(parsed.eventId, parsed); },
+    async append(entry) {
+      const parsed = CapabilityLedgerEntry.parse(entry);
+      const context = parsed.type === 'child_intent' ? parsed.reviewedContext : undefined;
+      const raw = context?.kind === 'draw_pattern' ? records.drawDocuments.get(context.sourceDocumentId) : undefined;
+      if (records.capabilityEntries.has(parsed.eventId)) throw new PersistenceError('capability events must have unique, contiguous sequences');
+      assertCapabilityAppend(parsed, entriesFor(parsed.toolId), raw === undefined ? null : DrawDocument.parse(raw));
+      records.capabilityEntries.set(parsed.eventId, parsed);
+    },
     async getVersion(versionId) { const raw = records.capabilityVersions.get(versionId); return raw === undefined ? null : SavedCapabilityVersion.parse(raw); },
     async getDrawVersion(versionId) { const raw = records.capabilityVersions.get(versionId); if (raw === undefined) return null; const version = SavedCapabilityVersion.parse(raw); return version.kind === 'draw_pattern' ? version : null; },
     async listDrawVersionsByTool(toolId) { return versionsFor(toolId).filter((version): version is DrawCapabilityVersion => version.kind === 'draw_pattern').sort((a, b) => a.version - b.version); },

@@ -114,7 +114,8 @@ export interface ParentSummaryRepository {
 export interface DrawAssetRepository {
   getDocument(documentId: DrawDocumentId): Promise<DrawDocument | null>;
   listDocumentsByOwner(childId: ChildId): Promise<readonly DrawDocument[]>;
-  saveDocument(document: DrawDocument): Promise<void>;
+  getOwnerGeneration(childId: ChildId): Promise<number>;
+  saveDocument(document: DrawDocument, expected?: Readonly<{ revision: number | null; ownerGeneration: number }>): Promise<void>;
   /** Only the mutable drawing; approved tool-owned mark/path copies remain. */
   deleteDocument(documentId: DrawDocumentId): Promise<void>;
   getMarkSnapshot(snapshotId: MarkSnapshotId): Promise<MarkSnapshot | null>;

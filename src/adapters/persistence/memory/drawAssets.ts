@@ -3,9 +3,11 @@ import { DrawDocument, MarkSnapshot } from '../../../core/draw/schema';
 import type { ChildId, DrawDocumentId, MarkSnapshotId, ToolId } from '../../../core/schema/primitives';
 import { PersistenceError } from '../database';
 import type { MemoryRecords } from './store';
+import { assertDrawWrite, drawOwnerGenerationKey, parseDrawGeneration } from '../drawWriteGuard';
 
 export function createMemoryDrawAssetRepository(records: MemoryRecords): DrawAssetRepository {
   return {
+    async getOwnerGeneration(childId) { return parseDrawGeneration(records.meta.get(drawOwnerGenerationKey(childId))); },
     async deleteDocument(documentId) { records.drawDocuments.delete(documentId); },
     async getDocument(documentId: DrawDocumentId): Promise<DrawDocument | null> {
       const raw = records.drawDocuments.get(documentId);
@@ -21,8 +23,10 @@ export function createMemoryDrawAssetRepository(records: MemoryRecords): DrawAss
         );
     },
 
-    async saveDocument(document: DrawDocument): Promise<void> {
+    async saveDocument(document: DrawDocument, expected): Promise<void> {
       const parsed = DrawDocument.parse(document);
+      const raw = records.drawDocuments.get(parsed.documentId);
+      assertDrawWrite(parsed, raw === undefined ? null : DrawDocument.parse(raw), parseDrawGeneration(records.meta.get(drawOwnerGenerationKey(parsed.ownerChildId))), expected);
       records.drawDocuments.set(parsed.documentId, parsed);
     },
 

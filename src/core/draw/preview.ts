@@ -1,3 +1,4 @@
+import { DrawPoint as PointSchema, DrawStroke as StrokeSchema } from './schema';
 import type { DrawDocument, DrawPoint, DrawStroke } from './schema';
 
 import { isMarkSelectionCurrent } from './document';
@@ -53,6 +54,16 @@ export function buildDrawPreviewFromSource(input: {
 }): DrawPreview {
   if (input.sourceStrokes.length === 0) {
     throw new Error('This saved tool has no source mark. It cannot be used safely.');
+  }
+  // Runtime callers are not necessarily TypeScript callers. Reject damaged geometry before
+  // allocating placements; this does not change any valid v1 transform or rounding result.
+  if (input.sourceStrokes.length > 32 || input.guidePath.points.length > 2048 || input.guidePath.points.length < 2 ||
+      input.sourceStrokes.some((stroke) => !StrokeSchema.safeParse(stroke).success) ||
+      input.guidePath.points.some((point) => !PointSchema.safeParse(point).success)) {
+    throw new Error('This mark or path contains damaged or oversized geometry. Choose a valid mark and path.');
+  }
+  if (input.controls?.followPath !== undefined && typeof input.controls.followPath !== 'boolean') {
+    throw new Error('The path-turning setting is invalid. Choose it again.');
   }
   const controls = normaliseControls(input.controls ?? {});
   const route = placements(input.guidePath.points, controls.spacing);

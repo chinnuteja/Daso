@@ -3,6 +3,9 @@
 import Link from 'next/link';
 import { pointerPoint } from './pointerPoint';
 import { KeyboardPath } from './KeyboardPath';
+import { SourceMark } from './SourceMark';
+import { assertCapabilityGraph } from '../../core/capability/graph';
+import type { CapabilityLifecycleRepository } from '../../core/ports/repositories';
 import { DRAW_PRACTICE_OWNER } from './practiceSession';
 import { type PointerEvent, useEffect, useRef, useState } from 'react';
 
@@ -46,40 +49,73 @@ export function SavedDrawTools({ embedded = false }: { embedded?: boolean } = {}
   const [status, setStatus] = useState('Opening your saved tools…');
   const [error, setError] = useState<string | null>(null);
   const drawing = useRef(false);
+  const repository = useRef<CapabilityLifecycleRepository | null>(null);
+  const applying = useRef(false);
+  const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const loadedSignature = useRef('');
 
   useEffect(() => {
     let cancelled = false;
     let close: (() => void) | undefined;
+    let refresh: (() => void) | undefined;
+    let channel: BroadcastChannel | undefined;
+    let loadGeneration = 0;
     void (async () => {
       const opened = await openBrowserDrawAssets();
       close = opened.close;
+      if (cancelled) { opened.close(); return; }
+      const load = async () => {
+      const requestGeneration = ++loadGeneration;
       const definitions = [...await opened.capabilities.listDefinitionsByOwner(DRAW_OWNER_ID), ...await opened.capabilities.listDefinitionsByOwner(DRAW_PRACTICE_OWNER)]
         .filter((definition) => definition.kind === 'draw_pattern' && definition.currentVersionId !== null);
+      repository.current = opened.capabilities;
       const resolved = await Promise.all(definitions.map(async (definition) => {
-        const version = await opened.capabilities.getDrawVersion(definition.currentVersionId!);
-        if (version === null) return null;
-        const snapshot = await opened.drawAssets.getMarkSnapshot(version.markSnapshotId);
-        return snapshot === null ? null : { definition, version, snapshot } satisfies SavedDrawTool;
+        try {
+          const raw = await opened.capabilities.getGraph(definition.toolId);
+          if (raw === null) return null;
+          const graph = assertCapabilityGraph(raw);
+          const version = graph.versions.find((item) => item.versionId === graph.tool.currentVersionId);
+          if (version?.kind !== 'draw_pattern') return null;
+          const snapshot = graph.snapshots.find((item) => item.snapshotId === version.markSnapshotId);
+          return snapshot === undefined ? null : { definition: graph.tool, version, snapshot } satisfies SavedDrawTool;
+        } catch { return null; }
       }));
-      if (cancelled) return;
+      if (cancelled || requestGeneration !== loadGeneration) return;
       const loaded = resolved.filter((tool): tool is SavedDrawTool => tool !== null);
-      setTools(loaded);
-      setSelectedToolId(loaded.at(-1)?.definition.toolId ?? null);
+      setLoading(false);
+      const signature = JSON.stringify(loaded);
+      const changed = loadedSignature.current !== signature;
+      loadedSignature.current = signature;
+      if (changed) {
+        setTools(loaded);
+        setSelectedToolId((current) => loaded.some((tool) => tool.definition.toolId === current) ? current : loaded.at(-1)?.definition.toolId ?? null);
+        setPreview(null); setError(null);
+        setStatus(loaded.length === 0 ? 'No saved Draw tools yet.' : 'Pick a saved tool, then draw a new path for it.');
+      }
       if (loaded.length !== definitions.length) setError('A saved tool has missing records and cannot be used safely. Other verified tools are shown; we did not recreate the missing mark.');
-      setStatus(loaded.length === 0 ? 'No saved Draw tools yet.' : 'Pick a saved tool, then draw a new path for it.');
+      };
+      await load();
+      refresh = () => {
+        void load().catch(() => { if (!cancelled) { setTools([]); setPreview(null); setLoading(false); setError('Saved records changed or could not be opened. Nothing was applied. Reload to try again.'); } });
+      };
+      window.addEventListener('focus', refresh); window.addEventListener('kale-data-changed', refresh);
+      if (typeof BroadcastChannel !== 'undefined') { channel = new BroadcastChannel('kale-data-rights'); channel.onmessage = refresh; }
     })().catch(() => {
       if (!cancelled) {
+        setLoading(false);
         setError('Your saved tools could not be opened. Reload to try again.');
         setStatus('Nothing was changed.');
       }
     });
-    return () => { cancelled = true; close?.(); };
+    return () => { cancelled = true; loadGeneration++; repository.current = null; close?.(); channel?.close(); if (refresh) { window.removeEventListener('focus', refresh); window.removeEventListener('kale-data-changed', refresh); } };
   }, []);
 
   const selected = tools.find((tool) => tool.definition.toolId === selectedToolId) ?? null;
   const livePath = draftPath ?? path;
 
   function chooseTool(toolId: string): void {
+    if (applying.current) return;
     setSelectedToolId(toolId);
     setPreview(null);
     setStatus('This tool stays exactly as it was saved. Draw a fresh path to use it.');
@@ -87,6 +123,7 @@ export function SavedDrawTools({ embedded = false }: { embedded?: boolean } = {}
   }
 
   function startPath(event: PointerEvent<SVGSVGElement>): void {
+    if (event.button !== 0 || selected === null || applying.current) return;
     event.currentTarget.setPointerCapture(event.pointerId);
     drawing.current = true;
     setDraftPath([pointFromEvent(event)]);
@@ -106,18 +143,29 @@ export function SavedDrawTools({ embedded = false }: { embedded?: boolean } = {}
   function finishPath(event: PointerEvent<SVGSVGElement>): void {
     if (!drawing.current) return;
     drawing.current = false;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
     const completed = samplePoint(draftPath ?? [], pointFromEvent(event), 0);
     setDraftPath(null);
     setPath(completed);
     setStatus(completed.length >= 2 ? 'New path ready. Apply your saved tool whenever you are ready.' : 'Make a longer path with one smooth drag.');
   }
 
-  function applySavedTool(): void {
-    if (selected === null) return;
+  async function applySavedTool(): Promise<void> {
+    if (selected === null || applying.current || repository.current === null) return;
+    applying.current = true; setBusy(true);
     try {
+      const raw = await repository.current.getGraph(selected.definition.toolId);
+      if (raw === null) throw new Error('This tool was removed in another tab. Choose another saved tool or make a new one.');
+      const graph = assertCapabilityGraph(raw);
+      const version = graph.versions.find((item) => item.versionId === graph.tool.currentVersionId);
+      if (version?.kind !== 'draw_pattern') throw new Error('The active saved version is missing.');
+      const snapshot = graph.snapshots.find((item) => item.snapshotId === version.markSnapshotId);
+      if (snapshot === undefined) throw new Error('The saved mark is missing. Nothing was recreated.');
+      const fresh = { definition: graph.tool, version, snapshot };
+      setTools((items) => items.map((item) => item.definition.toolId === fresh.definition.toolId ? fresh : item));
       const result = runSavedDrawCapability({
-        snapshot: selected.snapshot,
-        version: selected.version,
+        snapshot,
+        version,
         pathId: 'draw_reuse_path_local_001',
         path,
       });
@@ -127,16 +175,15 @@ export function SavedDrawTools({ embedded = false }: { embedded?: boolean } = {}
     } catch (caught) {
       setPreview(null);
       setError(caught instanceof Error ? caught.message : 'This tool could not be applied yet.');
-    }
+    } finally { applying.current = false; setBusy(false); }
   }
 
   if (tools.length === 0 && error === null) {
     return (
       <section className={styles.empty} aria-labelledby="saved-draw-title">
         <p className={styles.eyebrow}>Your saved Draw tools</p>
-        <h2 id="saved-draw-title">Your next tool starts with a mark.</h2>
-        <p>Make one small mark, choose it, try it on a path, and approve it. It will appear here as a tool you can use later without asking Kale again.</p>
-        <Link href="/draw" className={styles.primary}>Make a Draw tool</Link>
+        <h2 id="saved-draw-title">{loading ? 'Opening your saved tools…' : 'Your next tool starts with a mark.'}</h2>
+        {!loading ? <><p>Make one small mark, choose it, try it on a path, and approve it. It will appear here as a tool you can use later without asking Kale again.</p><Link href="/draw" className={styles.primary}>Make a Draw tool</Link></> : null}
         <p role="status">{status}</p>
       </section>
     );
@@ -156,8 +203,8 @@ export function SavedDrawTools({ embedded = false }: { embedded?: boolean } = {}
       <div className={styles.layout}>
         <aside className={styles.toolList} aria-label="Saved Draw tools">
           {tools.map((tool) => (
-            <button key={tool.definition.toolId} type="button" className={styles.toolCard} data-selected={selected?.definition.toolId === tool.definition.toolId} onClick={() => chooseTool(tool.definition.toolId)}>
-              <svg viewBox="0 0 100 70" aria-hidden="true">{tool.snapshot.strokes.map((stroke) => renderStroke({ ...stroke, points: stroke.points.map((point) => ({ x: point.x / 8, y: point.y / 8 })) }))}</svg>
+            <button key={tool.definition.toolId} type="button" className={styles.toolCard} data-selected={selected?.definition.toolId === tool.definition.toolId} aria-pressed={selected?.definition.toolId === tool.definition.toolId} disabled={busy} onClick={() => chooseTool(tool.definition.toolId)}>
+              <SourceMark strokes={tool.snapshot.strokes} label="Exact saved source mark" />
               <span><b>{tool.definition.displayName}</b><small>Version {tool.version.version} · {tool.definition.ownerChildId === DRAW_PRACTICE_OWNER ? 'practice mark' : 'your original mark'}</small></span>
             </button>
           ))}
@@ -166,7 +213,7 @@ export function SavedDrawTools({ embedded = false }: { embedded?: boolean } = {}
         <div className={`${styles.workspace} ${polish.workspace}`}>
           <div className={styles.instruction}>
             <span>1</span><p><b>Draw a new path.</b> The saved mark stays unchanged.</p>
-            <button type="button" onClick={() => { setPath([]); setDraftPath(null); setPreview(null); setStatus('Path cleared. Draw a fresh path.'); }}>Clear path</button>
+            <button type="button" disabled={busy} onClick={() => { setPath([]); setDraftPath(null); setPreview(null); setStatus('Path cleared. Draw a fresh path.'); }}>Clear path</button>
           </div>
           <svg className={`${styles.canvas} ${polish.canvas}`} viewBox={`0 0 ${DRAW_WIDTH} ${DRAW_HEIGHT}`} role="img" aria-label="New path canvas. Drag to draw where the saved mark should repeat." onPointerDown={startPath} onPointerMove={extendPath} onPointerUp={finishPath} onPointerCancel={() => { drawing.current = false; setDraftPath(null); setStatus('Unfinished path left out. Your saved tool is unchanged.'); }}>
             <rect x="0" y="0" width={DRAW_WIDTH} height={DRAW_HEIGHT} rx="26" className={styles.paper} />
@@ -174,10 +221,10 @@ export function SavedDrawTools({ embedded = false }: { embedded?: boolean } = {}
             {preview?.strokes.map((stroke) => renderStroke(stroke, .82))}
             {path.length < 2 && draftPath === null ? <text x="400" y="275" textAnchor="middle" className={styles.canvasHint}>Drag a fresh path here</text> : null}
           </svg>
-          <KeyboardPath onChoose={(points) => { setPath(points); setPreview(null); setStatus('You chose a new path. Apply your saved tool when ready.'); }} />
+          <KeyboardPath disabled={busy} onChoose={(points) => { setPath(points); setPreview(null); setStatus('You chose a new path. Apply your saved tool when ready.'); }} />
           <div className={styles.applyBar}>
             <div><b>{selected?.definition.displayName ?? 'Choose a tool'}</b><span>{selected === null ? 'Choose a saved tool first.' : `Uses your saved Version ${selected.version.version}; no AI call.`}</span></div>
-            <button className={styles.primary} type="button" disabled={selected === null || path.length < 2} onClick={applySavedTool}>Use on this path</button>
+            <button className={styles.primary} type="button" disabled={busy || selected === null || path.length < 2} onClick={() => { void applySavedTool(); }}>{busy ? 'Checking your saved tool…' : 'Repeat on this path'}</button>
           </div>
           {selected !== null ? <div className={styles.provenance}><b>{selected.definition.ownerChildId === DRAW_PRACTICE_OWNER ? 'Practice mark · your approved behavior.' : 'Your original mark remains the source.'}</b><span>Saved version {selected.version.version} · runs locally without AI</span><Link href={`/parent/tools?tool=${encodeURIComponent(selected.definition.toolId)}`}>Show how this became a tool →</Link></div> : null}
         </div>

@@ -12,7 +12,7 @@ Start at **`/`** (or `/draw`): a playable drawing desk opens immediately. Make y
 
 **`/parent/tools`** shows the exact work, typed words, model suggestion or manual choice, child edits/approval, and deterministic replay. Technical receipts stay secondary. Export and explicit source/tool/profile deletion are local. An unsaved review is not shown as a saved tool. No learning gains or emotions are inferred; old missing context is labelled honestly. See [the current shared architecture](docs/ARCHITECTURE.md).
 
-This is the Phase 10 implementation, not a claim of independent UX acceptance or production readiness. Robustness and founder packaging remain Phases 11–12. The writing prototype is preserved at `/writing`; earlier experiments are quieter navigation links, not the main founder proof. New Draw practice uses a separate local identity: **Reset practice…** asks before removing only its drawings/tools. Blank drawings, older practice and other tools are kept; normal refresh does not delete data.
+Phase 11 adds ordered/conflict-checked local saves, reset fencing, verified saved-tool reads, geometry limits, keyboard drawing and clearer action labels. It is not a claim of independent UX acceptance or production readiness. Founder deployment/handoff remains Phase 12; see [the hardening evidence and remaining checks](docs/evidence/KALE_PHASE_11.md). The writing prototype is preserved at `/writing`; earlier experiments are quieter navigation links, not the main founder proof. New Draw practice uses a separate local identity: **Reset practice…** asks before removing only its drawings/tools. Blank drawings, older practice and other tools are kept; normal refresh does not delete data.
 
 The earlier writing-experience research is retained in [the UX rebuild notes](docs/UX_REBUILD.md), not presented as validation of the current Draw flow.
 
@@ -44,6 +44,10 @@ npm run dev
 ```
 
 Open `http://localhost:3000/draw`. Draw/Flight interpretation uses the configured server-side provider when available and also offers explicitly manual review. Saved tools and the new parent evidence view run locally without model calls. Older writing/builder paths retain their scripted prototype interpreters.
+
+Buttons name their outcome: **Repeat this mark** → **Draw its path** → **Suggest a repeat from my words** (or **Choose the repeat myself**) → edit/approve → **Repeat on this path**. Keyboard drawing is under the optional **Draw using a keyboard** disclosure. A save conflict keeps unsaved vectors in the current tab and offers a JSON download; that backup is not an activated capability and automatic import is not provided. Reload can discard unsaved input: finish a save or download first.
+
+For a deliberate provider-failure test, set server-only `KALE_DISABLE_TEACHING=1` before starting the app. Requests receive 503, not a fabricated suggestion. Remove it for normal teaching. Saved reuse does not depend on this route. This is not a cold-start/offline website promise; no service worker is installed.
 
 ```text
 npm run typecheck

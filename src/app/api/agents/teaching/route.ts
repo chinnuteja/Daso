@@ -23,6 +23,31 @@ export type CapabilityTeachingRoutePayload =
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const OPENROUTER_MODEL = 'dots-studio/dots-3-note-preview:free';
 const OPENROUTER_PROVIDER = 'atlas-cloud/fp8';
+export const MAX_TEACHING_BODY_BYTES = 16_384;
+class TeachingBodyLimit extends Error {}
+
+/** Bound bytes before JSON/schema parsing, even when Content-Length is absent or false. */
+async function readTeachingBody(request: Request): Promise<unknown> {
+  const declared = Number(request.headers.get('content-length') ?? 0);
+  if (declared > MAX_TEACHING_BODY_BYTES) throw new TeachingBodyLimit();
+  const reader = request.body?.getReader();
+  if (reader === undefined) throw new SyntaxError('Missing body');
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new SyntaxError('Body timeout')), 15_000); });
+  const decoder = new TextDecoder('utf-8', { fatal: true });
+  let bytes = 0, text = '';
+  try {
+    while (true) {
+      const part = await Promise.race([reader.read(), deadline]);
+      if (part.done) break;
+      bytes += part.value.byteLength;
+      if (bytes > MAX_TEACHING_BODY_BYTES) throw new TeachingBodyLimit();
+      text += decoder.decode(part.value, { stream: true });
+    }
+    return JSON.parse(text + decoder.decode()) as unknown;
+  } catch (error) { void reader.cancel().catch(() => undefined); throw error; }
+  finally { clearTimeout(timer); reader.releaseLock(); }
+}
 const CAPABILITY_SYSTEM_PROMPT = [
   'You interpret one child statement for a bounded learning tool.',
   'Return only a JSON object, with no Markdown, explanation, or reasoning.',
@@ -165,10 +190,14 @@ export function createCapabilityProviderTransport(): CapabilityModelTransport {
 }
 
 export async function POST(request: Request): Promise<Response> {
+  if (process.env.KALE_DISABLE_TEACHING === '1') {
+    return Response.json({ ok: false, reasons: ['provider_unavailable'] }, { status: 503 });
+  }
   let body: unknown;
   try {
-    body = await request.json();
-  } catch {
+    body = await readTeachingBody(request);
+  } catch (error) {
+    if (error instanceof TeachingBodyLimit) return Response.json({ ok: false, reasons: ['request_too_large'] }, { status: 413 });
     return Response.json({ ok: false, reasons: ['invalid_json'] }, { status: 400 });
   }
 

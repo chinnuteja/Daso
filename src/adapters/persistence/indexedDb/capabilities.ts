@@ -7,6 +7,7 @@ import { ExperimentTrial } from '../../../core/schema/experimentTrial';
 import { PersistenceError, STORE, type TeachDasoDatabase } from '../database';
 import { shouldFailAfterCapabilityWrite } from '../atomicCommit';
 import { CapabilityGraph } from '../../../core/capability/graph';
+import { assertCapabilityAppend } from '../capabilityAppendGuard';
 
 export function createIndexedDbCapabilityLifecycleRepository(database: TeachDasoDatabase): CapabilityLifecycleRepository {
   async function commit(input: ApprovalStorageInput) {
@@ -68,8 +69,15 @@ export function createIndexedDbCapabilityLifecycleRepository(database: TeachDaso
     async listDefinitionsByOwner(childId) { return (await database.getAllFromIndex(STORE.capabilityDefinitions, 'ownerChildId', childId)).map((value) => CapabilityDefinition.parse(value)).sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.toolId.localeCompare(b.toolId)); },
     async listEntriesByTool(toolId) { return (await database.getAllFromIndex(STORE.capabilityEntries, 'toolId', toolId)).map((value) => CapabilityLedgerEntry.parse(value)).sort((a, b) => a.sequence - b.sequence); },
     async append(entry) {
-      const parsed = CapabilityLedgerEntry.parse(entry); const tx = database.transaction(STORE.capabilityEntries, 'readwrite');
-      try { const prior = await tx.store.index('toolId').getAll(parsed.toolId); if (parsed.sequence !== prior.length + 1) throw new PersistenceError('capability events must have unique, contiguous sequences'); await tx.store.add(parsed); await tx.done; }
+      const parsed = CapabilityLedgerEntry.parse(entry); const tx = database.transaction([STORE.capabilityEntries, STORE.drawDocuments], 'readwrite');
+      try {
+        const store = tx.objectStore(STORE.capabilityEntries);
+        const prior = (await store.index('toolId').getAll(parsed.toolId)).map((item) => CapabilityLedgerEntry.parse(item));
+        const context = parsed.type === 'child_intent' ? parsed.reviewedContext : undefined;
+        const raw = context?.kind === 'draw_pattern' ? await tx.objectStore(STORE.drawDocuments).get(context.sourceDocumentId) : undefined;
+        assertCapabilityAppend(parsed, prior, raw === undefined ? null : DrawDocument.parse(raw));
+        await store.add(parsed); await tx.done;
+      }
       catch (error) { try { tx.abort(); } catch { /* Already aborted. */ } await tx.done.catch(() => undefined); throw error; }
     },
     async getVersion(versionId) { const raw = await database.get(STORE.capabilityVersions, versionId); return raw === undefined ? null : SavedCapabilityVersion.parse(raw); },

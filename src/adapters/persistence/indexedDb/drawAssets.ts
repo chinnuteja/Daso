@@ -3,9 +3,11 @@ import { DrawDocument, MarkSnapshot } from '../../../core/draw/schema';
 import type { ChildId, DrawDocumentId, MarkSnapshotId, ToolId } from '../../../core/schema/primitives';
 import { PersistenceError, STORE, type TeachDasoDatabase } from '../database';
 import { getParsed } from './access';
+import { assertDrawWrite, drawOwnerGenerationKey, parseDrawGenerationRecord } from '../drawWriteGuard';
 
 export function createIndexedDbDrawAssetRepository(database: TeachDasoDatabase): DrawAssetRepository {
   return {
+    async getOwnerGeneration(childId) { return parseDrawGenerationRecord((await database.get(STORE.meta, drawOwnerGenerationKey(childId)))); },
     async deleteDocument(documentId) { await database.delete(STORE.drawDocuments, documentId); },
     async getDocument(documentId: DrawDocumentId): Promise<DrawDocument | null> {
       return getParsed(database, STORE.drawDocuments, documentId, DrawDocument);
@@ -20,8 +22,15 @@ export function createIndexedDbDrawAssetRepository(database: TeachDasoDatabase):
         );
     },
 
-    async saveDocument(document: DrawDocument): Promise<void> {
-      await database.put(STORE.drawDocuments, DrawDocument.parse(document));
+    async saveDocument(document: DrawDocument, expected): Promise<void> {
+      const parsed = DrawDocument.parse(document);
+      const tx = database.transaction([STORE.drawDocuments, STORE.meta], 'readwrite');
+      try {
+        const raw = await tx.objectStore(STORE.drawDocuments).get(parsed.documentId);
+        const generation = parseDrawGenerationRecord((await tx.objectStore(STORE.meta).get(drawOwnerGenerationKey(parsed.ownerChildId))));
+        assertDrawWrite(parsed, raw === undefined ? null : DrawDocument.parse(raw), generation, expected);
+        await tx.objectStore(STORE.drawDocuments).put(parsed); await tx.done;
+      } catch (error) { try { tx.abort(); } catch { /* Already finished. */ } await tx.done.catch(() => undefined); throw error; }
     },
 
     async getMarkSnapshot(snapshotId: MarkSnapshotId): Promise<MarkSnapshot | null> {

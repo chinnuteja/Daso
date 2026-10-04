@@ -4,8 +4,12 @@ import Link from 'next/link';
 import { pointerPoint } from './pointerPoint';
 import { KeyboardPath } from './KeyboardPath';
 import { DRAW_PRACTICE_OWNER } from './practiceSession';
+import { DrawWriteQueue } from './DrawWriteQueue';
+import { SourceMark } from './SourceMark';
+import { KeyboardInk } from './KeyboardInk';
+import { assertCanAddLine, exceedsDrawingBudget } from './drawingBudget';
 
-import { type CSSProperties, type PointerEvent, useEffect, useRef, useState } from 'react';
+import { type CSSProperties, type PointerEvent, useEffect, useMemo, useRef, useState } from 'react';
 
 import { requestDrawInterpretation } from '../../adapters/agents/drawTeaching';
 import { openBrowserDrawAssets } from '../../adapters/persistence';
@@ -36,7 +40,6 @@ import {
   samplePoint,
   setGuidePath,
   setMarkSelection,
-  withDrawSourceDigest,
 } from '../../core/draw';
 import type { DrawDocument, DrawPoint, DrawPreviewControls, DrawStroke } from '../../core/draw';
 import type { CapabilityLifecycleRepository, DrawAssetRepository } from '../../core/ports/repositories';
@@ -111,6 +114,13 @@ export function DrawWorkbench({ onSaved }: { onSaved?: () => void } = {}) {
   const [guidance, setGuidance] = useState(true);
   const [durable, setDurable] = useState(true);
   const [reviewBusy, setReviewBusy] = useState(false);
+  const [writing, setWriting] = useState(false);
+  const [saveFailed, setSaveFailed] = useState(false);
+  const [actionBusy, setActionBusy] = useState(false);
+  const actionBusyRef = useRef(false);
+  const writeQueue = useRef<DrawWriteQueue | null>(null);
+  const pendingWrites = useRef(0);
+  const reviewHeading = useRef<HTMLDivElement>(null);
   const wordsInput = useRef<HTMLTextAreaElement>(null);
   const reviewBusyRef = useRef(false);
   const interpretationGeneration = useRef(0);
@@ -127,12 +137,18 @@ export function DrawWorkbench({ onSaved }: { onSaved?: () => void } = {}) {
     let close: (() => void) | null = null;
     void (async () => {
       const opened = await openBrowserDrawAssets();
+      if (cancelled) { opened.close(); return; }
       close = opened.close;
       repository.current = opened.drawAssets;
       capabilityRepository.current = opened.capabilities;
       const documents = [...await repository.current.listDocumentsByOwner(DRAW_OWNER_ID), ...await repository.current.listDocumentsByOwner(DRAW_PRACTICE_OWNER)].sort((a, b) => a.updatedAt.localeCompare(b.updatedAt));
       if (cancelled) return;
       const latest = documents.at(-1) ?? null;
+      const queue = new DrawWriteQueue(opened.drawAssets);
+      await queue.track(latest?.ownerChildId === DRAW_OWNER_ID ? latest : null, DRAW_OWNER_ID);
+      await queue.track(latest?.ownerChildId === DRAW_PRACTICE_OWNER ? latest : null, DRAW_PRACTICE_OWNER);
+      if (cancelled) return;
+      writeQueue.current = queue;
       if (latest !== null) {
         documentRef.current = latest;
         setDocument(latest);
@@ -156,18 +172,19 @@ export function DrawWorkbench({ onSaved }: { onSaved?: () => void } = {}) {
   }, []);
 
   async function persist(next: DrawDocument, savedMessage: string): Promise<void> {
+    pendingWrites.current += 1; setWriting(true);
     try {
-      const withDigest = await withDrawSourceDigest(next);
-      await repository.current?.saveDocument(withDigest);
-      if (documentRef.current?.revision === next.revision) {
+      if (writeQueue.current === null) throw new Error('The drawing desk is not ready.');
+      const withDigest = await writeQueue.current.write(next);
+      if (documentRef.current?.documentId === next.documentId && documentRef.current?.revision === next.revision) {
         documentRef.current = withDigest;
         setDocument(withDigest);
       }
-      setStatus(savedMessage);
-      setError(null);
-    } catch {
-      setError('We could not save that stroke yet. Keep drawing is safe; try again in a moment.');
-    }
+      if (documentRef.current?.documentId === next.documentId) { setStatus(savedMessage); setError(null); setSaveFailed(false); }
+    } catch (caught) {
+      setSaveFailed(true); setStatus('Changes in this tab are not saved.');
+      setError(caught instanceof Error ? caught.message : 'Local save failed. Keep this tab open and download your drawing before reloading.');
+    } finally { pendingWrites.current -= 1; setWriting(pendingWrites.current > 0); }
   }
 
   function setActive(next: DrawDocument): void {
@@ -209,6 +226,11 @@ export function DrawWorkbench({ onSaved }: { onSaved?: () => void } = {}) {
   }
 
   async function start(kind: 'practice' | 'blank'): Promise<void> {
+    if (saveFailed) { setError('Download your unsaved drawing, then reload before opening a new drawing.'); return; }
+    if (actionBusyRef.current || reviewBusyRef.current || pendingWrites.current > 0) return;
+    actionBusyRef.current = true; setActionBusy(true);
+    try {
+    await writeQueue.current?.track(null, kind === 'practice' ? DRAW_PRACTICE_OWNER : DRAW_OWNER_ID);
     const suffix = Date.now().toString(36);
     const created = createDrawDocument({
       documentId: kind === 'practice' ? `${PRACTICE_ID}_${suffix}` : `${BLANK_ID}_${suffix}`,
@@ -226,10 +248,12 @@ export function DrawWorkbench({ onSaved }: { onSaved?: () => void } = {}) {
     setChildWords(''); setPreviewControls(DEFAULT_DRAW_PREVIEW_CONTROLS);
     setStatus(kind === 'practice' ? 'Practice drawing loaded. Every line is still yours to change.' : 'A blank page is ready for your mark.');
     await persist(created, kind === 'practice' ? 'Practice drawing saved on this device.' : 'Blank drawing saved on this device.');
+    } catch { setError('A new drawing could not open. Your current drawing is kept.'); }
+    finally { actionBusyRef.current = false; setActionBusy(false); }
   }
 
   function startStroke(event: PointerEvent<SVGSVGElement>): void {
-    if (document === null || !ready || saving || reviewBusy || authority?.state === 'saved' || event.button !== 0) return;
+    if (document === null || exceedsDrawingBudget(document) || !ready || actionBusyRef.current || reviewBusyRef.current || pendingWrites.current > 0 || authority?.state === 'reviewing' || authority?.state === 'saved' || event.button !== 0) return;
     if (toolMode === 'select') {
       const stroke = hitTestStroke(document.strokes, pointFromEvent(event), 18);
       if (stroke === null) {
@@ -299,7 +323,9 @@ export function DrawWorkbench({ onSaved }: { onSaved?: () => void } = {}) {
     if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
     draftRef.current = null;
     setDraftStroke(null);
-    const next = appendStroke(documentRef.current, active, timestamp());
+    let next: DrawDocument;
+    try { assertCanAddLine(documentRef.current, active); next = appendStroke(documentRef.current, active, timestamp()); }
+    catch (caught) { setError(caught instanceof Error ? caught.message : 'This line could not be added. Your earlier lines are kept.'); return; }
     setActive(next);
     setRedo([]);
     setPreviewVisible(false);
@@ -318,7 +344,7 @@ export function DrawWorkbench({ onSaved }: { onSaved?: () => void } = {}) {
   }
 
   function undo(): void {
-    if (documentRef.current === null) return;
+    if (documentRef.current === null || actionBusyRef.current || reviewBusyRef.current || pendingWrites.current > 0 || authority?.state === 'reviewing' || authority?.state === 'saved') return;
     const last = documentRef.current.strokes.at(-1);
     const next = removeLastStroke(documentRef.current, timestamp());
     if (next === null || last === undefined) return;
@@ -330,7 +356,7 @@ export function DrawWorkbench({ onSaved }: { onSaved?: () => void } = {}) {
   }
 
   function redoStroke(): void {
-    if (documentRef.current === null) return;
+    if (documentRef.current === null || actionBusyRef.current || reviewBusyRef.current || pendingWrites.current > 0 || authority?.state === 'reviewing' || authority?.state === 'saved') return;
     const stroke = redo.at(-1);
     if (stroke === undefined) return;
     const next = restoreStroke(documentRef.current, stroke, timestamp());
@@ -342,7 +368,7 @@ export function DrawWorkbench({ onSaved }: { onSaved?: () => void } = {}) {
   }
 
   function clear(): void {
-    if (documentRef.current === null) return;
+    if (documentRef.current === null || actionBusyRef.current || reviewBusyRef.current || pendingWrites.current > 0 || authority?.state === 'reviewing' || authority?.state === 'saved') return;
     const next = clearStrokes(documentRef.current, timestamp());
     if (next === null) return;
     setActive(next);
@@ -353,7 +379,7 @@ export function DrawWorkbench({ onSaved }: { onSaved?: () => void } = {}) {
   }
 
   function changeMark(): void {
-    if (documentRef.current === null) return;
+    if (documentRef.current === null || actionBusyRef.current || reviewBusyRef.current || pendingWrites.current > 0 || authority?.state === 'reviewing' || authority?.state === 'saved') return;
     const next = clearMarkSelection(documentRef.current, timestamp());
     setActive(next);
     setToolMode('select');
@@ -364,14 +390,14 @@ export function DrawWorkbench({ onSaved }: { onSaved?: () => void } = {}) {
   }
 
   function selectMark(strokeId: string): void {
-    if (documentRef.current === null || saving || reviewBusy) return;
+    if (documentRef.current === null || actionBusyRef.current || reviewBusyRef.current || pendingWrites.current > 0) return;
     const next = setMarkSelection(documentRef.current, [strokeId], timestamp());
     setActive(next); setToolMode('select'); setPreviewVisible(false); setAuthority(null); clearInterpretation();
-    void persist(next, 'Mark highlighted. Choose “Use this mark” if it is the one you meant.');
+    void persist(next, 'Mark highlighted. Choose “Repeat this mark” if it is the one you meant.');
   }
 
   function choosePath(points: readonly DrawPoint[]): void {
-    if (documentRef.current === null || !isMarkSelectionCurrent(documentRef.current) || saving) return;
+    if (documentRef.current === null || !isMarkSelectionCurrent(documentRef.current) || actionBusyRef.current || pendingWrites.current > 0) return;
     const next = setGuidePath(documentRef.current, { pathId: 'draw_path_workbench_001', points: [...points] }, timestamp());
     setActive(next); setAuthority(null); clearInterpretation(); setPreviewVisible(true);
     void persist(next, 'You chose a path. The preview is not a saved tool yet.');
@@ -379,7 +405,7 @@ export function DrawWorkbench({ onSaved }: { onSaved?: () => void } = {}) {
   }
 
   async function askKaleToReadWords(): Promise<void> {
-    if (document === null || !isMarkSelectionCurrent(document) || document.guidePath === undefined) return;
+    if (document === null || actionBusyRef.current || reviewBusyRef.current || pendingWrites.current > 0 || interpreting || !isMarkSelectionCurrent(document) || document.guidePath === undefined) return;
     const words = childWords.trim();
     if (words.length === 0) {
       setInterpretationNote('Write what you want your mark to do first. Kale only works from your words.');
@@ -427,7 +453,7 @@ export function DrawWorkbench({ onSaved }: { onSaved?: () => void } = {}) {
   }
 
   async function beginReview(seed: ReviewSeed): Promise<void> {
-    if (reviewBusyRef.current) return;
+    if (reviewBusyRef.current || actionBusyRef.current || pendingWrites.current > 0) return;
     if (document === null || !isMarkSelectionCurrent(document) || document.guidePath === undefined || capabilityRepository.current === null) return;
     if (seed.sourceDigest !== undefined && (seed.sourceDigest !== document.contentDigest || seed.guidePathRevision !== document.guidePath.revision)) {
       clearInterpretation();
@@ -444,17 +470,20 @@ export function DrawWorkbench({ onSaved }: { onSaved?: () => void } = {}) {
     const proposal = seed.proposal;
     reviewBusyRef.current = true; setReviewBusy(true);
     try {
+      await writeQueue.current?.flush();
       const events = await beginCapabilityReview(capabilityRepository.current, { context: reviewedContext, ownerChildId: document.ownerChildId, sourcePath: document.guidePath, childWords: seed.childWords, proposal, origin: seed.origin, intentEventId, candidateEventId, occurredAt });
       setAuthority({ toolId, snapshotId, candidateEventId, events, proposal, childWords: seed.childWords, origin: seed.origin, state: 'reviewing', reviewedContext });
       applyProposalToPreview(proposal);
       clearInterpretation();
       setStatus('Here is a starting idea. Change it, reject it, or save it only if it feels like yours.');
+      requestAnimationFrame(() => reviewHeading.current?.focus());
     } catch { setError('We could not prepare that review yet. Your drawing and preview are still safe.'); }
     finally { reviewBusyRef.current = false; setReviewBusy(false); }
   }
 
   async function editProposal(patch: { readonly spacing?: 'close' | 'wide'; readonly sizeProfile?: 'constant' | 'smaller_toward_end' }): Promise<void> {
-    if (authority === null || authority.state !== 'reviewing' || capabilityRepository.current === null) return;
+    if (actionBusyRef.current || authority === null || authority.state !== 'reviewing' || capabilityRepository.current === null) return;
+    actionBusyRef.current = true; setActionBusy(true);
     const proposal = { ...authority.proposal, ...patch };
     const edit: CapabilityLedgerEntry = { type: 'child_edit', eventId: `event_${Date.now()}${(++strokeCounter.current).toString().padStart(2, '0')}`, toolId: authority.toolId, sequence: authority.events.length + 1, occurredAt: timestamp(), actor: 'child', candidateEventId: authority.candidateEventId, proposal };
     try {
@@ -463,23 +492,28 @@ export function DrawWorkbench({ onSaved }: { onSaved?: () => void } = {}) {
       applyProposalToPreview(proposal);
       setStatus('Your change is recorded separately. The starting idea did not overwrite your choice.');
     } catch { setError('We could not record that change. Try it again; nothing has been saved.'); }
+    finally { actionBusyRef.current = false; setActionBusy(false); }
   }
 
   async function rejectProposal(): Promise<void> {
-    if (authority === null || authority.state !== 'reviewing' || capabilityRepository.current === null) return;
+    if (actionBusyRef.current || authority === null || authority.state !== 'reviewing' || capabilityRepository.current === null) return;
+    actionBusyRef.current = true; setActionBusy(true);
     const rejection: CapabilityLedgerEntry = { type: 'child_rejection', eventId: `event_${Date.now()}${(++strokeCounter.current).toString().padStart(2, '0')}`, toolId: authority.toolId, sequence: authority.events.length + 1, occurredAt: timestamp(), actor: 'child', candidateEventId: authority.candidateEventId, reason: 'I do not want to save this starting idea.' };
     try {
       await capabilityRepository.current.append(rejection);
       setAuthority({ ...authority, events: [...authority.events, rejection], state: 'rejected' });
       setStatus('Rejected. Nothing became a tool. You can keep drawing or start a new review.');
     } catch { setError('We could not record the rejection. Nothing has been saved.'); }
+    finally { actionBusyRef.current = false; setActionBusy(false); }
   }
 
   async function approveProposal(): Promise<void> {
-    if (authority === null || authority.state !== 'reviewing' || document === null || capabilityRepository.current === null) return;
+    if (actionBusyRef.current || authority === null || authority.state !== 'reviewing' || document === null || capabilityRepository.current === null || !durable) return;
+    actionBusyRef.current = true; setActionBusy(true);
     setSaving(true);
     const approval: CapabilityLedgerEntry = { type: 'child_approval', eventId: `event_${Date.now()}${(++strokeCounter.current).toString().padStart(2, '0')}`, toolId: authority.toolId, sequence: authority.events.length + 1, occurredAt: timestamp(), actor: 'child', candidateEventId: authority.candidateEventId, approvedProposal: authority.proposal, idempotencyKey: `save_${authority.toolId}` };
     try {
+      await writeQueue.current?.flush();
       const existing = await capabilityRepository.current.listDrawVersionsByTool(authority.toolId);
       const bundle = await buildDrawApprovalBundle({ drawing: document, toolId: authority.toolId, ownerChildId: document.ownerChildId, displayName: toolName, existingVersionCount: existing.length, snapshotId: authority.snapshotId, versionId: `tool_version_${Date.now()}`, approvalEvent: approval, entries: authority.events, createdAt: timestamp(), reviewedContext: authority.reviewedContext });
       await capabilityRepository.current.commitApprovedCapability({ ...bundle, approval, reviewedContext: authority.reviewedContext });
@@ -487,8 +521,33 @@ export function DrawWorkbench({ onSaved }: { onSaved?: () => void } = {}) {
       setStatus(`Saved ${toolName}. It is a local tool now, not a preview.`);
       requestAnimationFrame(() => savedRef.current?.focus());
     } catch (caught) { setError(caught instanceof Error ? caught.message : 'We could not save that tool. Your drawing is still safe.'); }
-    finally { setSaving(false); }
+    finally { setSaving(false); actionBusyRef.current = false; setActionBusy(false); }
   }
+
+  function downloadDrawing(): void {
+    if (documentRef.current === null) return;
+    const url = URL.createObjectURL(new Blob([JSON.stringify(documentRef.current, null, 2)], { type: 'application/json' }));
+    const link = window.document.createElement('a'); link.href = url; link.download = 'kale-unsaved-drawing.json'; link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  function keyboardLine(points: readonly DrawPoint[]): void {
+    if (documentRef.current === null || actionBusyRef.current || reviewBusyRef.current || pendingWrites.current > 0 || authority?.state === 'reviewing' || authority?.state === 'saved') return;
+    try {
+      assertCanAddLine(documentRef.current, { strokeId: 'stroke_budget_check', color, width, points: [...points] });
+      const next = appendStroke(documentRef.current, { strokeId: `stroke_keyboard_${Date.now().toString(36)}_${++strokeCounter.current}`, color, width, points: [...points] }, timestamp());
+      setActive(next); setRedo([]); setAuthority(null); clearInterpretation(); setPreviewVisible(false);
+      void persist(next, 'Your keyboard-drawn line is saved locally.');
+    } catch (caught) { setError(caught instanceof Error ? caught.message : 'This drawing has reached its line limit. Your earlier lines are kept.'); }
+  }
+
+  const previewState = useMemo(() => {
+    if (!previewVisible || document === null || exceedsDrawingBudget(document) || !isMarkSelectionCurrent(document) || document.guidePath === undefined) return { preview: null, error: null };
+    try { return { preview: buildDeterministicDrawPreview(document, previewControls), error: null }; }
+    catch (caught) { return { preview: null, error: caught instanceof Error ? caught.message : 'That preview could not be made yet.' }; }
+  }, [previewVisible, document, previewControls]);
+  const overBudget = document !== null && exceedsDrawingBudget(document);
+  const sourceLocked = overBudget || actionBusy || reviewBusy || writing || authority?.state === 'reviewing' || authority?.state === 'saved';
 
   if (mode === 'choose') {
     return (
@@ -515,57 +574,50 @@ export function DrawWorkbench({ onSaved }: { onSaved?: () => void } = {}) {
     );
   }
 
-  const strokes = document === null ? [] : [...document.strokes, ...(draftStroke === null ? [] : [draftStroke])];
+  const strokes = document === null || overBudget ? [] : [...document.strokes, ...(draftStroke === null ? [] : [draftStroke])];
   const selectionCurrent = document !== null && isMarkSelectionCurrent(document);
   const selectedIds = selectionCurrent ? new Set(document.selection?.strokeIds ?? []) : new Set<string>();
   const pathPoints = guideDraft ?? document?.guidePath?.points ?? [];
   const canPreview = selectionCurrent && document?.guidePath !== undefined;
   const isPractice = document?.ownerChildId === DRAW_PRACTICE_OWNER || document?.documentId.startsWith(PRACTICE_ID);
   const startingIdea = authority?.events.find((entry) => entry.type === 'capability_candidate');
-  let previewError: string | null = null;
-  let preview = null;
-  if (previewVisible && document !== null && canPreview) {
-    try {
-      preview = buildDeterministicDrawPreview(document, previewControls);
-    } catch (caught) {
-      previewError = caught instanceof Error ? caught.message : 'That preview could not be made yet.';
-    }
-  }
+  const { preview, error: previewError } = previewState;
   return (
     <section className={styles.workbench} aria-labelledby="draw-workbench-title">
       <header className={styles.workbenchHeader}>
         <div>
           <p className={styles.eyebrow}>{isPractice ? 'Labelled practice drawing · you choose the behavior' : 'Your drawing · your choices'}</p>
-          <h2 id="draw-workbench-title">One little mark. Your own tool.</h2>
-          <p className={styles.intro}>Choose a mark. Show where it goes. Keep the behavior you decide on.</p>
+          <h2 id="draw-workbench-title">Make your mark do more.</h2>
+          <p className={styles.intro}>Draw it once. Teach it a repeat. Use it whenever you want.</p>
         </div>
-        <div className={styles.startActions}><button className={styles.swap} type="button" disabled={!ready || saving} onClick={() => { void start('practice'); }}>Try a 90-second example</button><button className={styles.swap} type="button" disabled={!ready || saving} onClick={() => { void start('blank'); }}>New blank drawing</button></div>
+        <div className={styles.startActions}><button className={styles.swap} type="button" disabled={!ready || saveFailed || actionBusy || writing || reviewBusy || saving} onClick={() => { void start('practice'); }}>Try a 90-second example</button><button className={styles.swap} type="button" disabled={!ready || saveFailed || actionBusy || writing || reviewBusy || saving} onClick={() => { void start('blank'); }}>New blank drawing</button></div>
       </header>
 
       {!durable ? <p className={styles.error} role="status">Local storage is unavailable. You can try drawing, but this session will not survive refresh and cannot be claimed as a durable saved tool.</p> : null}
+      {overBudget ? <div className={styles.error} role="alert"><p>This saved drawing is too detailed to display safely here. It has not been changed or simplified.</p><button type="button" onClick={downloadDrawing}>Download my complete drawing</button></div> : null}
       <div className={styles.thread} role="group" aria-label="Your tool’s authorship"><span data-done={(document?.strokes.length ?? 0) > 0}>{document?.ownerChildId === DRAW_PRACTICE_OWNER ? 'Practice mark' : 'Your marks'}</span><span data-done={selectionCurrent}>Your choice</span><span data-done={canPreview}>Local preview</span><span data-done={authority !== null}>{authority?.origin === 'model' ? 'Kale suggested' : 'Your settings'}</span><span data-done={authority?.state === 'saved'}>{authority?.state === 'saved' ? 'Saved tool ✓' : 'Not saved yet'}</span></div>
 
       <div className={styles.stage}>
         <aside className={styles.dock} aria-label="Drawing tools">
-          {guidance ? <div className={styles.guide}><b>{authority?.state === 'saved' ? 'Now use it somewhere new.' : canPreview ? 'See the effect. Decide what it should keep.' : selectionCurrent ? 'Choose “Use this mark”, then show its path.' : toolMode === 'select' ? 'Choose one line, not the whole drawing.' : 'Draw a small mark, then pick it.'}</b><p>{authority?.state === 'saved' ? 'The behavior is locked in a saved version. A new path is all you need to use it again.' : isPractice ? 'This dragon is supplied practice art, not a drawing you made. Tap an orange diamond or choose a line below.' : 'Your original drawing never gets replaced. Kale can suggest a behavior, not redraw your work.'}</p><button type="button" onClick={() => setGuidance(false)}>Hide tips</button></div> : <button className={styles.tipsButton} type="button" onClick={() => setGuidance(true)}>Show tips</button>}
+          {guidance ? <div className={styles.guide}><b>{authority?.state === 'saved' ? 'Now use it somewhere new.' : canPreview ? 'See the effect. Decide what it should keep.' : toolMode === 'path' && selectionCurrent ? 'Drag where it should repeat, or choose both ends below.' : selectionCurrent ? 'Choose “Repeat this mark”, then show its path.' : toolMode === 'select' ? 'Choose one line, not the whole drawing.' : 'Draw a small mark, then pick it.'}</b><p>{authority?.state === 'saved' ? 'The behavior is locked in a saved version. A new path is all you need to use it again.' : isPractice ? 'This dragon is supplied practice art, not a drawing you made. Tap an orange diamond or choose a line below.' : 'Your original drawing never gets replaced. Kale can suggest a behavior, not redraw your work.'}</p><button type="button" onClick={() => setGuidance(false)}>Hide tips</button></div> : <button className={styles.tipsButton} type="button" onClick={() => setGuidance(true)}>Show tips</button>}
           {authority?.state === 'saved' ? <div className={styles.savedCard} ref={savedRef} tabIndex={-1}><b>Saved ✓ {toolName}</b><p>Your exact mark and approved behavior are kept on this device. Try a different path now—no AI needed.</p>{onSaved ? <button className={styles.previewButton} type="button" onClick={onSaved}>Use my saved tool on a new path</button> : <Link href="/draw/library">Use on a new path →</Link>}</div> : null}
           {authority?.state !== 'saved' ? <>
           <div className={styles.steps} role="group" aria-label="Make this tool steps">
-            <button type="button" data-active={toolMode === 'draw'} disabled={saving || reviewBusy} onClick={() => setToolMode('draw')}>
+            <button type="button" data-active={toolMode === 'draw'} disabled={sourceLocked} onClick={() => setToolMode('draw')}>
               <span>1</span> Draw
             </button>
-            <button type="button" data-active={toolMode === 'select'} disabled={saving || reviewBusy || (document?.strokes.length ?? 0) === 0} onClick={() => { setToolMode('select'); setStatus('Tap a source mark or choose one below.'); }}>
+            <button type="button" data-active={toolMode === 'select'} disabled={sourceLocked || (document?.strokes.length ?? 0) === 0} onClick={() => { setToolMode('select'); setStatus('Tap a source mark or choose one below.'); }}>
               <span>2</span> Pick a mark
             </button>
-            <button type="button" data-active={toolMode === 'path'} disabled={!selectionCurrent || saving || reviewBusy} onClick={() => setToolMode('path')}>
-              <span>3</span> Show its path
+            <button type="button" data-active={toolMode === 'path'} disabled={!selectionCurrent || sourceLocked} onClick={() => setToolMode('path')}>
+              <span>3</span> Draw its path
             </button>
           </div>
           <p className={styles.modePrompt}>
             {toolMode === 'draw' ? 'Add or change your source drawing.' : toolMode === 'select' ? 'Tap exactly the mark you want to keep.' : 'Drag from where the pattern starts to where it ends.'}
           </p>
           </> : null}
-          {toolMode === 'draw' && authority?.state !== 'saved' ? <div className={styles.inkControls}>
+          {toolMode === 'draw' && authority?.state !== 'saved' ? <fieldset className={styles.inkControls} disabled={sourceLocked}>
           <div>
             <p className={styles.toolLabel}>Ink</p>
             <div className={styles.palette}>
@@ -592,14 +644,16 @@ export function DrawWorkbench({ onSaved }: { onSaved?: () => void } = {}) {
             <button type="button" onClick={redoStroke} disabled={redo.length === 0}>Redo</button>
             <button type="button" onClick={clear} disabled={(document?.strokes.length ?? 0) === 0}>Clear</button>
           </div>
-          </div> : null}
+          </fieldset> : null}
+          {toolMode === 'draw' && authority?.state !== 'saved' ? <KeyboardInk disabled={sourceLocked} onDraw={keyboardLine} /> : null}
           {!canPreview || toolMode === 'select' ? <div className={styles.selectionCard} data-stale={document?.selection !== undefined && !selectionCurrent}>
             <b>{selectionCurrent ? 'Your selected mark' : document?.selection !== undefined ? 'Your mark changed' : 'No mark selected yet'}</b>
             <span>{authority?.state === 'saved' ? 'Your saved tool keeps its own exact mark copy. The original drawing is unchanged.' : selectionCurrent ? 'Kept in your drawing. Nothing has been copied or saved as a tool.' : document?.selection !== undefined ? 'You changed the source drawing. Pick the mark again before using it.' : 'Pick a source mark when you are ready.'}</span>
-            <button type="button" onClick={changeMark}>{selectionCurrent ? 'Change mark' : 'Pick a mark'}</button>
-            {toolMode === 'select' ? <><label>Choose a source mark<select aria-label="Choose a source mark" value={document?.selection?.strokeIds[0] ?? ''} disabled={saving || reviewBusy} onChange={(event) => { if (event.target.value) selectMark(event.target.value); }}><option value="">Choose a line…</option>{document?.strokes.map((stroke, index) => <option key={stroke.strokeId} value={stroke.strokeId}>{stroke.strokeId.startsWith('stroke_scale') ? `Practice orange diamond ${stroke.strokeId.endsWith('001') ? '1' : stroke.strokeId.endsWith('002') ? '2' : '3'}` : `Line ${index + 1}`}</option>)}</select></label>{selectionCurrent ? <button className={styles.previewButton} type="button" onClick={() => { setToolMode('path'); setStatus('Mark confirmed. Drag a path from the dot toward the arrow.'); }}>Use this mark</button> : null}</> : null}
+            <button type="button" disabled={sourceLocked} onClick={changeMark}>{selectionCurrent ? 'Change mark' : 'Pick a mark'}</button>
+            {toolMode === 'select' ? <><label>Choose a source mark<select aria-label="Choose a source mark" value={document?.selection?.strokeIds[0] ?? ''} disabled={sourceLocked} onChange={(event) => { if (event.target.value) selectMark(event.target.value); }}><option value="">Choose a line…</option>{document?.strokes.map((stroke, index) => <option key={stroke.strokeId} value={stroke.strokeId}>{stroke.strokeId.startsWith('stroke_scale') ? `Practice orange diamond ${stroke.strokeId.endsWith('001') ? '1' : stroke.strokeId.endsWith('002') ? '2' : '3'}` : `Line ${index + 1}`}</option>)}</select></label>{selectionCurrent ? <button className={styles.previewButton} type="button" disabled={sourceLocked} onClick={() => { setToolMode('path'); setStatus('Mark confirmed. Drag a path from the dot toward the arrow.'); }}>Repeat this mark</button> : null}</> : null}
           </div> : null}
-          {toolMode === 'path' && selectionCurrent && !canPreview ? <KeyboardPath onChoose={choosePath} disabled={saving} /> : null}
+          {selectionCurrent ? <div className={styles.selectedMark}><b>This exact mark will repeat</b><SourceMark strokes={document?.strokes.filter((stroke) => selectedIds.has(stroke.strokeId)) ?? []} label="Your selected source mark, unchanged" /></div> : null}
+          {toolMode === 'path' && selectionCurrent && !canPreview ? <KeyboardPath onChoose={choosePath} disabled={sourceLocked} /> : null}
           {canPreview && authority?.state !== 'saved' ? <div className={styles.previewCard} data-ready={canPreview}>
             <div>
               <b>Your live preview · not saved yet</b>
@@ -634,7 +688,7 @@ export function DrawWorkbench({ onSaved }: { onSaved?: () => void } = {}) {
             </details> : null}
             {previewError !== null ? <p className={styles.previewError} role="alert">{previewError}</p> : null}
           </div> : null}
-          {previewVisible && canPreview ? <div className={styles.authorityCard}>
+          {previewVisible && canPreview ? <div className={styles.authorityCard} ref={reviewHeading} tabIndex={-1}>
             <div><b>{authority?.state === 'saved' ? 'How this became yours' : 'Make this a tool'}</b>{authority?.state !== 'saved' ? <span>Describe what you want. Kale can suggest one small behavior, but you decide whether it belongs in your tool.</span> : null}</div>
             {authority === null ? <div className={styles.intentStart}>
               <label>
@@ -648,19 +702,19 @@ export function DrawWorkbench({ onSaved }: { onSaved?: () => void } = {}) {
                   onChange={(event) => { setChildWords(event.target.value); clearInterpretation(); }}
                 />
               </label>
-              <button className={styles.previewButton} type="button" disabled={childWords.trim().length === 0 || interpreting} onClick={() => { void askKaleToReadWords(); }}>
-                {interpreting ? 'Kale is reading…' : 'Let Kale read this'}
+              <button className={styles.previewButton} type="button" disabled={childWords.trim().length === 0 || interpreting || writing || reviewBusy || actionBusy} onClick={() => { void askKaleToReadWords(); }}>
+                {interpreting ? 'Kale is reading…' : 'Suggest a repeat from my words'}
               </button>
               {interpretationNote !== null ? <p className={styles.interpretationNote} role="status">Kale’s response: {interpretationNote}</p> : null}
               {groundedIdea !== null ? <div className={styles.groundingCard}>
                 <p><b>You said</b> “{groundedIdea.request.childWords}”</p>
                 <p><b>Kale thinks</b> Repeat your selected mark along your path with {groundedIdea.proposal.spacing} spacing and {groundedIdea.proposal.sizeProfile.replaceAll('_', ' ')}.</p>
                 <ul>{groundedIdea.reasons.map((reason) => <li key={reason}>{reason}</li>)}</ul>
-                <button className={styles.previewButton} type="button" disabled={reviewBusy} onClick={() => { void beginReview({ proposal: groundedIdea.proposal, childWords: groundedIdea.request.childWords, origin: 'model', sourceDigest: groundedIdea.sourceDigest, guidePathRevision: groundedIdea.guidePathRevision }); }}>Review Kale’s suggestion</button>
+                <button className={styles.previewButton} type="button" disabled={reviewBusy || actionBusy || writing} onClick={() => { void beginReview({ proposal: groundedIdea.proposal, childWords: groundedIdea.request.childWords, origin: 'model', sourceDigest: groundedIdea.sourceDigest, guidePathRevision: groundedIdea.guidePathRevision }); }}>Review Kale’s suggestion</button>
               </div> : null}
               <div className={styles.manualChoice}>
                 <p>Your current settings: {proposalFromControls().spacing} spacing, {proposalFromControls().sizeProfile.replaceAll('_', ' ')}.</p>
-                <button type="button" disabled={childWords.trim().length === 0 || reviewBusy} onClick={() => { void beginReview({ proposal: proposalFromControls(), childWords: childWords.trim(), origin: 'manual' }); }}>{reviewBusy ? 'Opening your review…' : 'Review my settings instead'}</button>
+                <button type="button" disabled={childWords.trim().length === 0 || reviewBusy || actionBusy || writing} onClick={() => { void beginReview({ proposal: proposalFromControls(), childWords: childWords.trim(), origin: 'manual' }); }}>{reviewBusy ? 'Opening your review…' : 'Choose the repeat myself'}</button>
               </div>
               <small>Kale receives your typed sentence plus only “a selected mark exists” and “a path exists.” It never receives your drawing.</small>
             </div> : null}
@@ -671,16 +725,17 @@ export function DrawWorkbench({ onSaved }: { onSaved?: () => void } = {}) {
               <li data-done={authority.events.some((entry) => entry.type === 'child_edit') ? '' : undefined}>{authority.events.some((entry) => entry.type === 'child_edit') ? `You changed it to ${authority.proposal.spacing} spacing, ${authority.proposal.sizeProfile.replaceAll('_', ' ')}.` : 'Your changes stay separate from the starting idea.'}</li>
               <li data-done={authority.state === 'saved' ? '' : undefined}>{authority.state === 'saved' ? <>You saved an immutable local version. <Link href={`/parent/tools?tool=${encodeURIComponent(authority.toolId)}`}>Show its story →</Link></> : authority.state === 'rejected' ? 'You rejected it. Nothing was saved.' : 'Only you can save it.'}</li>
             </ol> : null}
-            {authority?.state === 'reviewing' ? <div className={styles.authorityActions}>
+            {authority?.state === 'reviewing' ? <fieldset className={styles.authorityActions} disabled={actionBusy}>
+              <legend>Your choice</legend>
               <p>Change the starting idea</p>
-              <div><button type="button" onClick={() => { void editProposal({ spacing: 'close' }); }}>Closer</button><button type="button" onClick={() => { void editProposal({ spacing: 'wide' }); }}>Farther</button></div>
+              <div><button type="button" onClick={() => { void editProposal({ spacing: 'close' }); }}>Closer together</button><button type="button" onClick={() => { void editProposal({ spacing: 'wide' }); }}>Farther apart</button></div>
               <div><button type="button" onClick={() => { void editProposal({ sizeProfile: 'constant' }); }}>Same size</button><button type="button" onClick={() => { void editProposal({ sizeProfile: 'smaller_toward_end' }); }}>Smaller at the end</button></div>
               <label>Tool name<input aria-label="Tool name" value={toolName} maxLength={80} onChange={(event) => setToolName(event.target.value)} /></label>
               <p>This tool keeps an exact copy of this mark and your approved settings. The original drawing stays unchanged.</p>
-              <button className={styles.saveButton} type="button" disabled={saving || !durable || toolName.trim().length === 0} onClick={() => { void approveProposal(); }}>{saving ? 'Saving your tool…' : 'Save my tool'}</button>
+              <button className={styles.saveButton} type="button" disabled={actionBusy || writing || saving || !durable || toolName.trim().length === 0} onClick={() => { void approveProposal(); }}>{saving ? 'Saving your tool…' : 'Save my tool'}</button>
               <button className={styles.rejectButton} type="button" disabled={saving} onClick={() => { void rejectProposal(); }}>Reject this idea</button>
               <small>This browser treats your choice as the product authority. It is local-device authority, not a login or identity check.</small>
-            </div> : null}
+            </fieldset> : null}
             {authority?.state === 'rejected' ? <div className={styles.authorityActions}><b>Not saved. Your drawing stays.</b><button type="button" onClick={() => { setAuthority(null); requestAnimationFrame(() => wordsInput.current?.focus()); }}>Change my words and try again</button></div> : null}
           </div> : null}
           <p className={styles.layerNote}><b>Original marks stay intact.</b> Guide and preview layers never change them.</p>
@@ -722,8 +777,7 @@ export function DrawWorkbench({ onSaved }: { onSaved?: () => void } = {}) {
             </g>
             <g data-layer="guide" role="group" aria-label="Child-directed guide path">
               {pathPoints.length >= 2 ? <polyline points={pathPoints.map((point) => `${point.x},${point.y}`).join(' ')} fill="none" stroke="#a65636" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="13 10" markerEnd="url(#guide-arrow)" /> : null}
-              {pathPoints[0] !== undefined ? <><circle cx={pathPoints[0].x} cy={pathPoints[0].y} r="10" fill="#fffdf7" stroke="#a65636" strokeWidth="5" /><text x={pathPoints[0].x + 15} y={pathPoints[0].y - 14} fill="#8d432d" fontSize="20" fontWeight="700">starts here</text></> : null}
-              {pathPoints.at(-1) !== undefined && pathPoints.length >= 2 ? <text x={pathPoints.at(-1)!.x + 15} y={pathPoints.at(-1)!.y + 28} fill="#8d432d" fontSize="20" fontWeight="700">ends here</text> : null}
+              {pathPoints[0] !== undefined ? <circle cx={pathPoints[0].x} cy={pathPoints[0].y} r="10" fill="#fffdf7" stroke="#a65636" strokeWidth="5" /> : null}
             </g>
             <g data-layer="derived-preview" role="group" aria-label="Temporary repeat preview" pointerEvents="none">
               {preview?.strokes.map((stroke) => stroke.points.length === 1 ? (
@@ -738,10 +792,10 @@ export function DrawWorkbench({ onSaved }: { onSaved?: () => void } = {}) {
       </div>
 
       <footer className={styles.footer}>
-        <p><span aria-hidden="true">●</span> {document?.strokes.length ?? 0} original marks{preview === null ? '' : ` · ${preview.stampCount} preview repeats`} · {authority?.state === 'saved' ? 'Tool saved on this device' : 'Current draft not saved as a tool'}</p>
-        <p role="status">{status}</p>
+        <p>{document?.strokes.length ?? 0} original marks{preview === null ? '' : ` · ${preview.stampCount} preview repeats`} · {authority?.state === 'saved' ? 'Tool saved on this device' : 'Current draft not saved as a tool'}</p>
+        <p role="status">{writing ? 'Saving your drawing…' : status}</p>
       </footer>
-      {error !== null ? <p className={styles.error} role="alert">{error}</p> : null}
+      {error !== null ? <div className={styles.error} role="alert"><p>{error}</p><button type="button" onClick={downloadDrawing}>Download my drawing before reloading</button></div> : null}
     </section>
   );
 }

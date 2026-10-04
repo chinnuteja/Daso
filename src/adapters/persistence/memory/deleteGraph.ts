@@ -13,6 +13,7 @@ import { FLIGHT_OWNER_ID, FLIGHT_PRACTICE_TOOL_ID } from '../../../core/capabili
 import { PersistenceError } from '../database';
 import { shouldFailAfterDeleteWrite } from '../atomicCommit';
 import type { MemoryRecords } from './store';
+import { drawOwnerGenerationKey, parseDrawGeneration } from '../drawWriteGuard';
 
 interface MemorySnapshot {
   readonly profiles: Map<string, unknown>;
@@ -179,6 +180,8 @@ export function deleteMemoryToolGraph(records: MemoryRecords, toolId: ToolId): v
 }
 
 export function deleteMemoryProfileGraph(records: MemoryRecords, childId: ChildId): void {
+  const generationKey = drawOwnerGenerationKey(childId);
+  const nextGeneration = parseDrawGeneration(records.meta.get(generationKey)) + 1;
   const owned: ToolId[] = [];
   for (const raw of records.tools.values()) {
     const parsed = ToolDefinition.parse(raw);
@@ -211,5 +214,7 @@ export function deleteMemoryProfileGraph(records: MemoryRecords, childId: ChildI
     }
   }
   scheduled.push(...scheduleSurvivingForkRedaction(records, childId));
+  if (scheduled.length === 0 && shouldFailAfterDeleteWrite()) throw new PersistenceError('injected delete failure before generation mutation');
   applyScheduled(records, scheduled);
+  records.meta.set(generationKey, nextGeneration);
 }

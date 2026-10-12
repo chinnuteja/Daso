@@ -3,7 +3,7 @@ import { TabletShell } from '../ui/shell/TabletShell';
 
 export default function HomePage() {
   return (
-    <TabletShell title="Kale · Make this a tool">
+    <TabletShell title="Draw & play" childDrawing>
       <DrawStudio />
     </TabletShell>
   );

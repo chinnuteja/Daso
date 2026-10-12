@@ -7,6 +7,10 @@ import { DRAW_PRACTICE_OWNER } from './practiceSession';
 import { DrawWriteQueue } from './DrawWriteQueue';
 import { SourceMark } from './SourceMark';
 import { KeyboardInk } from './KeyboardInk';
+import { PatternChoice } from './PatternChoice';
+import { DrawSymbol } from './DrawSymbol';
+import { pictureInstruction } from './pictureInstruction';
+import { restoreKeptStamp } from './restoreKeptStamp';
 import { assertCanAddLine, exceedsDrawingBudget } from './drawingBudget';
 
 import { type CSSProperties, type PointerEvent, useEffect, useMemo, useRef, useState } from 'react';
@@ -26,7 +30,6 @@ import {
   appendStroke,
   buildDeterministicDrawPreview,
   clearStrokes,
-  clearMarkSelection,
   createDrawDocument,
   DEFAULT_DRAW_PREVIEW_CONTROLS,
   DRAW_HEIGHT,
@@ -51,7 +54,6 @@ const PRACTICE_ID = 'draw_document_practice_001';
 const BLANK_ID = 'draw_document_canvas_001';
 const PALETTE = ['#294f46', '#c45b3f', '#5c55a6', '#15737c', '#d18827'] as const;
 
-type Mode = 'choose' | 'workbench';
 type ToolMode = 'draw' | 'select' | 'path';
 
 type AuthoritySession = Readonly<{
@@ -91,7 +93,6 @@ function pointFromEvent(event: PointerEvent<SVGSVGElement>): DrawPoint {
 }
 
 export function DrawWorkbench({ onSaved }: { onSaved?: () => void } = {}) {
-  const [mode, setMode] = useState<Mode>('workbench');
   const [document, setDocument] = useState<DrawDocument | null>(null);
   const [draftStroke, setDraftStroke] = useState<DrawStroke | null>(null);
   const [guideDraft, setGuideDraft] = useState<readonly DrawPoint[] | null>(null);
@@ -106,12 +107,11 @@ export function DrawWorkbench({ onSaved }: { onSaved?: () => void } = {}) {
   const [groundedIdea, setGroundedIdea] = useState<GroundedDrawIdea | null>(null);
   const [interpretationNote, setInterpretationNote] = useState<string | null>(null);
   const [interpreting, setInterpreting] = useState(false);
-  const [toolName, setToolName] = useState('My repeating mark');
+  const [toolName, setToolName] = useState('My stamp');
   const [saving, setSaving] = useState(false);
   const [ready, setReady] = useState(false);
   const [status, setStatus] = useState('Opening your drawing desk…');
   const [error, setError] = useState<string | null>(null);
-  const [guidance, setGuidance] = useState(true);
   const [durable, setDurable] = useState(true);
   const [reviewBusy, setReviewBusy] = useState(false);
   const [writing, setWriting] = useState(false);
@@ -125,6 +125,7 @@ export function DrawWorkbench({ onSaved }: { onSaved?: () => void } = {}) {
   const reviewBusyRef = useRef(false);
   const interpretationGeneration = useRef(0);
   const savedRef = useRef<HTMLDivElement>(null);
+  const retryRef = useRef<HTMLButtonElement>(null);
   const repository = useRef<DrawAssetRepository | null>(null);
   const capabilityRepository = useRef<CapabilityLifecycleRepository | null>(null);
   const documentRef = useRef<DrawDocument | null>(null);
@@ -152,11 +153,27 @@ export function DrawWorkbench({ onSaved }: { onSaved?: () => void } = {}) {
       if (latest !== null) {
         documentRef.current = latest;
         setDocument(latest);
-        setMode('workbench');
         if (isMarkSelectionCurrent(latest)) { setToolMode(latest.guidePath === undefined ? 'select' : 'path'); setPreviewVisible(latest.guidePath !== undefined); }
+        else if (latest.ownerChildId === DRAW_PRACTICE_OWNER) setToolMode('select');
         setStatus('Your drawing is right where you left it.');
+        if (isMarkSelectionCurrent(latest) && latest.guidePath !== undefined) {
+          const definitions = (await opened.capabilities.listDefinitionsByOwner(latest.ownerChildId)).filter(item => item.kind === 'draw_pattern').reverse();
+          for (const definition of definitions) {
+            if (cancelled) return;
+            try {
+              const graph = await opened.capabilities.getGraph(definition.toolId);
+              if (graph === null) continue;
+              const kept = restoreKeptStamp(graph,latest);
+              if (kept === null) continue;
+              if (cancelled) return;
+              setAuthority(kept.session); setToolName(kept.name); setPreviewControls(kept.controls);
+              setStatus('Your stamp is kept. Use it on another trail!');
+              break;
+            } catch { /* A damaged record is never presented as kept. The drawing remains usable. */ }
+          }
+        }
       } else {
-        const fresh = createDrawDocument({ documentId: `${BLANK_ID}_${Date.now().toString(36)}`, ownerChildId: DRAW_OWNER_ID, now: timestamp() });
+        const fresh = createDrawDocument({ documentId: `${BLANK_ID}_${new Date(timestamp()).getTime().toString(36)}`, ownerChildId: DRAW_OWNER_ID, now: timestamp() });
         documentRef.current = fresh; setDocument(fresh);
         setStatus('Draw something small, or try the labelled practice example.');
       }
@@ -231,7 +248,7 @@ export function DrawWorkbench({ onSaved }: { onSaved?: () => void } = {}) {
     actionBusyRef.current = true; setActionBusy(true);
     try {
     await writeQueue.current?.track(null, kind === 'practice' ? DRAW_PRACTICE_OWNER : DRAW_OWNER_ID);
-    const suffix = Date.now().toString(36);
+    const suffix = new Date(timestamp()).getTime().toString(36);
     const created = createDrawDocument({
       documentId: kind === 'practice' ? `${PRACTICE_ID}_${suffix}` : `${BLANK_ID}_${suffix}`,
       ownerChildId: kind === 'practice' ? DRAW_PRACTICE_OWNER : DRAW_OWNER_ID,
@@ -243,7 +260,6 @@ export function DrawWorkbench({ onSaved }: { onSaved?: () => void } = {}) {
     setPreviewVisible(false);
     setAuthority(null);
     clearInterpretation();
-    setMode('workbench');
     setToolMode(kind === 'practice' ? 'select' : 'draw');
     setChildWords(''); setPreviewControls(DEFAULT_DRAW_PREVIEW_CONTROLS);
     setStatus(kind === 'practice' ? 'Practice drawing loaded. Every line is still yours to change.' : 'A blank page is ready for your mark.');
@@ -272,7 +288,7 @@ export function DrawWorkbench({ onSaved }: { onSaved?: () => void } = {}) {
       return;
     }
     const stroke: DrawStroke = {
-      strokeId: `stroke_draw_${Date.now().toString(36)}_${(++strokeCounter.current).toString(36)}`,
+      strokeId: `stroke_draw_${new Date(timestamp()).getTime().toString(36)}_${(++strokeCounter.current).toString(36)}`,
       color,
       width,
       points: [pointFromEvent(event)],
@@ -378,22 +394,11 @@ export function DrawWorkbench({ onSaved }: { onSaved?: () => void } = {}) {
     void persist(next, 'Canvas cleared. Your earlier version is not saved as a tool.');
   }
 
-  function changeMark(): void {
-    if (documentRef.current === null || actionBusyRef.current || reviewBusyRef.current || pendingWrites.current > 0 || authority?.state === 'reviewing' || authority?.state === 'saved') return;
-    const next = clearMarkSelection(documentRef.current, timestamp());
-    setActive(next);
-    setToolMode('select');
-    setPreviewVisible(false);
-    setAuthority(null);
-    clearInterpretation();
-    void persist(next, 'Tap the exact mark you want to use.');
-  }
-
   function selectMark(strokeId: string): void {
     if (documentRef.current === null || actionBusyRef.current || reviewBusyRef.current || pendingWrites.current > 0) return;
     const next = setMarkSelection(documentRef.current, [strokeId], timestamp());
     setActive(next); setToolMode('select'); setPreviewVisible(false); setAuthority(null); clearInterpretation();
-    void persist(next, 'Mark highlighted. Choose “Repeat this mark” if it is the one you meant.');
+    void persist(next, 'Your piece is highlighted. Give it a trail.');
   }
 
   function choosePath(points: readonly DrawPoint[]): void {
@@ -401,7 +406,6 @@ export function DrawWorkbench({ onSaved }: { onSaved?: () => void } = {}) {
     const next = setGuidePath(documentRef.current, { pathId: 'draw_path_workbench_001', points: [...points] }, timestamp());
     setActive(next); setAuthority(null); clearInterpretation(); setPreviewVisible(true);
     void persist(next, 'You chose a path. The preview is not a saved tool yet.');
-    requestAnimationFrame(() => wordsInput.current?.focus());
   }
 
   async function askKaleToReadWords(): Promise<void> {
@@ -460,7 +464,7 @@ export function DrawWorkbench({ onSaved }: { onSaved?: () => void } = {}) {
       setStatus('Your source changed, so Kale’s suggestion was cleared. Read your words again when you are ready.');
       return;
     }
-    const nonce = `${Date.now()}${(++strokeCounter.current).toString().padStart(2, '0')}`;
+    const nonce = `${new Date(timestamp()).getTime()}${(++strokeCounter.current).toString().padStart(2, '0')}`;
     const toolId = `my-repeat-${nonce}`;
     const snapshotId = `mark_snapshot_${nonce}`;
     const occurredAt = timestamp();
@@ -481,11 +485,11 @@ export function DrawWorkbench({ onSaved }: { onSaved?: () => void } = {}) {
     finally { reviewBusyRef.current = false; setReviewBusy(false); }
   }
 
-  async function editProposal(patch: { readonly spacing?: 'close' | 'wide'; readonly sizeProfile?: 'constant' | 'smaller_toward_end' }): Promise<void> {
+  async function editProposal(patch: { readonly spacing?: 'close' | 'even' | 'wide'; readonly sizeProfile?: 'constant' | 'smaller_toward_end' }): Promise<void> {
     if (actionBusyRef.current || authority === null || authority.state !== 'reviewing' || capabilityRepository.current === null) return;
     actionBusyRef.current = true; setActionBusy(true);
     const proposal = { ...authority.proposal, ...patch };
-    const edit: CapabilityLedgerEntry = { type: 'child_edit', eventId: `event_${Date.now()}${(++strokeCounter.current).toString().padStart(2, '0')}`, toolId: authority.toolId, sequence: authority.events.length + 1, occurredAt: timestamp(), actor: 'child', candidateEventId: authority.candidateEventId, proposal };
+    const edit: CapabilityLedgerEntry = { type: 'child_edit', eventId: `event_${new Date(timestamp()).getTime()}${(++strokeCounter.current).toString().padStart(2, '0')}`, toolId: authority.toolId, sequence: authority.events.length + 1, occurredAt: timestamp(), actor: 'child', candidateEventId: authority.candidateEventId, proposal };
     try {
       await capabilityRepository.current.append(edit);
       setAuthority({ ...authority, events: [...authority.events, edit], proposal });
@@ -498,10 +502,11 @@ export function DrawWorkbench({ onSaved }: { onSaved?: () => void } = {}) {
   async function rejectProposal(): Promise<void> {
     if (actionBusyRef.current || authority === null || authority.state !== 'reviewing' || capabilityRepository.current === null) return;
     actionBusyRef.current = true; setActionBusy(true);
-    const rejection: CapabilityLedgerEntry = { type: 'child_rejection', eventId: `event_${Date.now()}${(++strokeCounter.current).toString().padStart(2, '0')}`, toolId: authority.toolId, sequence: authority.events.length + 1, occurredAt: timestamp(), actor: 'child', candidateEventId: authority.candidateEventId, reason: 'I do not want to save this starting idea.' };
+    const rejection: CapabilityLedgerEntry = { type: 'child_rejection', eventId: `event_${new Date(timestamp()).getTime()}${(++strokeCounter.current).toString().padStart(2, '0')}`, toolId: authority.toolId, sequence: authority.events.length + 1, occurredAt: timestamp(), actor: 'child', candidateEventId: authority.candidateEventId, reason: 'I do not want to save this starting idea.' };
     try {
       await capabilityRepository.current.append(rejection);
       setAuthority({ ...authority, events: [...authority.events, rejection], state: 'rejected' });
+      requestAnimationFrame(() => retryRef.current?.focus());
       setStatus('Rejected. Nothing became a tool. You can keep drawing or start a new review.');
     } catch { setError('We could not record the rejection. Nothing has been saved.'); }
     finally { actionBusyRef.current = false; setActionBusy(false); }
@@ -511,11 +516,11 @@ export function DrawWorkbench({ onSaved }: { onSaved?: () => void } = {}) {
     if (actionBusyRef.current || authority === null || authority.state !== 'reviewing' || document === null || capabilityRepository.current === null || !durable) return;
     actionBusyRef.current = true; setActionBusy(true);
     setSaving(true);
-    const approval: CapabilityLedgerEntry = { type: 'child_approval', eventId: `event_${Date.now()}${(++strokeCounter.current).toString().padStart(2, '0')}`, toolId: authority.toolId, sequence: authority.events.length + 1, occurredAt: timestamp(), actor: 'child', candidateEventId: authority.candidateEventId, approvedProposal: authority.proposal, idempotencyKey: `save_${authority.toolId}` };
+    const approval: CapabilityLedgerEntry = { type: 'child_approval', eventId: `event_${new Date(timestamp()).getTime()}${(++strokeCounter.current).toString().padStart(2, '0')}`, toolId: authority.toolId, sequence: authority.events.length + 1, occurredAt: timestamp(), actor: 'child', candidateEventId: authority.candidateEventId, approvedProposal: authority.proposal, idempotencyKey: `save_${authority.toolId}` };
     try {
       await writeQueue.current?.flush();
       const existing = await capabilityRepository.current.listDrawVersionsByTool(authority.toolId);
-      const bundle = await buildDrawApprovalBundle({ drawing: document, toolId: authority.toolId, ownerChildId: document.ownerChildId, displayName: toolName, existingVersionCount: existing.length, snapshotId: authority.snapshotId, versionId: `tool_version_${Date.now()}`, approvalEvent: approval, entries: authority.events, createdAt: timestamp(), reviewedContext: authority.reviewedContext });
+      const bundle = await buildDrawApprovalBundle({ drawing: document, toolId: authority.toolId, ownerChildId: document.ownerChildId, displayName: toolName, existingVersionCount: existing.length, snapshotId: authority.snapshotId, versionId: `tool_version_${new Date(timestamp()).getTime()}`, approvalEvent: approval, entries: authority.events, createdAt: timestamp(), reviewedContext: authority.reviewedContext });
       await capabilityRepository.current.commitApprovedCapability({ ...bundle, approval, reviewedContext: authority.reviewedContext });
       setAuthority({ ...authority, events: [...authority.events, approval], state: 'saved' });
       setStatus(`Saved ${toolName}. It is a local tool now, not a preview.`);
@@ -535,7 +540,7 @@ export function DrawWorkbench({ onSaved }: { onSaved?: () => void } = {}) {
     if (documentRef.current === null || actionBusyRef.current || reviewBusyRef.current || pendingWrites.current > 0 || authority?.state === 'reviewing' || authority?.state === 'saved') return;
     try {
       assertCanAddLine(documentRef.current, { strokeId: 'stroke_budget_check', color, width, points: [...points] });
-      const next = appendStroke(documentRef.current, { strokeId: `stroke_keyboard_${Date.now().toString(36)}_${++strokeCounter.current}`, color, width, points: [...points] }, timestamp());
+      const next = appendStroke(documentRef.current, { strokeId: `stroke_keyboard_${new Date(timestamp()).getTime().toString(36)}_${++strokeCounter.current}`, color, width, points: [...points] }, timestamp());
       setActive(next); setRedo([]); setAuthority(null); clearInterpretation(); setPreviewVisible(false);
       void persist(next, 'Your keyboard-drawn line is saved locally.');
     } catch (caught) { setError(caught instanceof Error ? caught.message : 'This drawing has reached its line limit. Your earlier lines are kept.'); }
@@ -549,252 +554,130 @@ export function DrawWorkbench({ onSaved }: { onSaved?: () => void } = {}) {
   const overBudget = document !== null && exceedsDrawingBudget(document);
   const sourceLocked = overBudget || actionBusy || reviewBusy || writing || authority?.state === 'reviewing' || authority?.state === 'saved';
 
-  if (mode === 'choose') {
-    return (
-      <section className={styles.choose} aria-labelledby="draw-start-title">
-        <p className={styles.eyebrow}>Make a tool from a mark you make</p>
-        <h2 id="draw-start-title">Start with something you can point to.</h2>
-        <p>Draw freely, or open a practice dragon. Later, you’ll choose one mark and show where it should travel. Kale will never replace your drawing.</p>
-        <div className={styles.choiceGrid}>
-          <button type="button" className={styles.choice} disabled={!ready} onClick={() => { void start('practice'); }}>
-            <span className={styles.choiceArt} aria-hidden="true">◈</span>
-            <strong>Practice dragon</strong>
-            <small>Try a tiny scale on an editable drawing.</small>
-          </button>
-          <button type="button" className={styles.choice} disabled={!ready} onClick={() => { void start('blank'); }}>
-            <span className={styles.choiceArt} aria-hidden="true">✦</span>
-            <strong>Blank drawing</strong>
-            <small>Start with your own mark from the first line.</small>
-          </button>
-        </div>
-        <p className={styles.localNote}>Saved only on this device · no AI looks at this drawing</p>
-        <p className={styles.status} role="status">{status}</p>
-        {error !== null ? <p className={styles.error} role="alert">{error}</p> : null}
-      </section>
-    );
-  }
 
   const strokes = document === null || overBudget ? [] : [...document.strokes, ...(draftStroke === null ? [] : [draftStroke])];
   const selectionCurrent = document !== null && isMarkSelectionCurrent(document);
   const selectedIds = selectionCurrent ? new Set(document.selection?.strokeIds ?? []) : new Set<string>();
+  const selectedStrokes = strokes.filter(stroke => selectedIds.has(stroke.strokeId));
   const pathPoints = guideDraft ?? document?.guidePath?.points ?? [];
-  const canPreview = selectionCurrent && document?.guidePath !== undefined;
+  const canPreview = selectionCurrent && document?.guidePath !== undefined && toolMode === 'path';
   const isPractice = document?.ownerChildId === DRAW_PRACTICE_OWNER || document?.documentId.startsWith(PRACTICE_ID);
   const startingIdea = authority?.events.find((entry) => entry.type === 'capability_candidate');
   const { preview, error: previewError } = previewState;
+  const step = authority?.state === 'saved' ? 4 : canPreview ? 3 : toolMode === 'select' ? 1 : toolMode === 'path' ? 2 : 0;
+  const prompt = step === 4 ? 'You made a stamp!' : step === 3 ? 'Make it look just right.' : step === 2 ? 'Draw a trail for your piece.' : step === 1 ? 'Tap the piece you want to repeat.' : 'What will you draw?';
+  const currentProposal = authority?.state === 'reviewing' ? authority.proposal : proposalFromControls();
+  const busy = !ready || sourceLocked || actionBusy || interpreting;
+  function chooseLook(patch: { spacing?: 'close' | 'even' | 'wide'; sizeProfile?: 'constant' | 'smaller_toward_end' }) {
+    if (authority?.state === 'reviewing') { void editProposal(patch); return; }
+    const proposal = { ...proposalFromControls(), ...patch };
+    clearInterpretation(); applyProposalToPreview(proposal); setPreviewVisible(true);
+  }
+  function openMyReview() {
+    const words = pictureInstruction(proposalFromControls());
+    void beginReview({ proposal: proposalFromControls(), childWords: words, origin: 'manual' });
+  }
+  function drawAgain() {
+    setToolMode('draw'); setPreviewVisible(false); clearInterpretation();
+    setStatus('Keep drawing. Your lines are still here.');
+  }
   return (
     <section className={styles.workbench} aria-labelledby="draw-workbench-title">
       <header className={styles.workbenchHeader}>
-        <div>
-          <p className={styles.eyebrow}>{isPractice ? 'Labelled practice drawing · you choose the behavior' : 'Your drawing · your choices'}</p>
-          <h2 id="draw-workbench-title">Make your mark do more.</h2>
-          <p className={styles.intro}>Draw it once. Teach it a repeat. Use it whenever you want.</p>
+        <h2 id="draw-workbench-title">{prompt}</h2>
+        <div className={styles.startActions}>
+          <button className={styles.swap} type="button" disabled={!ready || writing || actionBusy || reviewBusy || saving || interpreting || authority?.state === 'reviewing' || saveFailed} onClick={() => { void start('practice'); }}><DrawSymbol kind="diamond" /> Try a dragon</button>
+          <button className={styles.swap} type="button" disabled={!ready || writing || actionBusy || reviewBusy || saving || interpreting || authority?.state === 'reviewing' || saveFailed} onClick={() => { void start('blank'); }}><DrawSymbol kind="plus" /> New drawing</button>
         </div>
-        <div className={styles.startActions}><button className={styles.swap} type="button" disabled={!ready || saveFailed || actionBusy || writing || reviewBusy || saving} onClick={() => { void start('practice'); }}>Try a 90-second example</button><button className={styles.swap} type="button" disabled={!ready || saveFailed || actionBusy || writing || reviewBusy || saving} onClick={() => { void start('blank'); }}>New blank drawing</button></div>
       </header>
+      {isPractice ? <p className={styles.practiceBadge}>Practice dragon · choose a piece to make your own stamp</p> : null}
+      {!durable ? <p className={styles.error} role="status">Saving is unavailable. You can draw, but your work will not stay after refresh.</p> : null}
+      {overBudget ? <div className={styles.error} role="alert"><p>This drawing is too detailed to show safely. It has not been changed.</p><button type="button" onClick={downloadDrawing}>Download my complete drawing</button></div> : null}
 
-      {!durable ? <p className={styles.error} role="status">Local storage is unavailable. You can try drawing, but this session will not survive refresh and cannot be claimed as a durable saved tool.</p> : null}
-      {overBudget ? <div className={styles.error} role="alert"><p>This saved drawing is too detailed to display safely here. It has not been changed or simplified.</p><button type="button" onClick={downloadDrawing}>Download my complete drawing</button></div> : null}
-      <div className={styles.thread} role="group" aria-label="Your tool’s authorship"><span data-done={(document?.strokes.length ?? 0) > 0}>{document?.ownerChildId === DRAW_PRACTICE_OWNER ? 'Practice mark' : 'Your marks'}</span><span data-done={selectionCurrent}>Your choice</span><span data-done={canPreview}>Local preview</span><span data-done={authority !== null}>{authority?.origin === 'model' ? 'Kale suggested' : 'Your settings'}</span><span data-done={authority?.state === 'saved'}>{authority?.state === 'saved' ? 'Saved tool ✓' : 'Not saved yet'}</span></div>
+      <div className={styles.journeyDots} role="group" aria-label="Drawing steps">
+        {['Draw', 'Pick', 'Trail', 'Keep'].map((label, i) => <span key={label} data-current={Math.min(step,3) === i} data-done={step > i}><b aria-hidden="true">{step > i ? <DrawSymbol kind="check" /> : i + 1}</b>{label}</span>)}
+      </div>
+      {toolMode === 'draw' && authority?.state !== 'saved' ? <fieldset className={styles.inkBar} disabled={busy}>
+        <legend className={styles.screenReader}>Drawing tools</legend>
+        <div className={styles.palette} role="group" aria-label="Ink colours">{PALETTE.map((value,index) => <button key={value} type="button" className={styles.swatch} data-selected={color === value} style={{ '--swatch': value } as CSSProperties} aria-label={`Use ${['forest','terracotta','violet','teal','gold'][index]} ink`} aria-pressed={color === value} onClick={() => setColor(value)} />)}</div>
+        <label className={styles.penSize}><span>Thin — thick</span><input aria-label="Line weight" type="range" min="3" max="18" value={width} onChange={event => setWidth(Number(event.target.value))} /></label>
+        <button type="button" aria-label="Undo last line" disabled={strokes.length === 0} onClick={undo}><span aria-hidden="true">↶</span> Undo</button>
+        <button type="button" aria-label="Redo last line" disabled={redo.length === 0} onClick={redoStroke}><span aria-hidden="true">↷</span> Redo</button>
+      </fieldset> : null}
 
       <div className={styles.stage}>
-        <aside className={styles.dock} aria-label="Drawing tools">
-          {guidance ? <div className={styles.guide}><b>{authority?.state === 'saved' ? 'Now use it somewhere new.' : canPreview ? 'See the effect. Decide what it should keep.' : toolMode === 'path' && selectionCurrent ? 'Drag where it should repeat, or choose both ends below.' : selectionCurrent ? 'Choose “Repeat this mark”, then show its path.' : toolMode === 'select' ? 'Choose one line, not the whole drawing.' : 'Draw a small mark, then pick it.'}</b><p>{authority?.state === 'saved' ? 'The behavior is locked in a saved version. A new path is all you need to use it again.' : isPractice ? 'This dragon is supplied practice art, not a drawing you made. Tap an orange diamond or choose a line below.' : 'Your original drawing never gets replaced. Kale can suggest a behavior, not redraw your work.'}</p><button type="button" onClick={() => setGuidance(false)}>Hide tips</button></div> : <button className={styles.tipsButton} type="button" onClick={() => setGuidance(true)}>Show tips</button>}
-          {authority?.state === 'saved' ? <div className={styles.savedCard} ref={savedRef} tabIndex={-1}><b>Saved ✓ {toolName}</b><p>Your exact mark and approved behavior are kept on this device. Try a different path now—no AI needed.</p>{onSaved ? <button className={styles.previewButton} type="button" onClick={onSaved}>Use my saved tool on a new path</button> : <Link href="/draw/library">Use on a new path →</Link>}</div> : null}
-          {authority?.state !== 'saved' ? <>
-          <div className={styles.steps} role="group" aria-label="Make this tool steps">
-            <button type="button" data-active={toolMode === 'draw'} disabled={sourceLocked} onClick={() => setToolMode('draw')}>
-              <span>1</span> Draw
-            </button>
-            <button type="button" data-active={toolMode === 'select'} disabled={sourceLocked || (document?.strokes.length ?? 0) === 0} onClick={() => { setToolMode('select'); setStatus('Tap a source mark or choose one below.'); }}>
-              <span>2</span> Pick a mark
-            </button>
-            <button type="button" data-active={toolMode === 'path'} disabled={!selectionCurrent || sourceLocked} onClick={() => setToolMode('path')}>
-              <span>3</span> Draw its path
-            </button>
-          </div>
-          <p className={styles.modePrompt}>
-            {toolMode === 'draw' ? 'Add or change your source drawing.' : toolMode === 'select' ? 'Tap exactly the mark you want to keep.' : 'Drag from where the pattern starts to where it ends.'}
-          </p>
-          </> : null}
-          {toolMode === 'draw' && authority?.state !== 'saved' ? <fieldset className={styles.inkControls} disabled={sourceLocked}>
-          <div>
-            <p className={styles.toolLabel}>Ink</p>
-            <div className={styles.palette}>
-              {PALETTE.map((value, index) => (
-                <button
-                  key={value}
-                  type="button"
-                  className={styles.swatch}
-                  data-selected={color === value}
-                  style={{ '--swatch': value } as CSSProperties}
-                  aria-label={`Use ${['forest', 'terracotta', 'violet', 'teal', 'gold'][index]} ink`}
-                  aria-pressed={color === value}
-                  onClick={() => setColor(value)}
-                />
-              ))}
-            </div>
-          </div>
-          <label className={styles.width}>
-            <span>Line weight <b>{width}</b></span>
-            <input aria-label="Line weight" type="range" min="3" max="18" value={width} onChange={(event) => setWidth(Number(event.target.value))} />
-          </label>
-          <div className={styles.history}>
-            <button type="button" onClick={undo} disabled={(document?.strokes.length ?? 0) === 0}>Undo</button>
-            <button type="button" onClick={redoStroke} disabled={redo.length === 0}>Redo</button>
-            <button type="button" onClick={clear} disabled={(document?.strokes.length ?? 0) === 0}>Clear</button>
-          </div>
-          </fieldset> : null}
-          {toolMode === 'draw' && authority?.state !== 'saved' ? <KeyboardInk disabled={sourceLocked} onDraw={keyboardLine} /> : null}
-          {!canPreview || toolMode === 'select' ? <div className={styles.selectionCard} data-stale={document?.selection !== undefined && !selectionCurrent}>
-            <b>{selectionCurrent ? 'Your selected mark' : document?.selection !== undefined ? 'Your mark changed' : 'No mark selected yet'}</b>
-            <span>{authority?.state === 'saved' ? 'Your saved tool keeps its own exact mark copy. The original drawing is unchanged.' : selectionCurrent ? 'Kept in your drawing. Nothing has been copied or saved as a tool.' : document?.selection !== undefined ? 'You changed the source drawing. Pick the mark again before using it.' : 'Pick a source mark when you are ready.'}</span>
-            <button type="button" disabled={sourceLocked} onClick={changeMark}>{selectionCurrent ? 'Change mark' : 'Pick a mark'}</button>
-            {toolMode === 'select' ? <><label>Choose a source mark<select aria-label="Choose a source mark" value={document?.selection?.strokeIds[0] ?? ''} disabled={sourceLocked} onChange={(event) => { if (event.target.value) selectMark(event.target.value); }}><option value="">Choose a line…</option>{document?.strokes.map((stroke, index) => <option key={stroke.strokeId} value={stroke.strokeId}>{stroke.strokeId.startsWith('stroke_scale') ? `Practice orange diamond ${stroke.strokeId.endsWith('001') ? '1' : stroke.strokeId.endsWith('002') ? '2' : '3'}` : `Line ${index + 1}`}</option>)}</select></label>{selectionCurrent ? <button className={styles.previewButton} type="button" disabled={sourceLocked} onClick={() => { setToolMode('path'); setStatus('Mark confirmed. Drag a path from the dot toward the arrow.'); }}>Repeat this mark</button> : null}</> : null}
-          </div> : null}
-          {selectionCurrent ? <div className={styles.selectedMark}><b>This exact mark will repeat</b><SourceMark strokes={document?.strokes.filter((stroke) => selectedIds.has(stroke.strokeId)) ?? []} label="Your selected source mark, unchanged" /></div> : null}
-          {toolMode === 'path' && selectionCurrent && !canPreview ? <KeyboardPath onChoose={choosePath} disabled={sourceLocked} /> : null}
-          {canPreview && authority?.state !== 'saved' ? <div className={styles.previewCard} data-ready={canPreview}>
-            <div>
-              <b>Your live preview · not saved yet</b>
-              <span>{canPreview ? 'See your exact mark travel along your path.' : 'First pick your mark, then draw where it should travel.'}</span>
-            </div>
-            <button
-              type="button"
-              className={styles.previewButton}
-              disabled={!canPreview}
-              onClick={() => {
-                setPreviewVisible((visible) => !visible);
-                setStatus(previewVisible ? 'Preview hidden. Your source drawing is untouched.' : 'Preview shown. Change the controls to make it feel right.');
-              }}
-            >
-              {previewVisible ? 'Hide preview' : 'Preview my repeats'}
-            </button>
-            {previewVisible && canPreview && authority?.state !== 'reviewing' ? <details className={styles.previewControls}><summary>Adjust the preview</summary>
-              <label>
-                <span>Space between <b>{previewControls.spacing}</b></span>
-                <input aria-label="Repeat spacing" type="range" min="16" max="160" step="4" value={previewControls.spacing} onChange={(event) => editPreviewControls((controls) => ({ ...controls, spacing: Number(event.target.value) }))} />
-              </label>
-              <label>
-                <span>First size <b>{previewControls.startScale.toFixed(1)}×</b></span>
-                <input aria-label="First repeat size" type="range" min="0.2" max="2" step="0.1" value={previewControls.startScale} onChange={(event) => editPreviewControls((controls) => ({ ...controls, startScale: Number(event.target.value) }))} />
-              </label>
-              <label>
-                <span>Last size <b>{previewControls.endScale.toFixed(1)}×</b></span>
-                <input aria-label="Last repeat size" type="range" min="0.2" max="2" step="0.1" value={previewControls.endScale} onChange={(event) => editPreviewControls((controls) => ({ ...controls, endScale: Number(event.target.value) }))} />
-              </label>
-              <label className={styles.followPath}><input aria-label="Turn repeats along path" type="checkbox" checked={previewControls.followPath} onChange={(event) => editPreviewControls((controls) => ({ ...controls, followPath: event.target.checked }))} /> Turn marks along my path</label>
-                <p>This is a temporary local preview. The review shows the bounded settings your tool will keep. Your drawing stays unchanged.</p>
-            </details> : null}
-            {previewError !== null ? <p className={styles.previewError} role="alert">{previewError}</p> : null}
-          </div> : null}
-          {previewVisible && canPreview ? <div className={styles.authorityCard} ref={reviewHeading} tabIndex={-1}>
-            <div><b>{authority?.state === 'saved' ? 'How this became yours' : 'Make this a tool'}</b>{authority?.state !== 'saved' ? <span>Describe what you want. Kale can suggest one small behavior, but you decide whether it belongs in your tool.</span> : null}</div>
-            {authority === null ? <div className={styles.intentStart}>
-              <label>
-                <span>What should your selected mark do?</span>
-                <textarea
-                  ref={wordsInput}
-                  aria-label="What should your selected mark do?"
-                  value={childWords}
-                  maxLength={800}
-                  placeholder="Repeat my scale along this path, smaller toward the end."
-                  onChange={(event) => { setChildWords(event.target.value); clearInterpretation(); }}
-                />
-              </label>
-              <button className={styles.previewButton} type="button" disabled={childWords.trim().length === 0 || interpreting || writing || reviewBusy || actionBusy} onClick={() => { void askKaleToReadWords(); }}>
-                {interpreting ? 'Kale is reading…' : 'Suggest a repeat from my words'}
-              </button>
-              {interpretationNote !== null ? <p className={styles.interpretationNote} role="status">Kale’s response: {interpretationNote}</p> : null}
-              {groundedIdea !== null ? <div className={styles.groundingCard}>
-                <p><b>You said</b> “{groundedIdea.request.childWords}”</p>
-                <p><b>Kale thinks</b> Repeat your selected mark along your path with {groundedIdea.proposal.spacing} spacing and {groundedIdea.proposal.sizeProfile.replaceAll('_', ' ')}.</p>
-                <ul>{groundedIdea.reasons.map((reason) => <li key={reason}>{reason}</li>)}</ul>
-                <button className={styles.previewButton} type="button" disabled={reviewBusy || actionBusy || writing} onClick={() => { void beginReview({ proposal: groundedIdea.proposal, childWords: groundedIdea.request.childWords, origin: 'model', sourceDigest: groundedIdea.sourceDigest, guidePathRevision: groundedIdea.guidePathRevision }); }}>Review Kale’s suggestion</button>
-              </div> : null}
-              <div className={styles.manualChoice}>
-                <p>Your current settings: {proposalFromControls().spacing} spacing, {proposalFromControls().sizeProfile.replaceAll('_', ' ')}.</p>
-                <button type="button" disabled={childWords.trim().length === 0 || reviewBusy || actionBusy || writing} onClick={() => { void beginReview({ proposal: proposalFromControls(), childWords: childWords.trim(), origin: 'manual' }); }}>{reviewBusy ? 'Opening your review…' : 'Choose the repeat myself'}</button>
-              </div>
-              <small>Kale receives your typed sentence plus only “a selected mark exists” and “a path exists.” It never receives your drawing.</small>
-            </div> : null}
-            {authority !== null ? <ol className={styles.provenanceRail}>
-              <li data-done>{isPractice ? 'You chose a practice mark and directed its path.' : 'You made the mark and chose its path.'}</li>
-              <li data-done>You said: “{authority.childWords}”</li>
-              <li>{authority.origin === 'model' ? 'Kale suggested' : 'You chose'}: {startingIdea?.proposal.kind === 'draw_pattern' ? `${startingIdea.proposal.spacing} spacing, ${startingIdea.proposal.sizeProfile.replaceAll('_', ' ')}` : 'a bounded repeat'}.</li>
-              <li data-done={authority.events.some((entry) => entry.type === 'child_edit') ? '' : undefined}>{authority.events.some((entry) => entry.type === 'child_edit') ? `You changed it to ${authority.proposal.spacing} spacing, ${authority.proposal.sizeProfile.replaceAll('_', ' ')}.` : 'Your changes stay separate from the starting idea.'}</li>
-              <li data-done={authority.state === 'saved' ? '' : undefined}>{authority.state === 'saved' ? <>You saved an immutable local version. <Link href={`/parent/tools?tool=${encodeURIComponent(authority.toolId)}`}>Show its story →</Link></> : authority.state === 'rejected' ? 'You rejected it. Nothing was saved.' : 'Only you can save it.'}</li>
-            </ol> : null}
-            {authority?.state === 'reviewing' ? <fieldset className={styles.authorityActions} disabled={actionBusy}>
-              <legend>Your choice</legend>
-              <p>Change the starting idea</p>
-              <div><button type="button" onClick={() => { void editProposal({ spacing: 'close' }); }}>Closer together</button><button type="button" onClick={() => { void editProposal({ spacing: 'wide' }); }}>Farther apart</button></div>
-              <div><button type="button" onClick={() => { void editProposal({ sizeProfile: 'constant' }); }}>Same size</button><button type="button" onClick={() => { void editProposal({ sizeProfile: 'smaller_toward_end' }); }}>Smaller at the end</button></div>
-              <label>Tool name<input aria-label="Tool name" value={toolName} maxLength={80} onChange={(event) => setToolName(event.target.value)} /></label>
-              <p>This tool keeps an exact copy of this mark and your approved settings. The original drawing stays unchanged.</p>
-              <button className={styles.saveButton} type="button" disabled={actionBusy || writing || saving || !durable || toolName.trim().length === 0} onClick={() => { void approveProposal(); }}>{saving ? 'Saving your tool…' : 'Save my tool'}</button>
-              <button className={styles.rejectButton} type="button" disabled={saving} onClick={() => { void rejectProposal(); }}>Reject this idea</button>
-              <small>This browser treats your choice as the product authority. It is local-device authority, not a login or identity check.</small>
-            </fieldset> : null}
-            {authority?.state === 'rejected' ? <div className={styles.authorityActions}><b>Not saved. Your drawing stays.</b><button type="button" onClick={() => { setAuthority(null); requestAnimationFrame(() => wordsInput.current?.focus()); }}>Change my words and try again</button></div> : null}
-          </div> : null}
-          <p className={styles.layerNote}><b>Original marks stay intact.</b> Guide and preview layers never change them.</p>
-        </aside>
-
         <div className={styles.canvasFrame}>
-          <svg
-            className={styles.canvas}
-            viewBox={`0 0 ${DRAW_WIDTH} ${DRAW_HEIGHT}`}
-            role="img"
-            aria-label="Your vector drawing surface. Drag to add a line."
-            onPointerDown={startStroke}
-            onPointerMove={extendStroke}
-            onPointerUp={finishStroke}
-            onPointerCancel={cancelStroke}
-            onPointerLeave={(event) => { if (draftRef.current !== null && event.buttons === 0) cancelStroke(event); }}
-          >
-            <defs>
-              <marker id="guide-arrow" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-                <path d="M 0 0 L 12 6 L 0 12 z" fill="#a65636" />
-              </marker>
-            </defs>
+          <svg className={styles.canvas} viewBox={`0 0 ${DRAW_WIDTH} ${DRAW_HEIGHT}`} role="img" aria-label={toolMode === 'draw' ? 'Drawing paper. Drag to draw.' : toolMode === 'select' ? 'Tap a piece of your drawing to choose it.' : 'Draw a trail where your piece should repeat.'}
+            onPointerDown={startStroke} onPointerMove={extendStroke} onPointerUp={finishStroke} onPointerCancel={cancelStroke}
+            onPointerLeave={event => { if (draftRef.current !== null && event.buttons === 0) cancelStroke(event); }}>
+            <defs><marker id="guide-arrow" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 12 6 L 0 12 z" fill="#a65636" /></marker></defs>
             <rect x="0" y="0" width={DRAW_WIDTH} height={DRAW_HEIGHT} rx="26" className={styles.canvasPaper} />
             <g data-layer="source" role="group" aria-label="Your source marks">
-              {strokes.filter((stroke) => selectedIds.has(stroke.strokeId)).map((stroke) => (
-                <polyline key={`highlight-${stroke.strokeId}`} points={stroke.points.map((point) => `${point.x},${point.y}`).join(' ')} fill="none" stroke="#8bd5c0" strokeWidth={stroke.width + 14} strokeLinecap="round" strokeLinejoin="round" opacity=".7" />
-              ))}
-              {strokes.map((stroke) => (
-                <polyline
-                  key={stroke.strokeId}
-                  points={stroke.points.map((point) => `${point.x},${point.y}`).join(' ')}
-                  fill="none"
-                  stroke={stroke.color}
-                  strokeWidth={stroke.width}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              ))}
+              {strokes.filter(stroke => selectedIds.has(stroke.strokeId)).map(stroke => <polyline key={`highlight-${stroke.strokeId}`} points={stroke.points.map(point => `${point.x},${point.y}`).join(' ')} fill="none" stroke="#8bd5c0" strokeWidth={stroke.width + 14} strokeLinecap="round" strokeLinejoin="round" opacity=".7" />)}
+              {strokes.map(stroke => stroke.points.length === 1 ? <circle key={stroke.strokeId} cx={stroke.points[0]!.x} cy={stroke.points[0]!.y} r={stroke.width / 2} fill={stroke.color} /> : <polyline key={stroke.strokeId} points={stroke.points.map(point => `${point.x},${point.y}`).join(' ')} fill="none" stroke={stroke.color} strokeWidth={stroke.width} strokeLinecap="round" strokeLinejoin="round" />)}
             </g>
             <g data-layer="guide" role="group" aria-label="Child-directed guide path">
-              {pathPoints.length >= 2 ? <polyline points={pathPoints.map((point) => `${point.x},${point.y}`).join(' ')} fill="none" stroke="#a65636" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="13 10" markerEnd="url(#guide-arrow)" /> : null}
-              {pathPoints[0] !== undefined ? <circle cx={pathPoints[0].x} cy={pathPoints[0].y} r="10" fill="#fffdf7" stroke="#a65636" strokeWidth="5" /> : null}
+              {toolMode === 'path' && pathPoints.length >= 2 ? <><polyline points={pathPoints.map(point => `${point.x},${point.y}`).join(' ')} fill="none" stroke="#a65636" strokeWidth="6" strokeLinecap="round" strokeDasharray="12 10" markerEnd="url(#guide-arrow)" /><circle cx={pathPoints[0]!.x} cy={pathPoints[0]!.y} r="9" fill="#a65636" /></> : null}
             </g>
-            <g data-layer="derived-preview" role="group" aria-label="Temporary repeat preview" pointerEvents="none">
-              {preview?.strokes.map((stroke) => stroke.points.length === 1 ? (
-                <circle key={stroke.previewStrokeId} cx={stroke.points[0]!.x} cy={stroke.points[0]!.y} r={Math.max(1, stroke.width / 2)} fill={stroke.color} opacity=".72" />
-              ) : (
-                <polyline key={stroke.previewStrokeId} points={stroke.points.map((point) => `${point.x},${point.y}`).join(' ')} fill="none" stroke={stroke.color} strokeWidth={stroke.width} strokeLinecap="round" strokeLinejoin="round" opacity=".72" />
-              ))}
+            <g data-layer="derived-preview" role="group" aria-label="Temporary repeat preview">
+              {previewVisible && toolMode === 'path' ? preview?.strokes.map(stroke => stroke.points.length === 1 ? <circle key={stroke.previewStrokeId} cx={stroke.points[0]!.x} cy={stroke.points[0]!.y} r={stroke.width / 2} fill={stroke.color} /> : <polyline key={stroke.previewStrokeId} points={stroke.points.map(point => `${point.x},${point.y}`).join(' ')} fill="none" stroke={stroke.color} strokeWidth={stroke.width} strokeLinecap="round" strokeLinejoin="round" opacity=".85" />) : null}
             </g>
           </svg>
-          {document?.strokes.length === 0 && draftStroke === null ? <p className={styles.emptyCanvas}>Make one little mark. It can become something useful later.</p> : null}
+          {strokes.length === 0 && draftStroke === null ? <div className={styles.emptyCanvas}><svg viewBox="0 0 140 60" aria-hidden="true"><path d="M15 45 Q30 8 48 36 T84 26 T125 25" stroke="currentColor" fill="none" strokeWidth="6" strokeLinecap="round" /><path d="M117 7 L133 18 L123 32 L107 21 Z" fill="currentColor" /></svg><b>Draw here!</b></div> : null}
+          {toolMode === 'select' ? <span className={styles.canvasCue}>☝ Tap a piece</span> : toolMode === 'path' && !canPreview ? <span className={styles.canvasCue}>↝ Draw a trail</span> : null}
         </div>
-      </div>
 
-      <footer className={styles.footer}>
-        <p>{document?.strokes.length ?? 0} original marks{preview === null ? '' : ` · ${preview.stampCount} preview repeats`} · {authority?.state === 'saved' ? 'Tool saved on this device' : 'Current draft not saved as a tool'}</p>
-        <p role="status">{writing ? 'Saving your drawing…' : status}</p>
-      </footer>
+        <aside className={styles.dock} aria-label="Your next step">
+          {toolMode === 'draw' && authority?.state !== 'saved' ? <>
+            <button className={styles.primaryNext} type="button" disabled={busy || strokes.length === 0} onClick={() => { setToolMode('select'); setStatus('Tap the piece you want to repeat.'); }}>Repeat a piece <span aria-hidden="true">→</span></button>
+            <details className={styles.moreTools}><summary>More drawing tools</summary><KeyboardInk disabled={busy} onDraw={keyboardLine} /><button type="button" disabled={busy || strokes.length === 0} onClick={clear}>Clear drawing</button></details>
+          </> : null}
+          {toolMode === 'select' ? <>
+            {selectionCurrent ? <div className={styles.pieceCard}><SourceMark strokes={selectedStrokes} label="Your selected source mark, unchanged" /><b>This piece?</b></div> : null}
+            <button className={styles.primaryNext} type="button" disabled={busy || !selectionCurrent} onClick={() => { setToolMode('path'); setPreviewVisible(document?.guidePath !== undefined); setStatus('Draw a trail for this piece.'); }}>Use this piece <span aria-hidden="true">→</span></button>
+            <button className={styles.quietBack} type="button" disabled={busy} onClick={drawAgain}>← Keep drawing</button>
+            <details className={styles.moreTools}><summary>Choose from my pieces</summary><label>Pick one<select aria-label="Choose a source mark" value={document?.selection?.strokeIds[0] ?? ''} disabled={busy} onChange={event => { if(event.target.value) selectMark(event.target.value); }}><option value="">Choose a line…</option>{document?.strokes.map((stroke,index) => <option key={stroke.strokeId} value={stroke.strokeId}>{stroke.strokeId.startsWith('stroke_scale') ? `Practice orange diamond ${stroke.strokeId.endsWith('001') ? '1' : stroke.strokeId.endsWith('002') ? '2' : '3'}` : `Line ${index + 1}`}</option>)}</select></label></details>
+          </> : null}
+          {toolMode === 'path' && !canPreview ? <>
+            <div className={styles.pieceCard}><SourceMark strokes={selectedStrokes} label="The exact piece to repeat" /><b>Give it a trail.</b></div>
+            <KeyboardPath onChoose={choosePath} disabled={busy} />
+            <button className={styles.quietBack} type="button" disabled={busy} onClick={() => setToolMode('select')}>← Pick another piece</button>
+          </> : null}
+
+          {canPreview && authority?.state !== 'saved' ? <div className={styles.lookPanel} ref={reviewHeading} tabIndex={-1}>
+            <span className={styles.previewBadge}>{authority?.state === 'reviewing' ? 'Check it before you keep it' : 'Try it · not kept yet'}</span>
+            <fieldset className={styles.lookChoices} disabled={actionBusy || writing || reviewBusy || interpreting || authority?.state === 'rejected'}>
+              <legend>How far apart?</legend>
+              <div>{(['close','even','wide'] as const).map(spacing => <button key={spacing} type="button" aria-pressed={currentProposal.spacing === spacing} onClick={() => chooseLook({spacing})}><PatternChoice kind={spacing} /><span>{spacing === 'close' ? 'Close' : spacing === 'even' ? 'Even' : 'Far apart'}</span></button>)}</div>
+            </fieldset>
+            <fieldset className={styles.lookChoices} disabled={actionBusy || writing || reviewBusy || interpreting || authority?.state === 'rejected'}>
+              <legend>What size?</legend><div>{(['constant','smaller_toward_end'] as const).map(sizeProfile => <button key={sizeProfile} type="button" aria-pressed={currentProposal.sizeProfile === sizeProfile} onClick={() => chooseLook({sizeProfile})}><PatternChoice kind={sizeProfile === 'constant' ? 'same' : 'smaller'} /><span>{sizeProfile === 'constant' ? 'Same size' : 'Get smaller'}</span></button>)}</div>
+            </fieldset>
+            {previewError !== null ? <p role="alert" className={styles.error}>{previewError}</p> : null}
+            {authority === null ? <>
+              <button className={styles.primaryNext} type="button" disabled={actionBusy || writing || reviewBusy || interpreting || previewError !== null} onClick={openMyReview}>{reviewBusy ? 'Opening…' : 'Make my stamp →'}</button>
+              <p className={styles.shortHint}>Want another trail? Draw it on the paper.</p>
+              <button className={styles.quietBack} type="button" disabled={busy} onClick={() => { setToolMode('select'); setPreviewVisible(false); clearInterpretation(); }}>← Choose another piece</button>
+              <details className={styles.askPanel}><summary>Tell Kale your idea</summary><label>What should it do?<textarea ref={wordsInput} aria-label="What should your selected mark do?" value={childWords} maxLength={800} placeholder="Repeat my scale, smaller toward the end." onChange={event => { setChildWords(event.target.value); clearInterpretation(); }} /></label>
+                <button type="button" className={styles.secondary} disabled={!childWords.trim() || interpreting || writing || reviewBusy || actionBusy} onClick={() => { void askKaleToReadWords(); }}>{interpreting ? 'Thinking…' : 'Try my idea'}</button>
+                {interpretationNote !== null ? <p role="status">{interpretationNote}</p> : null}
+                {groundedIdea !== null ? <div className={styles.groundingCard}><b>Kale’s idea · you choose</b><p>{groundedIdea.proposal.spacing === 'close' ? 'Close together' : groundedIdea.proposal.spacing === 'wide' ? 'Far apart' : 'Even spacing'} · {groundedIdea.proposal.sizeProfile === 'constant' ? 'same size' : 'getting smaller'}</p><button className={styles.secondary} type="button" disabled={reviewBusy || writing || actionBusy} onClick={() => { void beginReview({ proposal: groundedIdea.proposal, childWords: groundedIdea.request.childWords, origin:'model', sourceDigest:groundedIdea.sourceDigest, guidePathRevision:groundedIdea.guidePathRevision }); }}>Check Kale’s idea</button></div> : null}
+                <small>Only these words go to AI—not your drawing. You can use the picture buttons without AI.</small>
+              </details>
+            </> : null}
+            {authority?.state === 'reviewing' ? <fieldset className={styles.keepPanel} disabled={actionBusy || writing || saving}>
+              <legend>Name your stamp</legend><input aria-label="Tool name" value={toolName} maxLength={80} onChange={event => setToolName(event.target.value)} />
+              <p>Your piece + this look. Keep it for another drawing?</p>
+              <button className={styles.primaryNext} type="button" disabled={!durable || !toolName.trim() || previewError !== null} onClick={() => { void approveProposal(); }}>{saving ? 'Keeping…' : 'Keep my stamp ✓'}</button>
+              <button className={styles.quietBack} type="button" onClick={() => { void rejectProposal(); }}>No, change it</button>
+            </fieldset> : null}
+            {authority?.state === 'rejected' ? <div><p>Not kept. Your drawing is still here.</p><button ref={retryRef} className={styles.primaryNext} type="button" disabled={actionBusy} onClick={() => { setAuthority(null); clearInterpretation(); setChildWords(''); requestAnimationFrame(() => reviewHeading.current?.focus()); }}>Try another look</button></div> : null}
+          </div> : null}
+          {authority?.state === 'saved' ? <div className={styles.savedCard} ref={savedRef} tabIndex={-1}><SourceMark strokes={selectedStrokes} label="The piece you kept in your stamp" /><b>✓ {toolName}</b><p>Yours to use again.</p>{onSaved ? <button className={styles.primaryNext} type="button" onClick={onSaved}>Stamp on a new trail →</button> : <Link href="/draw/library">Use my stamp →</Link>}</div> : null}
+          {authority !== null ? <details className={styles.receipt}><summary>How it was made</summary><ol className={styles.provenanceRail}><li>{isPractice ? 'You chose a practice mark and directed its path.' : 'You made the mark and chose its path.'}</li><li>Your instruction: “{authority.childWords}”</li><li>{authority.origin === 'model' ? 'Kale suggested' : 'You chose'}: {startingIdea?.proposal.kind === 'draw_pattern' ? `${startingIdea.proposal.spacing} spacing, ${startingIdea.proposal.sizeProfile.replaceAll('_',' ')}` : 'a bounded repeat'}.</li><li>{authority.events.some(entry => entry.type === 'child_edit') ? `You changed it to ${authority.proposal.spacing} spacing, ${authority.proposal.sizeProfile.replaceAll('_',' ')}.` : 'Your changes stay separate from the starting idea.'}</li><li>{authority.state === 'saved' ? <Link href={`/parent/tools?tool=${encodeURIComponent(authority.toolId)}`}>Show its story →</Link> : 'Only you can save it.'}</li></ol><p>{isPractice ? 'Practice mark' : 'Your marks'} · Current draft not saved as a tool unless you keep it. Saved versions run locally without AI.</p></details> : null}
+        </aside>
+      </div>
+      <footer className={styles.footer}><p role="status">{writing ? 'Keeping your drawing…' : status}</p>{preview !== null ? <span>{preview.stampCount} repeats{authority?.state !== 'saved' ? ' · preview' : ' · kept'}</span> : null}</footer>
       {error !== null ? <div className={styles.error} role="alert"><p>{error}</p><button type="button" onClick={downloadDrawing}>Download my drawing before reloading</button></div> : null}
     </section>
   );

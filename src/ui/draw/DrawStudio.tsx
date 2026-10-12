@@ -1,10 +1,10 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import Link from 'next/link';
 import { DrawWorkbench } from './DrawWorkbench';
 import { SavedDrawTools } from './SavedDrawTools';
 import { StudioBoundary } from './StudioBoundary';
+import { DrawSymbol } from './DrawSymbol';
 import { resetDrawPractice } from './practiceSession';
 import styles from './DrawStudio.module.css';
 
@@ -32,15 +32,14 @@ export function DrawStudio() {
   return <>
     <div className={styles.bar}>
       <div className={styles.switcher} role="group" aria-label="Draw workspace">
-        <button type="button" aria-pressed={tab === 'create'} onClick={() => setTab('create')}>Make a tool</button>
-        <button type="button" aria-pressed={tab === 'reuse'} onClick={() => setTab('reuse')}>Use a saved tool</button>
+        <button type="button" aria-pressed={tab === 'create'} onClick={() => setTab('create')}><DrawSymbol kind="pencil" /> Draw</button>
+        <button type="button" aria-pressed={tab === 'reuse'} onClick={() => setTab('reuse')}><DrawSymbol kind="diamond" /> My stamps</button>
       </div>
-      <Link href="/flight" className={styles.other}>Try the same idea in Flight Lab →</Link>
-      <button type="button" className={styles.reset} ref={reset} onClick={() => { dialog.current?.showModal(); cancel.current?.focus(); }}>Reset practice…</button>
     </div>
     {/* Keep the create workspace mounted so switching tools never drops an unsaved review. */}
     <div hidden={tab !== 'create'}><StudioBoundary key={generation}><DrawWorkbench onSaved={useSaved} /></StudioBoundary></div>
     {tab === 'reuse' ? <div role="region" ref={reuseHeading} tabIndex={-1} aria-label="Use a saved tool"><SavedDrawTools key={generation} embedded /></div> : null}
+    <details className={styles.options}><summary>Practice reset (grown-ups)</summary><button type="button" className={styles.reset} ref={reset} onClick={() => { dialog.current?.showModal(); cancel.current?.focus(); }}>Reset practice…</button></details>
     <dialog className={styles.dialog} ref={dialog} aria-labelledby="practice-reset-title" aria-describedby="practice-reset-details" onCancel={(event) => { event.preventDefault(); close(); }}>
       <h2 id="practice-reset-title">Reset the practice example?</h2>
       <p id="practice-reset-details">Remove only drawings and tools made under the new, labelled practice example. Blank drawings and your other tools stay. Older practice drawings are also kept. This cannot be undone.</p>

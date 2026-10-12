@@ -8,9 +8,10 @@ export function TabletShell(props: {
   readonly title: string;
   readonly children: ReactNode;
   readonly headerActions?: ReactNode;
+  readonly childDrawing?: boolean;
 }) {
   return (
-    <div className={styles.shell}>
+    <div className={`${styles.shell} ${props.childDrawing ? styles.childDrawing : ''}`}>
       <div id="kale-product">
       <header className={styles.header}>
         <div className={styles.identity}>
@@ -18,17 +19,17 @@ export function TabletShell(props: {
             <span aria-hidden="true">k</span>
           </Link>
           <div>
-            <p className={styles.eyebrow}>Child-made tools</p>
+            {!props.childDrawing ? <p className={styles.eyebrow}>Child-made tools</p> : null}
             <h1 className={styles.title}>{props.title}</h1>
           </div>
         </div>
-        <nav className={styles.nav} aria-label="Kale Memory Lab">
+        {props.childDrawing ? <nav className={styles.childNav} aria-label="Other places"><details><summary>For grown-ups</summary><div><Link href="/parent/tools">Parent view</Link><Link href="/flight">Flight Lab</Link><Link href="/writing">Earlier writing experiment</Link></div></details></nav> : <nav className={styles.nav} aria-label="Kale Memory Lab">
           <Link href="/draw">Draw</Link>
           <Link href="/flight">Flight Lab</Link>
           <Link href="/draw/library">My tools</Link>
           <Link href="/parent/tools">Parent view</Link>
           <details className={styles.more}><summary aria-label="Earlier experiments"><span className={styles.fullLabel}>Earlier experiments</span><span className={styles.shortLabel} aria-hidden="true">More</span></summary><div><Link href="/writing">Writing preference</Link><Link href="/lab">Bridge Bench</Link><Link href="/library">Earlier saved tools</Link></div></details>
-        </nav>
+        </nav>}
         {props.headerActions}
       </header>
       <main className={styles.main}>{props.children}</main>

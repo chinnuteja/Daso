@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { pointerPoint } from './pointerPoint';
 import { KeyboardPath } from './KeyboardPath';
 import { SourceMark } from './SourceMark';
+import { chooseSavedDrawTool } from './chooseSavedDrawTool';
 import { assertCapabilityGraph } from '../../core/capability/graph';
 import type { CapabilityLifecycleRepository } from '../../core/ports/repositories';
 import { DRAW_PRACTICE_OWNER } from './practiceSession';
@@ -40,7 +41,7 @@ function renderStroke(stroke: { readonly previewStrokeId?: string; readonly stro
   return <polyline key={key} points={stroke.points.map((point) => `${point.x},${point.y}`).join(' ')} fill="none" stroke={stroke.color} strokeWidth={stroke.width} strokeLinecap="round" strokeLinejoin="round" opacity={opacity} />;
 }
 
-export function SavedDrawTools({ embedded = false }: { embedded?: boolean } = {}) {
+export function SavedDrawTools({ embedded = false, preferredToolId = null }: { embedded?: boolean; preferredToolId?: string | null } = {}) {
   const [tools, setTools] = useState<readonly SavedDrawTool[]>([]);
   const [selectedToolId, setSelectedToolId] = useState<string | null>(null);
   const [path, setPath] = useState<readonly DrawPoint[]>([]);
@@ -89,9 +90,9 @@ export function SavedDrawTools({ embedded = false }: { embedded?: boolean } = {}
       loadedSignature.current = signature;
       if (changed) {
         setTools(loaded);
-        setSelectedToolId((current) => loaded.some((tool) => tool.definition.toolId === current) ? current : loaded.at(-1)?.definition.toolId ?? null);
+        setSelectedToolId((current) => chooseSavedDrawTool(loaded.map(tool => tool.definition), current, preferredToolId));
         setPreview(null); setError(null);
-        setStatus(loaded.length === 0 ? 'No saved Draw tools yet.' : 'Pick a saved tool, then draw a new path for it.');
+        setStatus(loaded.length === 0 ? 'No drawing tools yet. Save a look you like in My drawing.' : 'Your tool is ready. Drag on the paper!');
       }
       if (loaded.length !== definitions.length) setError('A saved tool has missing records and cannot be used safely. Other verified tools are shown; we did not recreate the missing mark.');
       };
@@ -109,7 +110,7 @@ export function SavedDrawTools({ embedded = false }: { embedded?: boolean } = {}
       }
     });
     return () => { cancelled = true; loadGeneration++; repository.current = null; close?.(); channel?.close(); if (refresh) { window.removeEventListener('focus', refresh); window.removeEventListener('kale-data-changed', refresh); } };
-  }, []);
+  }, [preferredToolId]);
 
   const selected = tools.find((tool) => tool.definition.toolId === selectedToolId) ?? null;
   const livePath = draftPath ?? path;
@@ -117,8 +118,8 @@ export function SavedDrawTools({ embedded = false }: { embedded?: boolean } = {}
   function chooseTool(toolId: string): void {
     if (applying.current) return;
     setSelectedToolId(toolId);
-    setPreview(null);
-    setStatus('This tool stays exactly as it was saved. Draw a fresh path to use it.');
+    setPath([]); setDraftPath(null); setPreview(null);
+    setStatus('Drag on the paper to draw with this tool.');
     setError(null);
   }
 
@@ -147,10 +148,11 @@ export function SavedDrawTools({ embedded = false }: { embedded?: boolean } = {}
     const completed = samplePoint(draftPath ?? [], pointFromEvent(event), 0);
     setDraftPath(null);
     setPath(completed);
-    setStatus(completed.length >= 2 ? 'New path ready. Apply your saved tool whenever you are ready.' : 'Make a longer path with one smooth drag.');
+    setStatus(completed.length >= 2 ? 'Drawing with your saved tool…' : 'Make a longer line with one smooth drag.');
+    if (completed.length >= 2) void applySavedTool(completed);
   }
 
-  async function applySavedTool(): Promise<void> {
+  async function applySavedTool(chosenPath: readonly DrawPoint[] = path): Promise<void> {
     if (selected === null || applying.current || repository.current === null) return;
     applying.current = true; setBusy(true);
     try {
@@ -167,11 +169,11 @@ export function SavedDrawTools({ embedded = false }: { embedded?: boolean } = {}
         snapshot,
         version,
         pathId: 'draw_reuse_path_local_001',
-        path,
+        path: chosenPath,
       });
       setPreview(result);
       setError(null);
-      setStatus(`Applied locally: ${result.stampCount} repeats from your original mark. Kale was not asked.`);
+      setStatus(`${result.stampCount} copies of your drawing. Your saved tool did that — no AI needed.`);
     } catch (caught) {
       setPreview(null);
       setError(caught instanceof Error ? caught.message : 'This tool could not be applied yet.');
@@ -181,9 +183,9 @@ export function SavedDrawTools({ embedded = false }: { embedded?: boolean } = {}
   if (tools.length === 0 && error === null) {
     return (
       <section className={styles.empty} aria-labelledby="saved-draw-title">
-        <p className={styles.eyebrow}>My stamps</p>
-        <h2 id="saved-draw-title">{loading ? 'Opening your stamps…' : 'Your stamps will live here.'}</h2>
-        {!loading ? <><p>Draw a piece. Make a stamp. Use it again!</p><Link href="/draw" className={styles.primary}>Draw my first stamp →</Link></> : null}
+        <p className={styles.eyebrow}>My tools</p>
+        <h2 id="saved-draw-title">{loading ? 'Opening your tools…' : 'A home for tools you make.'}</h2>
+        {!loading ? <><p>Draw something. Try Repeat. Save a look you love.</p><Link href="/draw" className={styles.primary}>Let’s draw →</Link></> : null}
         <p role="status">{status}</p>
       </section>
     );
@@ -193,9 +195,9 @@ export function SavedDrawTools({ embedded = false }: { embedded?: boolean } = {}
     <section className={`${styles.library} ${polish.library}`} aria-labelledby="saved-draw-title">
       <header className={`${styles.header} ${polish.header}`}>
         <div>
-          <p className={styles.eyebrow}>My stamps</p>
-          <h2 id="saved-draw-title">Where will your stamp go?</h2>
-          <p>Pick a stamp. Draw a trail.</p>
+          <p className={styles.eyebrow}>My tools</p>
+          <h2 id="saved-draw-title">Draw with something you made!</h2>
+          <p>Tap your tool. Drag on the paper. It does the rest.</p>
         </div>
         {!embedded ? <Link href="/draw" className={styles.quietLink}>Make another tool</Link> : null}
       </header>
@@ -205,26 +207,25 @@ export function SavedDrawTools({ embedded = false }: { embedded?: boolean } = {}
           {tools.map((tool) => (
             <button key={tool.definition.toolId} type="button" className={styles.toolCard} data-selected={selected?.definition.toolId === tool.definition.toolId} aria-pressed={selected?.definition.toolId === tool.definition.toolId} disabled={busy} onClick={() => chooseTool(tool.definition.toolId)}>
               <SourceMark strokes={tool.snapshot.strokes} label="Exact saved source mark" />
-              <span><b>{tool.definition.displayName}</b><small>{tool.definition.ownerChildId === DRAW_PRACTICE_OWNER ? 'Practice piece · your choices' : 'Made from your drawing'}</small></span>
+              <span><b>{tool.definition.displayName}</b><small>{tool.definition.ownerChildId === DRAW_PRACTICE_OWNER ? 'Practice drawing · your choices' : 'Made from your drawing'}</small></span>
             </button>
           ))}
         </aside>
 
         <div className={`${styles.workspace} ${polish.workspace}`}>
           <div className={styles.instruction}>
-            <span aria-hidden="true">↝</span><p><b>Draw a trail here.</b></p>
-            <button type="button" disabled={busy} onClick={() => { setPath([]); setDraftPath(null); setPreview(null); setStatus('Path cleared. Draw a fresh path.'); }}>Clear path</button>
+            <span aria-hidden="true">↝</span><p><b>Drag to draw with your tool.</b></p>
           </div>
-          <svg className={`${styles.canvas} ${polish.canvas}`} viewBox={`0 0 ${DRAW_WIDTH} ${DRAW_HEIGHT}`} role="img" aria-label="New path canvas. Drag to draw where the saved mark should repeat." onPointerDown={startPath} onPointerMove={extendPath} onPointerUp={finishPath} onPointerCancel={() => { drawing.current = false; setDraftPath(null); setStatus('Unfinished path left out. Your saved tool is unchanged.'); }}>
+          <svg className={`${styles.canvas} ${polish.canvas}`} viewBox={`0 0 ${DRAW_WIDTH} ${DRAW_HEIGHT}`} role="img" aria-label="Drawing paper. Drag to draw with your saved tool." onPointerDown={startPath} onPointerMove={extendPath} onPointerUp={finishPath} onPointerCancel={() => { drawing.current = false; setDraftPath(null); setStatus('Unfinished path left out. Your saved tool is unchanged.'); }}>
             <rect x="0" y="0" width={DRAW_WIDTH} height={DRAW_HEIGHT} rx="26" className={styles.paper} />
-            {livePath.length >= 2 ? <polyline points={livePath.map((point) => `${point.x},${point.y}`).join(' ')} fill="none" stroke="#a65636" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="14 10" /> : null}
+            {livePath.length >= 2 && preview === null ? <polyline points={livePath.map((point) => `${point.x},${point.y}`).join(' ')} fill="none" stroke="#a65636" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="8 10" /> : null}
             {preview?.strokes.map((stroke) => renderStroke(stroke, .82))}
-            {path.length < 2 && draftPath === null ? <text x="400" y="275" textAnchor="middle" className={styles.canvasHint}>Draw a trail</text> : null}
+            {path.length < 2 && draftPath === null ? <text x="400" y="275" textAnchor="middle" className={styles.canvasHint}>Drag here!</text> : null}
           </svg>
-          <KeyboardPath disabled={busy} onChoose={(points) => { setPath(points); setPreview(null); setStatus('You chose a new path. Apply your saved tool when ready.'); }} />
+          <KeyboardPath disabled={busy} onChoose={(points) => { setPath(points); setPreview(null); void applySavedTool(points); }} />
           <div className={styles.applyBar}>
-            <div><b>{selected?.definition.displayName ?? 'Pick a stamp'}</b><span>{selected === null ? 'Pick one above.' : 'Your piece. Your saved look.'}</span></div>
-            <button className={styles.primary} type="button" disabled={busy || selected === null || path.length < 2} onClick={() => { void applySavedTool(); }}>{busy ? 'Opening…' : 'Stamp here!'}</button>
+            <div><b>{selected?.definition.displayName ?? 'Choose a tool'}</b><span>{selected === null ? 'Tap its picture above.' : 'Your drawing. Your saved look.'}</span></div>
+            <button className={styles.primary} type="button" disabled={busy || selected === null || path.length < 2} onClick={() => { setPath([]); setPreview(null); setStatus('A fresh page. Drag to draw again.'); }}>{busy ? 'Drawing…' : 'Draw again'}</button>
           </div>
           {selected !== null ? <details className={styles.provenance}><summary>How I made it</summary><b>{selected.definition.ownerChildId === DRAW_PRACTICE_OWNER ? 'Practice mark · your approved behavior.' : 'Your original mark remains the source.'}</b><span>Saved version {selected.version.version} · runs locally without AI</span><Link href={`/parent/tools?tool=${encodeURIComponent(selected.definition.toolId)}`}>Show its story →</Link></details> : null}
         </div>

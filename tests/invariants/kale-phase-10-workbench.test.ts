@@ -9,7 +9,7 @@ describe('Phase 10 presentation boundaries (real browser checks supplement these
   it('keeps the artifact before the context dock and provides keyboard mark/path choices', () => {
     const source = readFileSync('src/ui/draw/DrawWorkbench.tsx', 'utf8');
     expect(source).toContain('KeyboardPath');
-    expect(source).toContain('Use this piece');
+    expect(source).toContain('Choose a drawing to repeat');
     expect(source).toContain('aria-label="Choose a source mark"');
     expect(source).not.toContain('source hash {');
     expect(source).toContain('startingIdea?.proposal.kind');

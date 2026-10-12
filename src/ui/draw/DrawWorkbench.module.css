@@ -6,22 +6,24 @@
 .swap{font:750 .83rem "Segoe UI",sans-serif;min-height:44px;border:1px solid var(--line);border-radius:14px;padding:.45rem .65rem;background:var(--panel);color:var(--ink);cursor:pointer}
 .swap{display:inline-flex;align-items:center;gap:.35rem}.swap:disabled{opacity:.5;cursor:not-allowed}
 .practiceBadge{display:inline-block;margin:0 0 .6rem;background:#fff0da;border-radius:10px;padding:.3rem .6rem;color:#684622;font-size:.8rem}
-.journeyDots{display:flex;gap:.65rem;margin:.5rem 0 .75rem;color:var(--muted);font-size:.78rem;font-weight:800}
-.journeyDots span{display:flex;align-items:center;gap:.35rem}
-.journeyDots b{display:grid;place-items:center;width:23px;height:23px;border-radius:50%;background:#e2e7e0;color:#40564a}
-.journeyDots [data-current=true]{color:#084c3d}.journeyDots [data-current=true] b{background:#0d6a54;color:white}
-.journeyDots [data-done=true] b{background:#dff1e9;color:#084c3d}
+.toolShelf{display:flex;align-items:center;gap:.55rem;margin:.6rem 0 .75rem;padding:.4rem;border-radius:20px;background:#fffdf7;border:1px solid #dadccb}
+.toolShelf button{display:flex;align-items:center;gap:.55rem;min-height:56px;padding:.6rem 1.1rem;border:2px solid #d6d5c8;border-radius:16px;color:#334e47;background:#fffdf7;font:850 1rem "Segoe UI",sans-serif;cursor:pointer}
+.toolShelf button svg{width:30px;height:30px}.toolShelf button[aria-pressed=true]{border-color:#0d6a54;background:#dff1e9;box-shadow:0 3px 0 #0d6a54}.toolShelf button:last-of-type[aria-pressed=true]{background:#f5e7ff;border-color:#6f4395;box-shadow:0 3px 0 #6f4395;color:#593577}
+.toolShelf button:disabled{opacity:.5;cursor:not-allowed}.toolHint{margin-left:.45rem;color:#4c5b53;font-size:.85rem;font-weight:700}
+.deskControls{display:flex;flex-wrap:wrap;gap:.6rem;margin:.5rem 0 .75rem;align-items:center}.deskControls .toolShelf{margin:0;flex:1}.deskControls:has(.inkBar) .toolShelf{flex:0 0 auto}.deskControls:has(.inkBar) .toolHint{display:none}.deskControls .inkBar{flex:1;margin:0}.deskControls:has(.inkBar) .toolShelf button{padding:.5rem .7rem}
 .inkBar{display:flex;align-items:center;flex-wrap:wrap;gap:.7rem;border:0;margin:0 0 .7rem;padding:.5rem .7rem;background:var(--panel);border-radius:18px;box-shadow:var(--shadow-sm);min-width:0}
-.palette{display:flex;gap:.55rem}.swatch{width:44px;height:44px;border:3px solid transparent;border-radius:14px;background:var(--swatch);cursor:pointer}
+.palette{display:flex;gap:.55rem}.swatch{width:44px;height:44px;border:3px solid transparent;border-radius:12px 12px 18px 18px;background:var(--swatch);box-shadow:inset 0 -8px 0 rgb(255 255 255 / 15%);cursor:pointer}
 .swatch[data-selected=true]{outline:3px solid var(--ink);outline-offset:2px}
 .penSize{display:grid;gap:0;width:110px;font-size:.72rem;font-weight:750}.penSize input{width:100%;accent-color:var(--accent)}
 .inkBar>button{display:flex;gap:.2rem;align-items:center;min-height:44px;border:0;border-radius:12px;padding:.4rem .55rem;color:var(--ink);background:#f3f5ed;font:750 .8rem "Segoe UI",sans-serif;cursor:pointer}
 .inkBar>button span{font-size:1.5rem}.inkBar button:disabled{opacity:.45;cursor:not-allowed}
 .screenReader{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 .stage{display:grid;grid-template-columns:minmax(0,1fr) 250px;grid-template-areas:"canvas dock";gap:.75rem;align-items:start}
-.canvasFrame{grid-area: canvas;top:.6rem;padding:.3rem;position:sticky;height:min(58svh,560px);min-height:300px;border:2px solid #c2cebf;border-radius:22px;background:#e9f1df}
+.canvasFrame{grid-area: canvas;top:.6rem;padding:.35rem;position:sticky;height:min(62svh,580px);min-height:300px;border:2px solid #b4cabb;border-radius:24px;background:#dfeddf;box-shadow:0 5px 0 #bfd3c3}
 .canvas{display:block;width:100%;height:100%;touch-action:none;cursor:crosshair}.canvasPaper{fill:#fffdf7;stroke:none}
-.dock{grid-area:dock;display:flex;flex-direction:column;gap:.6rem;padding:.8rem;border-radius:18px;border:1px solid #cbd7c6;background:#f8fbf1;min-width:0}
+.dock{grid-area:dock;display:flex;flex-direction:column;gap:.6rem;padding:.8rem;border-radius:20px;border:1px solid #dadccb;background:#fffaf0;min-width:0}
+.playInvitation{display:grid;justify-items:center;gap:.5rem;padding:1rem .4rem;text-align:center;color:#593577}.playInvitation svg{width:100px;height:50px}.playInvitation b{font-size:1.05rem}.playInvitation p{margin:0;color:#4c5b53;font-size:.82rem;line-height:1.5}
+.sourcePicker{display:grid;gap:.5rem}.sourcePicker>b{font-size:.9rem}.sourceTray{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.4rem}.sourceTray button{min-width:0;min-height:64px;background:#fffdf7;border:2px solid #d5d8c8;border-radius:14px;padding:.25rem;cursor:pointer}.sourceTray button svg{height:54px!important}.sourceTray button[aria-pressed=true]{background:#f5e7ff;border-color:#6f4395;box-shadow:0 2px 0 #6f4395}.sourceTray button:disabled{opacity:.5;cursor:not-allowed}
 .primaryNext{display:flex;align-items:center;justify-content:center;gap:.6rem;width:100%;min-height:52px;border:2px solid #084c3d;border-radius:16px;background:#0d6a54;color:#fff;padding:.7rem .8rem;font:850 1rem "Segoe UI",sans-serif;box-shadow:0 3px 0 #084c3d;cursor:pointer}
 .primaryNext:hover:not(:disabled){background:#084c3d}.primaryNext:disabled{background:#e4e8df;color:#59685e;border-color:#c6cdc3;box-shadow:none;cursor:not-allowed}
 .quietBack{border:0;border-radius:10px;background:transparent;color:#40564a;min-height:44px;font:750 .8rem "Segoe UI",sans-serif;cursor:pointer}
@@ -53,16 +55,18 @@
 .error{margin:.6rem 0;padding:.75rem;border:1px solid #c98272;border-radius:14px;background:var(--danger-soft);color:#7e332c;font-size:.85rem}.error button{min-height:44px;border:1px solid #c98272;border-radius:10px;padding:.5rem;background:white;color:#7e332c;font:inherit;cursor:pointer}
 .workbench :is(button,a,input,textarea,summary,select,[tabindex]):focus-visible{outline:var(--focus-ring);outline-offset:3px}
 @media(max-width:760px){
+.deskControls{gap:.5rem}.deskControls:has(.inkBar) .toolShelf{flex:1}.deskControls .inkBar{flex:1 1 100%}
 .workbenchHeader h2{font-size:1.35rem}.stage{grid-template-columns:1fr;grid-template-areas:"canvas" "dock"}
-.canvasFrame{position:relative;top:0;width:100%;height:min(36svh,calc(70vw - 17px));min-height:0;aspect-ratio:10/7}.dock{padding:.65rem}.startActions .swap{font-size:.75rem}
+.canvasFrame{position:relative;top:0;width:100%;height:min(42svh,calc(70vw - 17px));min-height:0;aspect-ratio:10/7}.dock{padding:.65rem}.startActions .swap{font-size:.75rem}
 .inkBar{gap:.5rem;padding:.45rem .55rem}.penSize{width:85px}.palette{gap:.4rem}
 .lookChoices>div{max-width:480px}.lookPanel{grid-template-columns:1fr 1fr;gap:.6rem}
 .lookPanel>.primaryNext,.lookPanel>.keepPanel,.lookPanel>.askPanel,.lookPanel>.shortHint,.lookPanel>div,.lookPanel>.error,.previewBadge{grid-column:1/-1}
 .pieceCard{justify-content:center}.emptyCanvas{font-size:1.05rem}
+.sourceTray{display:flex;overflow-x:auto;gap:.5rem}.sourceTray button{flex:0 0 68px}.toolHint{font-size:.78rem}.playInvitation{padding:.3rem}.playInvitation svg{height:32px}
 }
 @media(max-width:430px){
 .inkBar{gap:.35rem}.palette{width:100%;justify-content:space-between}.penSize{flex:1;max-width:150px}
-.lookPanel{grid-template-columns:1fr}.lookChoices button{min-height:74px}.journeyDots{gap:.45rem;font-size:.73rem}.canvasFrame{min-height:220px}.footer{flex-wrap:wrap}
+.lookPanel{grid-template-columns:1fr}.lookChoices button{min-height:74px}.canvasFrame{min-height:220px}.footer{flex-wrap:wrap}.toolShelf{flex-wrap:wrap;gap:.4rem}.toolShelf button{flex:1;justify-content:center;min-height:52px}.toolHint{width:100%;margin:.2rem;text-align:center}
 }
 @media(prefers-reduced-motion:reduce){.workbench *{animation:none!important;transition:none!important}}
-@media(forced-colors:active){.lookChoices button[aria-pressed=true],.journeyDots [data-current=true]{border:2px solid Highlight}.primaryNext{border:2px solid ButtonText}.canvasCue{border:1px solid CanvasText}.swatch{forced-color-adjust:none}}
+@media(forced-colors:active){.lookChoices button[aria-pressed=true],.toolShelf button[aria-pressed=true],.sourceTray button[aria-pressed=true]{border:2px solid Highlight}.primaryNext{border:2px solid ButtonText}.canvasCue{border:1px solid CanvasText}.swatch{forced-color-adjust:none}}

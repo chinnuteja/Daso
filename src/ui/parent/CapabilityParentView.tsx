@@ -58,6 +58,8 @@ export function CapabilityParentView() {
         const repo = repositories.current;
         const requested = requestedTool === null ? null : await repo.capabilities.getDefinition(requestedTool);
         const definitions = (requested === null ? [...await repo.capabilities.listDefinitionsByOwner('child_local_01'), ...await repo.capabilities.listDefinitionsByOwner(DRAW_PRACTICE_OWNER)] : await repo.capabilities.listDefinitionsByOwner(requested.ownerChildId)).filter((tool) => tool.currentVersionId !== null);
+        // Owner lists arrive separately; concatenation order is not creation order.
+        definitions.sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.toolId.localeCompare(b.toolId));
         const chosen = requestedTool ?? definitions.at(-1)?.toolId;
         const graph = chosen === undefined ? null : await repo.capabilities.getGraph(chosen);
         const next = graph === null ? null : await buildCapabilityParentEvidence(graph);

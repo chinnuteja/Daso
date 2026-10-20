@@ -5,10 +5,11 @@ import { pointerPoint } from './pointerPoint';
 import { KeyboardPath } from './KeyboardPath';
 import { SourceMark } from './SourceMark';
 import { chooseSavedDrawTool } from './chooseSavedDrawTool';
+import { downloadPicture } from './pictureExport';
 import { assertCapabilityGraph } from '../../core/capability/graph';
 import type { CapabilityLifecycleRepository } from '../../core/ports/repositories';
 import { DRAW_PRACTICE_OWNER } from './practiceSession';
-import { type PointerEvent, useEffect, useRef, useState } from 'react';
+import { type PointerEvent, useEffect, useMemo, useRef, useState } from 'react';
 
 import { openBrowserDrawAssets } from '../../adapters/persistence';
 import { runSavedDrawCapability } from '../../core/capability';
@@ -41,7 +42,7 @@ function renderStroke(stroke: { readonly previewStrokeId?: string; readonly stro
   return <polyline key={key} points={stroke.points.map((point) => `${point.x},${point.y}`).join(' ')} fill="none" stroke={stroke.color} strokeWidth={stroke.width} strokeLinecap="round" strokeLinejoin="round" opacity={opacity} />;
 }
 
-export function SavedDrawTools({ embedded = false, preferredToolId = null }: { embedded?: boolean; preferredToolId?: string | null } = {}) {
+export function SavedDrawTools({ embedded = false, preferredToolId = null, onDraw }: { embedded?: boolean; preferredToolId?: string | null; onDraw?: () => void } = {}) {
   const [tools, setTools] = useState<readonly SavedDrawTool[]>([]);
   const [selectedToolId, setSelectedToolId] = useState<string | null>(null);
   const [path, setPath] = useState<readonly DrawPoint[]>([]);
@@ -114,6 +115,14 @@ export function SavedDrawTools({ embedded = false, preferredToolId = null }: { e
 
   const selected = tools.find((tool) => tool.definition.toolId === selectedToolId) ?? null;
   const livePath = draftPath ?? path;
+  // Visual feedback uses the graph verified on load. Pointer-up still rereads and verifies
+  // the durable graph before presenting a completed result or enabling picture export.
+  const livePreview = useMemo(() => {
+    if (draftPath === null || selected === null) return null;
+    try { return runSavedDrawCapability({ snapshot: selected.snapshot, version: selected.version, pathId: 'draw_reuse_path_local_001', path: draftPath }); }
+    catch { return null; } // Short / oversized gestures never bypass the runtime budget.
+  }, [draftPath, selected]);
+  const visiblePreview = draftPath === null ? preview : livePreview;
 
   function chooseTool(toolId: string): void {
     if (applying.current) return;
@@ -185,7 +194,7 @@ export function SavedDrawTools({ embedded = false, preferredToolId = null }: { e
       <section className={styles.empty} aria-labelledby="saved-draw-title">
         <p className={styles.eyebrow}>My tools</p>
         <h2 id="saved-draw-title">{loading ? 'Opening your tools…' : 'A home for tools you make.'}</h2>
-        {!loading ? <><p>Draw something. Try Repeat. Save a look you love.</p><Link href="/draw" className={styles.primary}>Let’s draw →</Link></> : null}
+        {!loading ? <><p>Draw something. Try Repeat. Save a look you love.</p>{onDraw ? <button type="button" className={styles.primary} onClick={onDraw}>Let’s draw →</button> : <Link href="/draw" className={styles.primary}>Let’s draw →</Link>}</> : null}
         <p role="status">{status}</p>
       </section>
     );
@@ -218,8 +227,8 @@ export function SavedDrawTools({ embedded = false, preferredToolId = null }: { e
           </div>
           <svg className={`${styles.canvas} ${polish.canvas}`} viewBox={`0 0 ${DRAW_WIDTH} ${DRAW_HEIGHT}`} role="img" aria-label="Drawing paper. Drag to draw with your saved tool." onPointerDown={startPath} onPointerMove={extendPath} onPointerUp={finishPath} onPointerCancel={() => { drawing.current = false; setDraftPath(null); setStatus('Unfinished path left out. Your saved tool is unchanged.'); }}>
             <rect x="0" y="0" width={DRAW_WIDTH} height={DRAW_HEIGHT} rx="26" className={styles.paper} />
-            {livePath.length >= 2 && preview === null ? <polyline points={livePath.map((point) => `${point.x},${point.y}`).join(' ')} fill="none" stroke="#a65636" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="8 10" /> : null}
-            {preview?.strokes.map((stroke) => renderStroke(stroke, .82))}
+            {livePath.length >= 2 && visiblePreview === null ? <polyline points={livePath.map((point) => `${point.x},${point.y}`).join(' ')} fill="none" stroke="#a65636" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="8 10" /> : null}
+            {visiblePreview?.strokes.map((stroke) => renderStroke(stroke))}
             {path.length < 2 && draftPath === null ? <text x="400" y="275" textAnchor="middle" className={styles.canvasHint}>Drag here!</text> : null}
           </svg>
           <KeyboardPath disabled={busy} onChoose={(points) => { setPath(points); setPreview(null); void applySavedTool(points); }} />
@@ -227,6 +236,7 @@ export function SavedDrawTools({ embedded = false, preferredToolId = null }: { e
             <div><b>{selected?.definition.displayName ?? 'Choose a tool'}</b><span>{selected === null ? 'Tap its picture above.' : 'Your drawing. Your saved look.'}</span></div>
             <button className={styles.primary} type="button" disabled={busy || selected === null || path.length < 2} onClick={() => { setPath([]); setPreview(null); setStatus('A fresh page. Drag to draw again.'); }}>{busy ? 'Drawing…' : 'Draw again'}</button>
           </div>
+          {preview !== null ? <button type="button" className={styles.quietLink} disabled={busy || draftPath !== null} onClick={() => { try { downloadPicture(preview.strokes); setStatus('Picture download started. Look in your downloads!'); } catch { setError('Your picture could not download. Your tool is still saved.'); } }}>↓ Get picture</button> : null}
           {selected !== null ? <details className={styles.provenance}><summary>How I made it</summary><b>{selected.definition.ownerChildId === DRAW_PRACTICE_OWNER ? 'Practice mark · your approved behavior.' : 'Your original mark remains the source.'}</b><span>Saved version {selected.version.version} · runs locally without AI</span><Link href={`/parent/tools?tool=${encodeURIComponent(selected.definition.toolId)}`}>Show its story →</Link></details> : null}
         </div>
       </div>

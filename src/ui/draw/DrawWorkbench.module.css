@@ -18,7 +18,10 @@
 .inkBar>button{display:flex;gap:.2rem;align-items:center;min-height:44px;border:0;border-radius:12px;padding:.4rem .55rem;color:var(--ink);background:#f3f5ed;font:750 .8rem "Segoe UI",sans-serif;cursor:pointer}
 .inkBar>button span{font-size:1.5rem}.inkBar button:disabled{opacity:.45;cursor:not-allowed}
 .screenReader{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
-.stage{display:grid;grid-template-columns:minmax(0,1fr) 250px;grid-template-areas:"canvas dock";gap:.75rem;align-items:start}
+.stage{display:grid;grid-template-columns:minmax(0,1fr) 250px;grid-template-areas:"picture dock" "canvas dock";grid-template-rows:auto 1fr;gap:.6rem .75rem;align-items:start}
+.stage:not(:has(.pictureBar)){grid-template-areas:"canvas dock";grid-template-rows:auto}
+.pictureBar{grid-area:picture;display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;color:#40564a;font-size:.76rem}.pictureBar span{flex:1}.pictureBar button{min-height:44px;padding:.45rem .65rem;border:1px solid #bacabc;border-radius:12px;background:#fffdf7;color:#294f46;font:750 .8rem "Segoe UI",sans-serif;cursor:pointer}.pictureBar button[aria-pressed=true]{background:#e9ddf5;border-color:#6f4395}.pictureBar button:disabled{opacity:.5;cursor:not-allowed}
+.ideaPicture{text-align:center;color:#52625b;font-size:.75rem}.ideaPicture svg{width:100%;max-height:110px}.ideaPicture span{display:block;margin-bottom:.6rem}
 .canvasFrame{grid-area: canvas;top:.6rem;padding:.35rem;position:sticky;height:min(62svh,580px);min-height:300px;border:2px solid #b4cabb;border-radius:24px;background:#dfeddf;box-shadow:0 5px 0 #bfd3c3}
 .canvas{display:block;width:100%;height:100%;touch-action:none;cursor:crosshair}.canvasPaper{fill:#fffdf7;stroke:none}
 .dock{grid-area:dock;display:flex;flex-direction:column;gap:.6rem;padding:.8rem;border-radius:20px;border:1px solid #dadccb;background:#fffaf0;min-width:0}
@@ -56,7 +59,7 @@
 .workbench :is(button,a,input,textarea,summary,select,[tabindex]):focus-visible{outline:var(--focus-ring);outline-offset:3px}
 @media(max-width:760px){
 .deskControls{gap:.5rem}.deskControls:has(.inkBar) .toolShelf{flex:1}.deskControls .inkBar{flex:1 1 100%}
-.workbenchHeader h2{font-size:1.35rem}.stage{grid-template-columns:1fr;grid-template-areas:"canvas" "dock"}
+.workbenchHeader h2{font-size:1.35rem}.stage{grid-template-columns:1fr;grid-template-areas:"picture" "canvas" "dock";grid-template-rows:auto}.stage:not(:has(.pictureBar)){grid-template-areas:"canvas" "dock"}.pictureBar span{display:none}
 .canvasFrame{position:relative;top:0;width:100%;height:min(42svh,calc(70vw - 17px));min-height:0;aspect-ratio:10/7}.dock{padding:.65rem}.startActions .swap{font-size:.75rem}
 .inkBar{gap:.5rem;padding:.45rem .55rem}.penSize{width:85px}.palette{gap:.4rem}
 .lookChoices>div{max-width:480px}.lookPanel{grid-template-columns:1fr 1fr;gap:.6rem}

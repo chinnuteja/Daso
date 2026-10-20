@@ -11,6 +11,7 @@ export function SavedToolTile(props: {
   readonly onParentEvidence: () => void;
   readonly onDayTwo?: () => void;
 }) {
+  const isPreference = props.tile.kind === 'coaching_preference';
   return (
     <article className={styles.tile}>
       <div className={styles.topline}>
@@ -22,13 +23,19 @@ export function SavedToolTile(props: {
         <p>Created by {props.tile.creatorName}</p>
         {props.tile.sourceDeleted ? <p className={styles.provenance}>{DELETED_SOURCE_COPY}</p> : null}
       </div>
-      <p className={styles.counts}>
-        <strong>{props.tile.observationCount}</strong> observations
-        <span aria-hidden="true">·</span>
-        <strong>{props.tile.approvedCorrectionCount}</strong> corrections
-      </p>
-      <ChoiceButton emphasis="primary" onClick={props.onOpenRunner}>Use this tool</ChoiceButton>
-      <div className={styles.secondaryActions}>
+      {isPreference ? (
+        <p className={styles.counts}>Writing <span aria-hidden="true">·</span> Child-approved behavior</p>
+      ) : (
+        <p className={styles.counts}>
+          <strong>{props.tile.observationCount}</strong> observations
+          <span aria-hidden="true">·</span>
+          <strong>{props.tile.approvedCorrectionCount}</strong> corrections
+        </p>
+      )}
+      <ChoiceButton emphasis="primary" onClick={props.onOpenRunner}>
+        {isPreference ? 'Open my preference' : 'Use this tool'}
+      </ChoiceButton>
+      {!isPreference ? <div className={styles.secondaryActions}>
         <ChoiceButton quiet onClick={props.onParentEvidence}>
           Parent evidence
         </ChoiceButton>
@@ -37,7 +44,7 @@ export function SavedToolTile(props: {
             Let Leo try this
           </ChoiceButton>
         ) : null}
-      </div>
+      </div> : null}
     </article>
   );
 }

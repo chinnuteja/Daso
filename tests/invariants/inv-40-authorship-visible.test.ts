@@ -63,6 +63,6 @@ describe('INV-40 — AI suggestions are visibly distinguishable from child decis
     );
     expect(rendered.child_chosen).not.toBe(rendered.ai_suggested_child_accepted);
     expect(rendered.child_chosen).toContain('Maya chose this.');
-    expect(rendered.ai_suggested_child_accepted).toContain('Daso suggested this. Maya said yes.');
+    expect(rendered.ai_suggested_child_accepted).toContain('Kale suggested this. Maya said yes.');
   });
 });

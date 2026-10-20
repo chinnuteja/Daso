@@ -111,7 +111,9 @@ export function RunnerFlow() {
               trial: {
                 toolId,
                 designName: fields.designName,
-                distanceM: fields.distanceM,
+                ...(fields.distanceM === undefined ? {} : { distanceM: fields.distanceM }),
+                ...(fields.loadCount === undefined ? {} : { loadCount: fields.loadCount }),
+                ...(fields.setupChanged === undefined ? {} : { setupChanged: fields.setupChanged }),
                 obstruction: fields.obstruction,
                 validAtCapture: true,
               },

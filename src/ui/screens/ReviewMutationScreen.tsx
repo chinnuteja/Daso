@@ -12,7 +12,7 @@ export function ReviewMutationScreen(props: {
   readonly onReject: () => void;
 }) {
   const status = props.suggested
-    ? 'Daso suggests this. It is not a rule until Maya approves it. Daso cannot approve it.'
+    ? 'Kale suggests this. It is not a rule until Maya approves it. Kale cannot approve it.'
     : 'Maya said this. It becomes a lasting rule only if Maya approves it.';
   const body = (
     <>

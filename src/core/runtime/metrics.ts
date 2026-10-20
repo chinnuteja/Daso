@@ -16,6 +16,10 @@ export function hasMedianDistance(metrics: readonly MetricId[]): boolean {
   return metrics.includes('median_distance');
 }
 
+export function hasMedianLoad(metrics: readonly MetricId[]): boolean {
+  return metrics.includes('median_load');
+}
+
 export function hasConsistency(metrics: readonly MetricId[]): boolean {
   return metrics.includes('consistency');
 }
@@ -53,13 +57,14 @@ export function consistencySpreadMm(sortedAscending: readonly number[]): number 
 export interface RankingComparable {
   readonly designName: string;
   readonly medianDistanceMm?: number;
+  readonly medianLoadCount?: number;
   readonly consistencyMm?: number;
 }
 
 /**
  * Total order over the version's active metrics only.
- * Both: median descending, consistency ascending, designName code-point.
- * Median only: median descending, then designName.
+ * Active median metrics: descending, then consistency ascending, then designName code-point.
+ * A version may compare distance, load, or both; inactive metrics never participate.
  * Consistency only: consistency ascending, then designName.
  * Does not rely on sort stability.
  */
@@ -71,6 +76,13 @@ export function compareRanking(
   if (hasMedianDistance(activeMetrics)) {
     const leftMedian = requireMetric(left.medianDistanceMm, 'medianDistanceMm');
     const rightMedian = requireMetric(right.medianDistanceMm, 'medianDistanceMm');
+    if (leftMedian !== rightMedian) {
+      return rightMedian - leftMedian;
+    }
+  }
+  if (hasMedianLoad(activeMetrics)) {
+    const leftMedian = requireMetric(left.medianLoadCount, 'medianLoadCount');
+    const rightMedian = requireMetric(right.medianLoadCount, 'medianLoadCount');
     if (leftMedian !== rightMedian) {
       return rightMedian - leftMedian;
     }

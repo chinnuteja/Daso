@@ -4,11 +4,16 @@ import type { ChildId, ToolId } from '../../../core/schema/primitives';
 import { ParentSummary } from '../../../core/schema/parentSummary';
 import { PermissionGrant } from '../../../core/schema/permissionGrant';
 import { ExperimentTrial } from '../../../core/schema/experimentTrial';
+import { DrawDocument, MarkSnapshot } from '../../../core/draw/schema';
 import { ToolDefinition } from '../../../core/schema/toolDefinition';
 import { ToolVersion } from '../../../core/schema/toolVersion';
+import { CapabilityDefinition, SavedCapabilityVersion } from '../../../core/capability/types';
+import { CapabilityLedgerEntry } from '../../../core/capability/ledger';
+import { FLIGHT_OWNER_ID, FLIGHT_PRACTICE_TOOL_ID } from '../../../core/capability/flightPractice';
 import { PersistenceError } from '../database';
 import { shouldFailAfterDeleteWrite } from '../atomicCommit';
 import type { MemoryRecords } from './store';
+import { drawOwnerGenerationKey, parseDrawGeneration } from '../drawWriteGuard';
 
 interface MemorySnapshot {
   readonly profiles: Map<string, unknown>;
@@ -18,6 +23,11 @@ interface MemorySnapshot {
   readonly trials: Map<string, unknown>;
   readonly grants: Map<string, unknown>;
   readonly summaries: Map<string, unknown>;
+  readonly drawDocuments: Map<string, unknown>;
+  readonly markSnapshots: Map<string, unknown>;
+  readonly capabilityDefinitions: Map<string, unknown>;
+  readonly capabilityVersions: Map<string, unknown>;
+  readonly capabilityEntries: Map<string, unknown>;
 }
 
 type StoreName = Exclude<keyof MemoryRecords, 'meta'>;
@@ -35,6 +45,11 @@ function snapshotRecords(records: MemoryRecords): MemorySnapshot {
     trials: new Map(records.trials),
     grants: new Map(records.grants),
     summaries: new Map(records.summaries),
+    drawDocuments: new Map(records.drawDocuments),
+    markSnapshots: new Map(records.markSnapshots),
+    capabilityDefinitions: new Map(records.capabilityDefinitions),
+    capabilityVersions: new Map(records.capabilityVersions),
+    capabilityEntries: new Map(records.capabilityEntries),
   };
 }
 
@@ -47,6 +62,11 @@ function restoreRecords(records: MemoryRecords, snapshot: MemorySnapshot): void 
     'trials',
     'grants',
     'summaries',
+    'drawDocuments',
+    'markSnapshots',
+    'capabilityDefinitions',
+    'capabilityVersions',
+    'capabilityEntries',
   ];
   for (const store of stores) {
     records[store].clear();
@@ -93,6 +113,18 @@ function scheduleToolGraph(records: MemoryRecords, toolId: ToolId): ScheduledMut
     if (ParentSummary.parse(raw).toolId === toolId) {
       scheduled.push({ kind: 'delete', store: 'summaries', key: summaryId });
     }
+  }
+  for (const [snapshotId, raw] of records.markSnapshots.entries()) {
+    if (MarkSnapshot.parse(raw).toolId === toolId) {
+      scheduled.push({ kind: 'delete', store: 'markSnapshots', key: snapshotId });
+    }
+  }
+  if (records.capabilityDefinitions.has(toolId)) scheduled.push({ kind: 'delete', store: 'capabilityDefinitions', key: toolId });
+  for (const [versionId, raw] of records.capabilityVersions.entries()) {
+    if (SavedCapabilityVersion.parse(raw).toolId === toolId) scheduled.push({ kind: 'delete', store: 'capabilityVersions', key: versionId });
+  }
+  for (const [eventId, raw] of records.capabilityEntries.entries()) {
+    if (CapabilityLedgerEntry.parse(raw).toolId === toolId) scheduled.push({ kind: 'delete', store: 'capabilityEntries', key: eventId });
   }
   return scheduled;
 }
@@ -148,6 +180,8 @@ export function deleteMemoryToolGraph(records: MemoryRecords, toolId: ToolId): v
 }
 
 export function deleteMemoryProfileGraph(records: MemoryRecords, childId: ChildId): void {
+  const generationKey = drawOwnerGenerationKey(childId);
+  const nextGeneration = parseDrawGeneration(records.meta.get(generationKey)) + 1;
   const owned: ToolId[] = [];
   for (const raw of records.tools.values()) {
     const parsed = ToolDefinition.parse(raw);
@@ -155,13 +189,32 @@ export function deleteMemoryProfileGraph(records: MemoryRecords, childId: ChildI
       owned.push(parsed.toolId);
     }
   }
+  for (const raw of records.capabilityDefinitions.values()) {
+    const parsed = CapabilityDefinition.parse(raw);
+    if (parsed.ownerChildId === childId) owned.push(parsed.toolId);
+  }
+  for (const raw of records.capabilityEntries.values()) {
+    const entry = CapabilityLedgerEntry.parse(raw);
+    if (entry.type !== 'child_intent' || records.capabilityDefinitions.has(entry.toolId)) continue;
+    // Before P9 the Kale UI used one fixed local child. Never override a saved owner.
+    if ((entry.ownerChildId ?? 'child_local_01') === childId) owned.push(entry.toolId);
+  }
   const scheduled: ScheduledMutation[] = [];
-  for (const toolId of owned) {
+  // Historical practice observations exist before the first review/definition.
+  if (childId === FLIGHT_OWNER_ID && !records.capabilityDefinitions.has(FLIGHT_PRACTICE_TOOL_ID)) owned.push(FLIGHT_PRACTICE_TOOL_ID);
+  for (const toolId of new Set(owned)) {
     scheduled.push(...scheduleToolGraph(records, toolId));
   }
   if (records.profiles.has(childId)) {
     scheduled.push({ kind: 'delete', store: 'profiles', key: childId });
   }
+  for (const [documentId, raw] of records.drawDocuments.entries()) {
+    if (DrawDocument.parse(raw).ownerChildId === childId) {
+      scheduled.push({ kind: 'delete', store: 'drawDocuments', key: documentId });
+    }
+  }
   scheduled.push(...scheduleSurvivingForkRedaction(records, childId));
+  if (scheduled.length === 0 && shouldFailAfterDeleteWrite()) throw new PersistenceError('injected delete failure before generation mutation');
   applyScheduled(records, scheduled);
+  records.meta.set(generationKey, nextGeneration);
 }

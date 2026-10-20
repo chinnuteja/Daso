@@ -33,6 +33,7 @@ export function authorshipSummaryCounts(
   const heldMetrics = new Set<MetricId>(body.metrics);
   const heldInputs = new Set<InputField>(body.inputs);
   const heldRules = new Set<string>(body.rules.map((rule) => rule.ruleId));
+  const heldCoachingSource = body.coachingPreference?.sourceEventId;
   const approvedIds = childApprovedCandidateIds(ordered);
 
   let childDefinedDecisions = 0;
@@ -57,7 +58,7 @@ export function authorshipSummaryCounts(
     }
     if (
       !approved &&
-      mutationAppearsInBody(entry.candidateMutation, heldMetrics, heldInputs, heldRules)
+      mutationAppearsInBody(entry.candidateMutation, heldMetrics, heldInputs, heldRules, heldCoachingSource, entry.eventId)
     ) {
       unapprovedDecisionsInCompiledVersion += 1;
     }
@@ -92,6 +93,8 @@ function mutationAppearsInBody(
   heldMetrics: ReadonlySet<MetricId>,
   heldInputs: ReadonlySet<InputField>,
   heldRules: ReadonlySet<string>,
+  heldCoachingSource: EventId | undefined,
+  eventId: EventId,
 ): boolean {
   switch (mutation.operation) {
     case 'add_metric':
@@ -104,5 +107,7 @@ function mutationAppearsInBody(
       return heldRules.has(mutation.rule.ruleId);
     case 'remove_rule':
       return !heldRules.has(mutation.ruleId);
+    case 'set_coaching_preference':
+      return heldCoachingSource === eventId;
   }
 }

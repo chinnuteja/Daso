@@ -40,10 +40,7 @@ body {
   min-height: 100%;
   max-width: 100%;
   overflow-x: hidden;
-  background:
-    radial-gradient(circle at 8% 0%, rgb(225 242 234 / 70%), transparent 32rem),
-    radial-gradient(circle at 98% 18%, rgb(250 226 207 / 50%), transparent 27rem),
-    var(--paper);
+  background: var(--paper);
   color: var(--ink);
   font-family: "Aptos", "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
   font-size: var(--type-body);
@@ -94,6 +91,11 @@ input:focus-visible,
 select:focus-visible {
   outline: var(--focus-ring);
   outline-offset: 2px;
+}
+
+textarea:focus-visible, summary:focus-visible, [tabindex]:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 3px;
 }
 
 @media (prefers-reduced-motion: reduce) {

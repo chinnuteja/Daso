@@ -5,7 +5,7 @@ import styles from './SuggestionCard.module.css';
 export function SuggestionCard(props: { readonly children: ReactNode }) {
   return (
     <article className={styles.card}>
-      <p className={styles.label}>Daso suggests</p>
+      <p className={styles.label}>Kale suggests</p>
       {props.children}
     </article>
   );

@@ -3,8 +3,22 @@ import type { ChildProfile } from '../schema/childProfile';
 import type { ExperimentTrial } from '../schema/experimentTrial';
 import type { PermissionGrant } from '../schema/permissionGrant';
 import type { ParentSummary } from '../schema/parentSummary';
-import type { ChildId, GrantId, ToolId, ToolVersionId, TrialId } from '../schema/primitives';
+import type {
+  ChildId,
+  DrawDocumentId,
+  GrantId,
+  MarkSnapshotId,
+  ToolId,
+  ToolVersionId,
+  TrialId,
+} from '../schema/primitives';
+import type { DrawDocument, MarkSnapshot } from '../draw/schema';
 import type { ForkSnapshot } from '../reuse/types';
+import type { CapabilityLedgerEntry } from '../capability/ledger';
+import type { CapabilityDefinition, DrawCapabilityVersion } from '../capability/types';
+import type { SavedCapabilityVersion } from '../capability/types';
+import type { ApprovedCapabilityCommit } from '../capability/approval';
+import type { CapabilityGraph } from '../capability/graph';
 import type { ToolDefinition } from '../schema/toolDefinition';
 import type { ToolVersion } from '../schema/toolVersion';
 import type { LedgerEntry } from '../ledger/types';
@@ -92,6 +106,49 @@ export interface ParentSummaryRepository {
   deleteByTool(toolId: ToolId): Promise<void>;
 }
 
+/**
+ * The only new persistence family in the Kale migration. It deliberately owns both mutable
+ * drawing documents and immutable selected-mark snapshots, instead of scattering Draw state
+ * across generic blobs or adding a repository per UI gesture.
+ */
+export interface DrawAssetRepository {
+  getDocument(documentId: DrawDocumentId): Promise<DrawDocument | null>;
+  listDocumentsByOwner(childId: ChildId): Promise<readonly DrawDocument[]>;
+  getOwnerGeneration(childId: ChildId): Promise<number>;
+  saveDocument(document: DrawDocument, expected?: Readonly<{ revision: number | null; ownerGeneration: number }>): Promise<void>;
+  /** Only the mutable drawing; approved tool-owned mark/path copies remain. */
+  deleteDocument(documentId: DrawDocumentId): Promise<void>;
+  getMarkSnapshot(snapshotId: MarkSnapshotId): Promise<MarkSnapshot | null>;
+  listMarkSnapshotsByTool(toolId: ToolId): Promise<readonly MarkSnapshot[]>;
+  /** Rejects duplicate ids: an approved source mark cannot be replaced. */
+  saveMarkSnapshot(snapshot: MarkSnapshot): Promise<void>;
+  deleteByTool(toolId: ToolId): Promise<void>;
+}
+
+/**
+ * The generic v2 authority stream. Draw uses it first; Flight will use the same append/review/
+ * approval ordering later rather than inventing a second approval mechanism.
+ */
+export interface CapabilityLifecycleRepository {
+  /** One consistent read snapshot for local evidence and export. */
+  getGraph(toolId: ToolId): Promise<CapabilityGraph | null>;
+  commitApprovedCapability(input: ApprovedCapabilityCommit): Promise<SavedCapabilityVersion>;
+  getVersion(versionId: ToolVersionId): Promise<SavedCapabilityVersion | null>;
+  getDefinition(toolId: ToolId): Promise<CapabilityDefinition | null>;
+  listDefinitionsByOwner(childId: ChildId): Promise<readonly CapabilityDefinition[]>;
+  listEntriesByTool(toolId: ToolId): Promise<readonly CapabilityLedgerEntry[]>;
+  append(entry: CapabilityLedgerEntry): Promise<void>;
+  /** Approval is the only method that creates the immutable snapshot/version and active pointer. */
+  commitDrawApproval(input: {
+    readonly definition: CapabilityDefinition;
+    readonly version: DrawCapabilityVersion;
+    readonly snapshot: MarkSnapshot;
+    readonly approval: CapabilityLedgerEntry;
+  }): Promise<DrawCapabilityVersion>;
+  getDrawVersion(versionId: ToolVersionId): Promise<DrawCapabilityVersion | null>;
+  listDrawVersionsByTool(toolId: ToolId): Promise<readonly DrawCapabilityVersion[]>;
+}
+
 /** The complete persistence surface the domain is allowed to ask for. */
 export interface Repositories {
   readonly profiles: ChildProfileRepository;
@@ -101,4 +158,6 @@ export interface Repositories {
   readonly trials: ExperimentTrialRepository;
   readonly grants: PermissionGrantRepository;
   readonly summaries: ParentSummaryRepository;
+  readonly drawAssets: DrawAssetRepository;
+  readonly capabilities: CapabilityLifecycleRepository;
 }

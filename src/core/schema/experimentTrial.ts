@@ -24,8 +24,12 @@ export const ExperimentTrial = z.strictObject({
   toolId: ToolId,
   toolVersionIdAtCapture: ToolVersionId,
   designName: NonEmptyString,
-  distanceM: DistanceMetres,
+  distanceM: DistanceMetres.optional(),
+  /** Optional because Flight Lab measures distance while Bridge Bench counts coins. */
+  loadCount: z.number().int().nonnegative().optional(),
   obstruction: z.boolean(),
+  /** A child-recorded fair-test flag. It is never inferred by a model. */
+  setupChanged: z.boolean().optional(),
   validAtCapture: z.boolean(),
   validUnderCurrentVersion: z.boolean(),
   note: NonEmptyString.optional(),

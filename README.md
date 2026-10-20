@@ -1,27 +1,40 @@
-# Teach Daso
+# Kale Memory Lab
 
 **The computer that grows with your child should grow because of your child.**
 
-A child notices something, teaches a lasting rule, sees the result change, and another child can use it later. A parent can see why. Flight Lab is the only implemented tool.
+A child makes something, says what it should do, checks a bounded interpretation, and approves a lasting tool. AI suggests; the child authors; saved behavior runs locally without a model.
 
-![Teach Daso — a child starts from a real question](docs/demo/frames/00-thesis.png)
+## Current two-slice capability proof
+
+Start at **`/`** (or `/draw`): colours and drawing paper open immediately. **Draw** and **Repeat** are tools, not numbered steps. Draw anything, then tap its thumbnail to repeat it—or choose Repeat and tap a line on the paper. Drag to see copies appear; switch tools and try picture choices made from your own mark. **Show my original** compares the source drawing with the pattern. **Save for later** opens a review; **Yes, save my tool** is the separate child approval. Naming and typing an instruction are optional. **Tell Kale your idea** requests bounded AI interpretation. **My tools** draws with the original saved mark when you drag, without another apply button or AI call; `/draw/library` is its direct link. **Get picture** downloads the visible artwork as a static SVG, distinct from saving a reusable tool. The model never receives or regenerates the drawing. **Try a dragon** is explicitly supplied practice art, not a claim that the learner drew it.
+
+**`/flight`** proves the same approval/version engine generalizes beyond art. Pick a labelled practice observation, explain an obstruction, inspect a clear throw at the same distance, preview the actual ranking change and approve the rule. Recorded practice data is not a claim that a child physically performed those throws.
+
+**`/parent/tools`** shows the exact work, typed words or labelled picture choices, model suggestion or manual choice, child edits/approval, and deterministic replay. Technical receipts stay secondary. Export and explicit source/tool/profile deletion are local. An unsaved review is not shown as a saved tool. No learning gains or emotions are inferred; old missing context is labelled honestly. See [the current shared architecture](docs/ARCHITECTURE.md).
+
+Phase 11 adds ordered/conflict-checked local saves, reset fencing, verified saved-tool reads, geometry limits, keyboard drawing and clearer action labels. It is not a claim of independent UX acceptance or production readiness. Founder deployment/handoff remains Phase 12; see [the hardening evidence and remaining checks](docs/evidence/KALE_PHASE_11.md). The writing prototype is preserved at `/writing`; earlier experiments are quieter navigation links, not the main founder proof. New Draw practice uses a separate local identity: **Reset practice…** asks before removing only its drawings/tools. Blank drawings, older practice and other tools are kept; normal refresh does not delete data.
+
+The earlier writing-experience research is retained in [the UX rebuild notes](docs/UX_REBUILD.md), not presented as validation of the current Draw flow.
 
 This is a local tablet prototype. It is not affiliated with or endorsed by Daso.
 
-## The idea
+## The earlier writing prototype (preserved)
 
-Teach Daso explores one adjacent question: can a child teach their computer a durable capability without quietly handing authorship to the AI?
+Kale Memory Lab explores one adjacent question: can a child teach their computer a durable capability without quietly handing authorship to the AI?
 
-The answer here is deliberately narrow and executable. Maya defines what “best” means, records real observations, notices an unfair throw, explains why, and approves the change. The AI may suggest; it cannot approve. Her words compile into an immutable version, the same observations replay deterministically, and the saved tool runs later with no model call.
+The primary proof is deliberately personal and easy to understand. In a writing draft, Kale initially notices a spelling issue. The child teaches it, in their own words, to ask about the story first and defer spelling until the draft is finished. Kale reflects a narrow structured interpretation, but nothing changes until the child approves it. Approval compiles an immutable local version; the same draft then gets a story question instead of a correction.
+
+The deeper Bridge Bench and Flight Lab proofs use the same mechanism for data tools. A child defines what “best” means, records real observations, notices an unfair test, explains why, and approves the change. Their words compile into an immutable version, the same observations replay deterministically, and the saved tool runs later with no model call.
 
 | What a founder sees | What the architecture proves |
 |---|---|
+| **Ask about my story first** | A child-authored sentence is reflected into a closed preference, stays inactive until approval, and changes executable behavior only after compilation. |
 | **Before: Dart leads → Now: Falcon leads** | One approved rule changed one stored trial’s validity; the runtime replay is deterministic. |
 | **Maya taught this rule** | Material behavior is equal to the fold of approved authorship events. |
 | **Saved rules — works without AI** | Runner cannot reach either model role and uses the active immutable version. |
 | **Parent evidence** | Every narrative clause is projected from local records and cites evidence that exists. |
 
-![The same stored throws change after Maya approves her rule](docs/demo/frames/03-v2.png)
+The original Phase 8 screenshots and video are archived evidence of the earlier interface, not the current landing page.
 
 ## Run locally
 
@@ -30,7 +43,11 @@ npm install
 npm run dev
 ```
 
-Open `http://localhost:3000`. Teaching stays scripted so the path works with the network off.
+Open `http://localhost:3000/draw`. Draw/Flight interpretation uses the configured server-side provider when available and also offers explicitly manual review. Saved tools and the new parent evidence view run locally without model calls. Older writing/builder paths retain their scripted prototype interpreters.
+
+The child-facing desk lets children draw, repeat, and change the look freely; saving is optional and requires their approval. Keyboard drawing lives under **More drawing tools**; choosing a mark/path also has keyboard alternatives. Manual picture choices are recorded as chosen instructions, never as typed speech or AI suggestions. Reopening an unchanged, verified approved drawing restores its saved tool. A save conflict keeps unsaved vectors in the current tab and offers a JSON download; that backup is not an activated capability and automatic import is not provided. Reload can discard unsaved input: finish a save or download first.
+
+For a deliberate provider-failure test, set server-only `KALE_DISABLE_TEACHING=1` before starting the app. Requests receive 503, not a fabricated suggestion. Remove it for normal teaching. Saved reuse does not depend on this route. This is not a cold-start/offline website promise; no service worker is installed.
 
 ```text
 npm run typecheck
@@ -39,20 +56,32 @@ npm test
 npm run build
 ```
 
-## 90-second product path
+## Try the earlier writing experiment
 
-1. Home: **Start with a question**.
+Open `/writing`. This is a preserved earlier experiment, not the Draw-first landing.
+
+The first visit opens a concise guide to the product claim, the four-step interaction, and the three routes. It can be reopened with **Guide**. Use **↻ Start fresh** in the header to delete only the writing-demo identity and reload the original unsaved experience; Bridge Bench and other saved experiment graphs are preserved.
+
+1. Ask Kale for help with the Moon Dragon draft. With no preference saved, it notices the spelling issue.
+2. Tell Kale: **“Ask about my story first and fix spelling after I finish the draft.”**
+3. Choose whether the preference applies only here or to every writing project.
+4. Review Kale’s narrow interpretation. The original words and proposed executable behavior are shown separately.
+5. Approve it. Kale now asks about the story and explicitly waits on spelling. Reload: the approved version remains active.
+
+Interpretation is deterministic in this prototype, not a live-model performance. The child’s proposal, approval, immutable version, local persistence, and behavior change are real. Existing saved tools are at `/library`; Bridge Bench is at `/lab`.
+
+## Legacy guided builder — optional
+
+1. Open `/journey` directly for the legacy guided builder.
 2. Teach: question → what “best” means → what to write down → a guess (not stored as a result) → real throws.
-3. Notice the 8.9 m Dart throw that touched something. Maya says why. Approve the rule. Daso cannot approve it.
+3. Notice the 8.9 m Dart throw that touched something. Maya says why. Approve the rule. Kale cannot approve it.
 4. See the same stored throws replay under v2: Dart is no longer counted; Falcon leads.
 5. Home → **Let Leo try this** → **Make my copy**. Runner works from saved rules, without AI.
 6. **Parent evidence** shows the grounded story. Delete is real.
 
-Demo script and frames: `docs/demo/README.md`. Closing line: **Maya didn't download this tool. She taught it.**
-
 ## Limitations and simulations
 
-Flight Lab is the only tool kind. There is no sign-in, analytics, public sharing, cloud sync, or camera that measures distance.
+The current shared engine supports Draw patterns and Flight rules; older coaching preferences and experiment comparators remain in their legacy routes. These are bounded capabilities, not an open-ended agent platform. The writing interpreter intentionally recognizes one narrow preference family; it asks for clarification outside that contract. There is no sign-in, analytics, public sharing, cloud sync, or camera that measures distance.
 
 | Simulated | What is real | Where you are told |
 |---|---|---|
@@ -68,11 +97,10 @@ Honest product-spec deviations:
 
 ## Routes
 
-`/` Home · `/journey` Teach · `/run` Runner · `/parent` Parent evidence · `/inspect` inspection projection · `/api/agents/teaching` and `/api/agents/evidence` (the only two model paths)
+`/` and `/draw` Draw-first creation/reuse studio · `/draw/library` Saved Draw tools · `/flight` Shared-engine Flight Lab · `/parent/tools` Local capability stories/data rights · `/writing` Earlier writing preference · `/lab` Bridge Bench · `/library` Legacy saved tools · `/journey` Legacy builder · `/run` Legacy Runner · `/parent` Legacy parent evidence · `/inspect` Inspection · `/api/agents/teaching` and `/api/agents/evidence` (the only two model paths)
 
 ## Docs
 
 - Architecture: `docs/ARCHITECTURE.md`
 - Threat model: `docs/THREAT_MODEL.md`
-- Evidence: `docs/evidence/`
-- Demo: `docs/demo/README.md`
+- UX rationale and research: `docs/UX_REBUILD.md`

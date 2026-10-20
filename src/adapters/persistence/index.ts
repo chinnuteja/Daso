@@ -6,11 +6,17 @@ import { PermissionGrant } from '../../core/schema/permissionGrant';
 import { ToolDefinition } from '../../core/schema/toolDefinition';
 import { ToolVersion } from '../../core/schema/toolVersion';
 import type { LedgerEntry } from '../../core/ledger/types';
+import type { DrawAssetRepository } from '../../core/ports/repositories';
+import type { CapabilityLifecycleRepository } from '../../core/ports/repositories';
+import type { ExperimentTrialRepository } from '../../core/ports/repositories';
+import { createMemoryPersistence } from './memory';
+import { openIndexedDbRepositories } from './indexedDb';
 
 export { DATABASE_NAME, DATABASE_VERSION, STORE, openTeachDasoDatabase, PersistenceError } from './database';
 export type { TeachDasoDatabase } from './database';
 export {
   setFailAfterDeleteWrite,
+  setFailAfterCapabilityWrite,
   setFailAfterForkWrite,
   setFailAfterVersionWrite,
 } from './atomicCommit';
@@ -19,6 +25,58 @@ export { createIndexedDbRepositories, openIndexedDbRepositories } from './indexe
 export { createMemoryPersistence, createMemoryRepositories } from './memory';
 export type { MemoryPersistence } from './memory';
 export type { MemoryRecords } from './memory/store';
+
+/**
+ * The UI can remain usable in browser sandboxes that intentionally do not expose IndexedDB.
+ * That fallback is explicitly ephemeral; normal product browsers still use the local database.
+ */
+export async function openBrowserDrawAssets(): Promise<{
+  readonly drawAssets: DrawAssetRepository;
+  readonly capabilities: CapabilityLifecycleRepository;
+  readonly trials: ExperimentTrialRepository;
+  readonly durable: boolean;
+  readonly close: () => void;
+}> {
+  const fallback = () => ({
+    ...(() => {
+      const persistence = createMemoryPersistence();
+      return {
+        drawAssets: persistence.repositories.drawAssets,
+        capabilities: persistence.repositories.capabilities,
+        trials: persistence.repositories.trials,
+      };
+    })(),
+    durable: false,
+    close: () => undefined,
+  });
+  if (typeof indexedDB === 'undefined') {
+    return fallback();
+  }
+  const opening = openIndexedDbRepositories();
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const opened = await Promise.race([
+      opening,
+      new Promise<never>((_, reject) => {
+        timeout = setTimeout(() => reject(new Error('Local storage did not become ready.')), 2_000);
+      }),
+    ]);
+    return {
+      drawAssets: opened.repositories.drawAssets,
+    capabilities: opened.repositories.capabilities,
+      trials: opened.repositories.trials,
+      durable: true,
+      close: () => opened.database.close(),
+    };
+  } catch {
+    // A blocked/private browser must still let a child draw. If its late IDB request succeeds,
+    // close it rather than leaving a hidden connection alive.
+    void opening.then(({ database }) => database.close()).catch(() => undefined);
+    return fallback();
+  } finally {
+    if (timeout !== undefined) clearTimeout(timeout);
+  }
+}
 
 export interface PersistableGraph {
   readonly profile: ChildProfile;

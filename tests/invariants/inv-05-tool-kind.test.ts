@@ -3,14 +3,14 @@ import { describe, expect, it } from 'vitest';
 import { ToolKind } from '../../src/core/schema/vocabulary';
 
 /**
- * INV-05 — Flight Lab is the only tool kind (specification sections 15 and 20).
+ * INV-05 — Every tool kind is a closed, implemented capability.
  *
- * Ruling R6: a second member would make this an app generator. The enum's membership is the
- * whole constraint; widening it is a specification change, not an implementation detail.
+ * The coaching-preference kind is the declared founder-demo extension. It has its own
+ * compiler projection and deterministic runtime; arbitrary generated app kinds remain invalid.
  */
 
-describe('INV-05 — Flight Lab is the only implemented tool kind (§15, §20)', () => {
-  it("INV-05: ToolKind.options deep-equals ['experiment_comparator']", () => {
-    expect(ToolKind.options).toEqual(['experiment_comparator']);
+describe('INV-05 — implemented tool kinds stay closed', () => {
+  it('INV-05: only the experiment and coaching preference capabilities are nameable', () => {
+    expect(ToolKind.options).toEqual(['experiment_comparator', 'coaching_preference']);
   });
 });

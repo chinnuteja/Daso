@@ -46,7 +46,7 @@ const NEXT_ACTION: Record<OrchestratorState, string> = {
   COLLECT_TRIALS: 'Go throw, then write down what happened.',
   INSPECT_ANOMALY: 'Point at the throw that looks unfair.',
   PROPOSE_CORRECTION: 'Say why that throw should not count.',
-  REVIEW_MUTATION: 'Approve or reject this change. Daso cannot approve it.',
+  REVIEW_MUTATION: 'Approve or reject this change. Kale cannot approve it.',
   COMPILE: 'See the saved rule change the result.',
   RUN: 'Use the saved tool without AI.',
 };
@@ -58,7 +58,7 @@ const WHY_THIS_MATTERS: Record<OrchestratorState, string> = {
   PREDICT: 'A guess helps you notice a surprise later. It is not saved as evidence.',
   COLLECT_TRIALS: 'The tool learns from throws you record by hand, not from a camera.',
   INSPECT_ANOMALY: 'Noticing an unfair throw is how a lasting rule begins.',
-  PROPOSE_CORRECTION: 'Your words become the candidate. Daso cannot invent the rule.',
+  PROPOSE_CORRECTION: 'Your words become the candidate. Kale cannot invent the rule.',
   REVIEW_MUTATION: 'Nothing becomes a rule until you approve it.',
   COMPILE: 'The same stored throws replay under the rule you just taught.',
   RUN: 'Later use works from the saved rules, with no AI call.',

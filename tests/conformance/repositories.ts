@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   persistGraph,
   setFailAfterDeleteWrite,
+  setFailAfterCapabilityWrite,
   setFailAfterForkWrite,
   setFailAfterVersionWrite,
 } from '../../src/adapters/persistence';
@@ -48,6 +49,7 @@ export function defineRepositoryConformance(
       setFailAfterVersionWrite(false);
       setFailAfterForkWrite(false);
       setFailAfterDeleteWrite(false);
+      setFailAfterCapabilityWrite(false);
       await harness.teardown();
     });
 
@@ -87,6 +89,77 @@ export function defineRepositoryConformance(
       const unapprovedNote = records.find((record) => record.eventId === 'event_011');
       expect(correction?.childApproved).toBe(true);
       expect(unapprovedNote?.childApproved).toBe(false);
+    });
+
+    it('round-trips Draw source assets and never overwrites a selected mark snapshot', async () => {
+      const document = {
+        documentId: 'draw_document_001',
+        ownerChildId: 'child_local_01',
+        width: 800,
+        height: 600,
+        revision: 1,
+        strokes: [
+          {
+            strokeId: 'stroke_scale_001',
+            color: '#0088cc',
+            width: 8,
+            points: [
+              { x: 12, y: 16 },
+              { x: 28, y: 24 },
+            ],
+          },
+        ],
+        contentDigest: 'b'.repeat(64),
+        createdAt: '2026-09-27T10:00:00Z',
+        updatedAt: '2026-09-27T10:00:00Z',
+      };
+      const snapshot = {
+        snapshotId: 'mark_snapshot_001',
+        toolId: 'mayas-flight-lab',
+        sourceDocumentId: document.documentId,
+        sourceRevision: 1,
+        strokes: document.strokes,
+        sourceDigest: 'a'.repeat(64),
+        createdAt: '2026-09-27T10:00:01Z',
+      };
+
+      await harness.repositories.drawAssets.saveDocument(document);
+      await harness.repositories.drawAssets.saveMarkSnapshot(snapshot);
+      expect(await harness.repositories.drawAssets.listDocumentsByOwner('child_local_01')).toEqual([
+        document,
+      ]);
+      expect(await harness.repositories.drawAssets.listMarkSnapshotsByTool('mayas-flight-lab')).toEqual([
+        snapshot,
+      ]);
+      await expect(harness.repositories.drawAssets.saveMarkSnapshot(snapshot)).rejects.toThrow(
+        /immutable/u,
+      );
+    });
+
+    it('atomically activates a child-approved Draw capability and treats retries as idempotent', async () => {
+      const candidate = {
+        type: 'capability_candidate' as const,
+        eventId: 'event_201', toolId: 'my-draw-tool', sequence: 2, occurredAt: '2026-09-27T10:00:00Z',
+        actor: 'ai' as const, origin: 'model' as const, sourceIntentEventId: 'event_200',
+        proposal: { type: 'propose_capability' as const, kind: 'draw_pattern' as const, operation: 'repeat_selected_mark' as const, spacing: 'even' as const, sizeProfile: 'smaller_toward_end' as const },
+      };
+      const approval = {
+        type: 'child_approval' as const,
+        eventId: 'event_202', toolId: 'my-draw-tool', sequence: 3, occurredAt: '2026-09-27T10:00:01Z',
+        actor: 'child' as const, candidateEventId: 'event_201', approvedProposal: candidate.proposal, idempotencyKey: 'save_my_draw_tool',
+      };
+      const snapshot = { snapshotId: 'mark_snapshot_201', toolId: 'my-draw-tool', sourceDocumentId: 'draw_document_201', sourceRevision: 1, strokes: [{ strokeId: 'stroke_scale_201', color: '#0088cc', width: 8, points: [{ x: 12, y: 16 }, { x: 28, y: 24 }] }], sourceDigest: 'a'.repeat(64), createdAt: '2026-09-27T10:00:01Z' };
+      const definition = { toolId: 'my-draw-tool', ownerChildId: 'child_local_01', displayName: 'My draw tool', kind: 'draw_pattern' as const, currentVersionId: 'tool_version_201', createdAt: '2026-09-27T10:00:01Z' };
+      const version = { toolId: 'my-draw-tool', versionId: 'tool_version_201', kind: 'draw_pattern' as const, version: 1, markSnapshotId: 'mark_snapshot_201', controls: { spacing: 56, startScale: 1, endScale: .45, followPath: true }, metadata: { algorithmVersion: 1 as const, contextDigest: 'b'.repeat(64), sourceEventIds: ['event_201'], approvalEventId: 'event_202' }, createdAt: '2026-09-27T10:00:01Z' };
+      await harness.repositories.capabilities.append({ type: 'child_intent', actor: 'child', eventId: 'event_200', toolId: 'my-draw-tool', sequence: 1, occurredAt: '2026-09-27T10:00:00Z', childWords: 'Repeat my scale along the path, smaller toward the end.', contextDigest: 'b'.repeat(64) });
+      version.metadata.sourceEventIds.unshift('event_200');
+      await harness.repositories.capabilities.append(candidate);
+      const first = await harness.repositories.capabilities.commitDrawApproval({ definition, version, snapshot, approval });
+      const repeated = await harness.repositories.capabilities.commitDrawApproval({ definition, version, snapshot, approval });
+      expect(repeated).toEqual(first);
+      expect((await harness.repositories.capabilities.listEntriesByTool('my-draw-tool')).map((entry) => entry.eventId)).toEqual(['event_200', 'event_201', 'event_202']);
+      expect((await harness.repositories.capabilities.getDefinition('my-draw-tool'))?.currentVersionId).toBe('tool_version_201');
+      expect(await harness.repositories.drawAssets.getMarkSnapshot('mark_snapshot_201')).toEqual(snapshot);
     });
 
     it('lists the ledger in ascending sequence order', async () => {

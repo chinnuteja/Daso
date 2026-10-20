@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 import { IsoTimestamp, PositiveInt, ToolId, ToolVersionId } from './primitives';
-import { InputField, MetricId, ToolRule } from './vocabulary';
+import { CoachingPreference, InputField, MetricId, ToolRule } from './vocabulary';
 
 /**
  * The part of a tool version that is *produced by folding approved authorship events*
@@ -14,6 +14,7 @@ export const ToolVersionBody = z.strictObject({
   inputs: z.array(InputField),
   metrics: z.array(MetricId),
   rules: z.array(ToolRule),
+  coachingPreference: CoachingPreference.optional(),
 });
 export type ToolVersionBody = z.infer<typeof ToolVersionBody>;
 

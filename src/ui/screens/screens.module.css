@@ -787,3 +787,5 @@
     display: none;
   }
 }
+.flowControls { border: 0; padding: 0; margin: 0; min-width: 0; }
+.flowControls:disabled { opacity: .6; }

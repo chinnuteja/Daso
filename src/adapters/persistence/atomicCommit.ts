@@ -31,3 +31,14 @@ export function setFailAfterDeleteWrite(value: boolean): void {
 export function shouldFailAfterDeleteWrite(): boolean {
   return failAfterDeleteWrite;
 }
+
+let failAfterCapabilityWrite = false;
+
+/** Test-only: proves an approval never leaves a mark snapshot without its approval/version/pointer. */
+export function setFailAfterCapabilityWrite(value: boolean): void {
+  failAfterCapabilityWrite = value;
+}
+
+export function shouldFailAfterCapabilityWrite(): boolean {
+  return failAfterCapabilityWrite;
+}

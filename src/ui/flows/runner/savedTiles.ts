@@ -2,9 +2,11 @@ import { authorshipSummaryCounts } from '../../../core/inspection';
 import type { Repositories } from '../../../core/ports/repositories';
 import { visibleToolTitle } from '../../../core/reuse';
 import type { ChildId } from '../../../core/schema/primitives';
+import type { ToolKind } from '../../../core/schema/vocabulary';
 
 export interface SavedToolTileView {
   readonly toolId: string;
+  readonly kind: ToolKind;
   readonly displayName: string;
   readonly creatorName: string;
   readonly ownerChildId: string;
@@ -32,6 +34,7 @@ export async function loadSavedTiles(
       const sourceDeleted = tool.forkedFrom !== undefined && sourceAuthor === null;
       tiles.push({
         toolId: tool.toolId,
+        kind: tool.kind,
         displayName: visibleToolTitle(tool.displayName, sourceDeleted),
         creatorName: owner?.displayName ?? tool.ownerChildId,
         ownerChildId: tool.ownerChildId,

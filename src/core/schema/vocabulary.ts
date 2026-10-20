@@ -9,16 +9,42 @@ import { EventId, RuleId } from './primitives';
  * implementation detail (engineering plan rulings R4 and R6).
  */
 
-/** Ruling R6: exactly one member. A second member would make this an app generator. */
-export const ToolKind = z.enum(['experiment_comparator']);
+/** Closed product capabilities. New kinds require an explicit compiler and runner. */
+export const ToolKind = z.enum(['experiment_comparator', 'coaching_preference']);
 export type ToolKind = z.infer<typeof ToolKind>;
 
+export const CoachingScope = z.enum(['this_story', 'all_writing']);
+export type CoachingScope = z.infer<typeof CoachingScope>;
+
+/** The first cross-tool preference is intentionally narrow and inspectable. */
+export const CoachingPreferenceDraft = z.strictObject({
+  preferenceId: z.literal('ideas_before_spelling'),
+  activity: z.literal('writing'),
+  while: z.literal('drafting'),
+  firstMove: z.literal('ask_about_story'),
+  defer: z.literal('spelling_feedback'),
+  scope: CoachingScope,
+});
+export type CoachingPreferenceDraft = z.infer<typeof CoachingPreferenceDraft>;
+
+export const CoachingPreference = CoachingPreferenceDraft.extend({
+  sourceEventId: EventId,
+});
+export type CoachingPreference = z.infer<typeof CoachingPreference>;
+
 /** The comparisons Flight Lab supports, per the section 9.3 example. */
-export const MetricId = z.enum(['median_distance', 'consistency']);
+export const MetricId = z.enum(['median_distance', 'median_load', 'consistency']);
 export type MetricId = z.infer<typeof MetricId>;
 
 /** The fields a Flight Lab trial can carry, per section 6 scene 3. */
-export const InputField = z.enum(['design_name', 'distance_m', 'obstruction', 'note']);
+export const InputField = z.enum([
+  'design_name',
+  'distance_m',
+  'load_count',
+  'obstruction',
+  'setup_changed',
+  'note',
+]);
 export type InputField = z.infer<typeof InputField>;
 
 /** Who authored a ledger entry. There is no third actor that can author behaviour. */

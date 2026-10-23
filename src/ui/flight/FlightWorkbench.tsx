@@ -160,7 +160,7 @@ export function FlightWorkbench() {
   }
 
   return <section className={styles.workbench} aria-labelledby="flight-title">
-    <header className={styles.heading}><div><p className={styles.eyebrow}>Flight Lab · practice observations</p><h2 id="flight-title">What makes a fair throw?</h2><p>Some throws hit an obstacle. Decide which should count, then see your rule change the results.</p></div><Link href="/draw">Try it with your drawing →</Link></header>
+    <header className={styles.heading}><div><p className={styles.eyebrow}>Flight Lab · practice observations</p><h2 id="flight-title">What makes a fair throw?</h2><p>Some throws hit an obstacle. Decide which should count, then see your rule change the results.</p></div><Link href="/draw">Make a drawing tool →</Link></header>
     {!durable ? <p role="status" className={styles.warning}>This browser cannot keep your tools after reload. You can still explore the preview.</p> : null}
     <div className={styles.prediction}><b>Which design do you think should lead?</b><div>{['Dart', 'Falcon', 'Not sure yet'].map((name) => <button key={name} aria-pressed={prediction === name} type="button" onClick={() => setPrediction(name)}>{name}</button>)}</div>{prediction !== null ? <span>Your prediction for this visit: {prediction}. Results are computed from the observations.</span> : null}</div>
     <nav className={styles.jumpLinks} aria-label="Flight Lab work areas"><a href="#flight-observations">1 · Observations</a><a href="#flight-teach">2 · Teach a rule</a><a href="#flight-results">3 · Results</a></nav>

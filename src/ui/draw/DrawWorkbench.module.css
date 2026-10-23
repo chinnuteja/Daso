@@ -73,3 +73,4 @@
 }
 @media(prefers-reduced-motion:reduce){.workbench *{animation:none!important;transition:none!important}}
 @media(forced-colors:active){.lookChoices button[aria-pressed=true],.toolShelf button[aria-pressed=true],.sourceTray button[aria-pressed=true]{border:2px solid Highlight}.primaryNext{border:2px solid ButtonText}.canvasCue{border:1px solid CanvasText}.swatch{forced-color-adjust:none}}
+.canvas:focus-visible{outline:var(--focus-ring);outline-offset:4px}

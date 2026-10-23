@@ -42,7 +42,7 @@ function renderStroke(stroke: { readonly previewStrokeId?: string; readonly stro
   return <polyline key={key} points={stroke.points.map((point) => `${point.x},${point.y}`).join(' ')} fill="none" stroke={stroke.color} strokeWidth={stroke.width} strokeLinecap="round" strokeLinejoin="round" opacity={opacity} />;
 }
 
-export function SavedDrawTools({ embedded = false, preferredToolId = null, onDraw }: { embedded?: boolean; preferredToolId?: string | null; onDraw?: () => void } = {}) {
+export function SavedDrawTools({ embedded = false, preferredToolId = null, onDraw, onUseInPicture }: { embedded?: boolean; preferredToolId?: string | null; onDraw?: () => void; onUseInPicture?: (toolId: string) => void } = {}) {
   const [tools, setTools] = useState<readonly SavedDrawTool[]>([]);
   const [selectedToolId, setSelectedToolId] = useState<string | null>(null);
   const [path, setPath] = useState<readonly DrawPoint[]>([]);
@@ -206,7 +206,7 @@ export function SavedDrawTools({ embedded = false, preferredToolId = null, onDra
         <div>
           <p className={styles.eyebrow}>My tools</p>
           <h2 id="saved-draw-title">Draw with something you made!</h2>
-          <p>Tap your tool. Drag on the paper. It does the rest.</p>
+          <p>Choose a tool for your picture, or try it on the practice paper below.</p>
         </div>
         {!embedded ? <Link href="/draw" className={styles.quietLink}>Make another tool</Link> : null}
       </header>
@@ -222,8 +222,9 @@ export function SavedDrawTools({ embedded = false, preferredToolId = null, onDra
         </aside>
 
         <div className={`${styles.workspace} ${polish.workspace}`}>
+          {onUseInPicture && selected ? <button className={styles.primary} type="button" disabled={busy} onClick={() => onUseInPicture(selected.definition.toolId)}>Use in my picture →</button> : null}
           <div className={styles.instruction}>
-            <span aria-hidden="true">↝</span><p><b>Drag to draw with your tool.</b></p>
+            <span aria-hidden="true">↝</span><p><b>Try it here · practice paper</b></p>
           </div>
           <svg className={`${styles.canvas} ${polish.canvas}`} viewBox={`0 0 ${DRAW_WIDTH} ${DRAW_HEIGHT}`} role="img" aria-label="Drawing paper. Drag to draw with your saved tool." onPointerDown={startPath} onPointerMove={extendPath} onPointerUp={finishPath} onPointerCancel={() => { drawing.current = false; setDraftPath(null); setStatus('Unfinished path left out. Your saved tool is unchanged.'); }}>
             <rect x="0" y="0" width={DRAW_WIDTH} height={DRAW_HEIGHT} rx="26" className={styles.paper} />

@@ -135,3 +135,4 @@
 }
 
 @media(max-width:34rem){.header{position:relative;padding:.65rem;gap:.45rem}.identity{padding-right:3.1rem;min-width:0}.title{font-size:.92rem;line-height:1.25}.eyebrow{font-size:.6rem}.mark{width:44px;height:44px;font-size:1.7rem}.nav{grid-template-columns:repeat(4,minmax(0,1fr));padding:0;background:transparent}.nav>a{font-size:.75rem;padding:.3rem .2rem}.nav .more{position:absolute;top:.7rem;right:.55rem;grid-column:auto}.more summary{padding:0 .35rem;font-size:.75rem}.more>div{right:0;left:auto}.fullLabel{display:none}.shortLabel{display:inline}}
+.childNav{display:flex;align-items:center;flex-wrap:wrap;justify-content:flex-end;gap:.2rem}.childNav>a{display:inline-flex;align-items:center;text-decoration:none;color:var(--muted);font-size:.75rem;font-weight:700}

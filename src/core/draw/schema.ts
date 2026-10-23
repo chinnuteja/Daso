@@ -10,6 +10,7 @@ import {
   Sha256Digest,
   StrokeId,
   ToolId,
+  ToolVersionId,
 } from '../schema/primitives';
 
 /**
@@ -48,6 +49,16 @@ export const DrawGuidePath = z.strictObject({
 });
 export type DrawGuidePath = z.infer<typeof DrawGuidePath>;
 
+/** References to approved tools, never flattened into the child's original strokes. */
+export const DrawToolApplication = z.strictObject({
+  applicationId: z.string().regex(/^draw_application_[a-z0-9_]+$/u),
+  toolId: ToolId,
+  versionId: ToolVersionId,
+  path: z.array(DrawPoint).min(2).max(2048),
+  createdAt: IsoTimestamp,
+});
+export type DrawToolApplication = z.infer<typeof DrawToolApplication>;
+
 export const DrawDocument = z.strictObject({
   documentId: DrawDocumentId,
   ownerChildId: ChildId,
@@ -55,6 +66,7 @@ export const DrawDocument = z.strictObject({
   height: z.number().int().min(1).max(4096),
   revision: PositiveInt,
   strokes: z.array(DrawStroke).max(512),
+  applications: z.array(DrawToolApplication).max(24).refine(items => new Set(items.map(item => item.applicationId)).size === items.length, 'application ids must be unique').optional(),
   /** Hash of canonical source geometry only; derived previews never participate. */
   contentDigest: Sha256Digest,
   /** Workbench-only teaching references. Absent fields keep Phase 2 records readable. */

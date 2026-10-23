@@ -23,7 +23,7 @@ export function TabletShell(props: {
             <h1 className={styles.title}>{props.title}</h1>
           </div>
         </div>
-        {props.childDrawing ? <nav className={styles.childNav} aria-label="Other places"><details><summary>For grown-ups</summary><div><Link href="/parent/tools">Parent view</Link><Link href="/flight">Flight Lab</Link><Link href="/writing">Earlier writing experiment</Link></div></details></nav> : <nav className={styles.nav} aria-label="Kale Memory Lab">
+        {props.childDrawing ? <nav className={styles.childNav} aria-label="Other places"><Link href="/flight">Try Flight Lab</Link><details><summary>For grown-ups</summary><div><Link href="/parent/tools">See what they made</Link><Link href="/writing">Earlier writing experiment</Link></div></details></nav> : <nav className={styles.nav} aria-label="Kale Memory Lab">
           <Link href="/draw">Draw</Link>
           <Link href="/flight">Flight Lab</Link>
           <Link href="/draw/library">My tools</Link>

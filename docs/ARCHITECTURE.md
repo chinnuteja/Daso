@@ -18,6 +18,14 @@ New labelled Draw practice belongs to `child_kale_practice_01`. The explicitly c
 
 The app-owned axe control is local and development-only. It checks a visible DOM state and reports incomplete checks, not universal accessibility compliance.
 
+## A tool used to make something
+
+The Draw studio now supports a complete small creative loop: approve a tool, retain its reviewed trail on the current picture, add more trails, continue hand drawing, and reopen the latest saved picture. My tools can place a chosen tool onto that same canvas; its separate practice paper is labelled as such. Flight Lab remains a visible second proof, not an adult-only feature.
+
+`DrawDocument.applications` is an optional bounded array (24 items) of application ID, tool ID, pinned version ID, child path and timestamp. Existing documents remain readable without migration or another object store. `strokes` and the source digest remain original geometry only. `renderToolApplications` verifies each approved graph, resolves the pinned version and immutable mark, then calls the existing deterministic Draw executor. Combined output is bounded; missing, deleted or damaged tools are hidden and disclosed. Derived copies are not persisted as original strokes or duplicated snapshots. Editing a picture does not mutate any approved tool/version/ledger/snapshot. Document saves use the existing ordered CAS/owner-generation queue.
+
+Parent view can recompute the current picture from these saved references. This is current composition state, not a complete usage history or evidence of learning gains. The per-tool canonical export still does not include another tool’s mark graph: application references may consequently be unresolved outside this browser. Source/tool/profile deletion behavior is preserved; there is no hidden flattened copy to resurrect deleted tools.
+
 ## Local parent evidence and data rights
 
 `/parent/tools` reads a tool graph from one memory snapshot or one IndexedDB read transaction. It verifies ownership, history, active version, approval/control correspondence and local source context before rendering. Human work and choices lead; IDs and SHA-256 canonical-input/output receipts sit in an expandable section. Unknown profiles are labelled “Child on this device”, not given an invented name.

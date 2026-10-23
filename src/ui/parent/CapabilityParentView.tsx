@@ -9,19 +9,26 @@ import type { CapabilityDefinition } from '../../core/capability/types';
 import { buildCapabilityParentEvidence, capabilityHash, exportCapabilityGraph } from '../../core/evidence/capability';
 import { canonicalJson } from '../../core/serialization/canonicalJson';
 import type { DrawPoint } from '../../core/draw/schema';
+import { assertCapabilityGraph, type CapabilityGraph } from '../../core/capability/graph';
+import { renderToolApplications } from '../../core/draw/applications';
 import styles from './CapabilityParentView.module.css';
 import { DRAW_PRACTICE_OWNER } from '../draw/practiceSession';
 
 type View = Awaited<ReturnType<typeof buildCapabilityParentEvidence>>;
 type DeleteTarget = { kind: 'tool' | 'drawing' | 'profile'; toolId: string; documentId?: string; ownerChildId: string; name: string };
 type Stroke = { points: readonly DrawPoint[]; color: string; width: number };
+type Picture = { strokes: readonly Stroke[]; trails: number; unavailable: number };
 
 function Artwork({ strokes, label }: { strokes: readonly Stroke[]; label: string }) {
-  const points = strokes.flatMap((stroke) => stroke.points);
-  const xs = points.map((point) => point.x), ys = points.map((point) => point.y);
-  const margin = Math.max(12, ...strokes.map((stroke) => stroke.width));
-  const x = Math.min(...xs) - margin, y = Math.min(...ys) - margin;
-  const width = Math.max(60, Math.max(...xs) - x + margin), height = Math.max(60, Math.max(...ys) - y + margin);
+  // Full pictures can contain thousands of points. Do not spread them into function arguments.
+  let left = Infinity, top = Infinity, right = -Infinity, bottom = -Infinity, margin = 12;
+  for (const stroke of strokes) {
+    margin = Math.max(margin, stroke.width);
+    for (const point of stroke.points) { left = Math.min(left, point.x); top = Math.min(top, point.y); right = Math.max(right, point.x); bottom = Math.max(bottom, point.y); }
+  }
+  if (!Number.isFinite(left)) { left = 0; top = 0; right = 60; bottom = 60; }
+  const x = left - margin, y = top - margin;
+  const width = Math.max(60, right - left + margin * 2), height = Math.max(60, bottom - top + margin * 2);
   return <svg className={styles.artwork} viewBox={`${x} ${y} ${width} ${height}`} role="img" aria-label={label}>{strokes.map((stroke, index) => stroke.points.length === 1
     ? <circle key={index} cx={stroke.points[0]!.x} cy={stroke.points[0]!.y} r={stroke.width / 2} fill={stroke.color} />
     : <polyline key={index} points={stroke.points.map((point) => `${point.x},${point.y}`).join(' ')} fill="none" stroke={stroke.color} strokeWidth={stroke.width} strokeLinecap="round" strokeLinejoin="round" />)}</svg>;
@@ -40,6 +47,7 @@ export function CapabilityParentView() {
   const busyRef = useRef(false);
   const [tools, setTools] = useState<readonly CapabilityDefinition[]>([]);
   const [view, setView] = useState<View | null>(null);
+  const [picture, setPicture] = useState<Picture | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState('');
@@ -53,7 +61,7 @@ export function CapabilityParentView() {
     const refresh = async () => {
       if (busyRef.current || repositories.current === null) return;
       const token = ++revision;
-      setView(null); setLoading(true); setError(null);
+      setView(null); setPicture(null); setLoading(true); setError(null);
       try {
         const repo = repositories.current;
         const requested = requestedTool === null ? null : await repo.capabilities.getDefinition(requestedTool);
@@ -63,8 +71,25 @@ export function CapabilityParentView() {
         const chosen = requestedTool ?? definitions.at(-1)?.toolId;
         const graph = chosen === undefined ? null : await repo.capabilities.getGraph(chosen);
         const next = graph === null ? null : await buildCapabilityParentEvidence(graph);
+        let currentPicture: Picture | null = null;
+        // A tool can help make a later picture, not only the drawing its mark came from.
+        const pictureOwners = next !== null && ['child_local_01', DRAW_PRACTICE_OWNER].includes(next.tool.ownerChildId) ? ['child_local_01', DRAW_PRACTICE_OWNER] : [];
+        const pictures = (await Promise.all(pictureOwners.map(owner => repo.drawAssets.listDocumentsByOwner(owner)))).flat();
+        const source = next === null ? undefined : pictures.filter(item => item.applications?.some(application => application.toolId === next.tool.toolId)).sort((a, b) => a.updatedAt.localeCompare(b.updatedAt) || a.documentId.localeCompare(b.documentId)).at(-1);
+        if (source && (source.applications?.length ?? 0) > 0) {
+          const ids = [...new Set(source.applications!.map(item => item.toolId))];
+          const resolved = await Promise.all(ids.map(async id => {
+            try {
+              const saved = await repo.capabilities.getGraph(id);
+              if (!saved || !['child_local_01', DRAW_PRACTICE_OWNER].includes(saved.tool.ownerChildId)) return null;
+              return [id, assertCapabilityGraph(saved)] as const;
+            } catch { return null; }
+          }));
+          const rendered = renderToolApplications(source, new Map<string, CapabilityGraph>(resolved.filter(item => item !== null)));
+          currentPicture = { strokes: [...source.strokes, ...rendered.strokes], trails: source.applications!.length - rendered.unavailable.length, unavailable: rendered.unavailable.length };
+        }
         if (disposed || token !== revision) return;
-        setTools(definitions); setView(next); setLoading(false);
+        setTools(definitions); setView(next); setPicture(currentPicture); setLoading(false);
       } catch {
         if (!disposed && token === revision) { setLoading(false); setTools([]); setView(null); setError('These saved records could not be verified. We have not invented a story or changed your data. Try opening the view again.'); }
       }
@@ -131,16 +156,23 @@ export function CapabilityParentView() {
     <header className={styles.header}><p className={styles.eyebrow}>For parents · local records</p><h2 id="parent-tools-title" ref={heading} tabIndex={-1}>A little work.<br />A lasting tool.</h2><p>See what your child made, what they meant, and what they chose to keep. Their work comes first. The receipts are here when you need them.</p><div className={styles.badges}><span>Child-approved</span><span>No AI-written assessment</span><span>Artwork stays on this device</span></div></header>
     {tools.length > 0 ? <label className={styles.selector}>A saved tool to look at<select disabled={busy} value={view?.tool.toolId ?? requestedTool ?? ''} onChange={(event) => { setNotice(''); router.replace(`/parent/tools?tool=${encodeURIComponent(event.target.value)}`); }}><option value="" disabled>Choose a tool</option>{tools.map((tool) => <option key={tool.toolId} value={tool.toolId}>{tool.displayName} · {tool.kind === 'draw_pattern' ? 'Draw' : 'Flight Lab'}</option>)}</select></label> : null}
     {loading ? <p role="status">Opening and verifying the saved records…</p> : view === null ? <div className={styles.empty}><h3>{requestedTool !== null ? 'This saved tool is not here.' : 'No saved story yet.'}</h3><p>A preview or unfinished review is not a saved tool. After your child approves and saves one, you can see its story here. Nothing is being guessed.</p><Link href="/draw">Make a Draw tool →</Link><Link href="/flight">Explore Flight Lab →</Link>{requestedTool !== null ? <Link href="/parent/tools">Look at available tools →</Link> : null}</div> : <>
-      {view.tool.ownerChildId === DRAW_PRACTICE_OWNER ? <p className={styles.retention}>Labelled practice: this artwork was supplied by the app. The choices, words, changes and approval belong to this local practice session—not an invented child history.</p> : null}
+      {view.tool.ownerChildId === DRAW_PRACTICE_OWNER ? <p className={styles.retention}>Labelled practice: this tool’s source mark was supplied by the app. Its choices, words, changes and approval belong to a local practice session—not an invented child history.</p> : null}
+      {picture !== null ? <section className={styles.finishedPicture} aria-labelledby="kept-picture-title"><div><p className={styles.eyebrow}>What the tool helped make</p><h3 id="kept-picture-title">A picture that kept growing.</h3><p>{picture.trails} saved {picture.trails === 1 ? 'trail' : 'trails'} in the latest picture using this tool. Rebuilt from saved choices, without asking AI.</p><Link href="/draw">Back to Draw →</Link>{picture.unavailable > 0 ? <p>{picture.unavailable} unavailable {picture.unavailable === 1 ? 'trail is' : 'trails are'} hidden because a tool is missing or the picture limit was reached. Original strokes remain.</p> : null}</div><Artwork strokes={picture.strokes} label="Saved picture made with approved tools and any hand-drawn lines" /></section> : null}
+      <div className={styles.retention}><b>Something to talk about together</b><p>“What did you make? What did your tool help you do? What would you change next?”</p><p>Draw saves a way to use their mark. Flight Lab saves a fair-test rule. Both keep the child’s decisions—not a score or an AI assessment.</p></div>
       <div className={styles.storyLayout}><aside className={styles.work}><p className={styles.eyebrow}>{view.tool.kind === 'draw_pattern' ? 'The exact mark they kept' : 'The observation behind the rule'}</p><h3>{view.tool.displayName}</h3><p className={styles.owner}>{view.tool.ownerChildId === DRAW_PRACTICE_OWNER ? 'Practice session · approved on this device' : `Owned by ${view.ownerDisplayName}`}</p>
 {view.snapshot !== undefined ? <><Artwork strokes={view.snapshot.strokes} label="Exact saved copy of the child-selected source mark" /><p className={styles.caption}>{view.tool.ownerChildId === DRAW_PRACTICE_OWNER ? 'A supplied practice mark, selected by the learner. Kept exactly—not regenerated or beautified by AI.' : 'Their strokes and colour. Not regenerated or beautified by AI.'}</p>{drawOutput !== undefined ? <><h4>The saved tool, running locally</h4><Artwork strokes={drawOutput.strokes} label="Deterministic replay of the saved mark along a path" /><p className={styles.caption}>{drawOutput.stampCount} repeats · {view.run.input.pathOrigin === 'reviewed_child_path' ? 'the path retained from their review' : view.run.input.pathOrigin === 'current_source_path' ? 'the current drawing’s path; the earlier review did not retain one' : 'an inspection example path, not a child’s recorded path'}.</p></> : null}<p className={styles.retention}>{view.sourceMissing ? 'The original drawing is gone. This tool keeps its own exact mark copy. Delete the tool to remove that copy, or delete all this child’s local data.' : 'A saved tool keeps a separate mark copy. Deleting only the source drawing does not delete this tool.'}</p></> : view.flight !== undefined ? <><div className={styles.fact}><b>{view.flight.selected.designName} · {view.flight.selected.distanceM} m</b><span>Recorded obstruction → left out</span></div><div className={styles.fact} data-clear><b>{view.flight.counterexample.designName} · {view.flight.counterexample.distanceM} m</b><span>No obstruction → still counts</span></div><p className={styles.caption}>Same distance. Different fact. {view.flight.isReviewedSelection ? 'This is the pair retained in the review.' : 'This is a comparison from stored practice data; the older review did not retain the selected pair.'}</p><div className={styles.comparison}><div><span>Before · no rule</span><b>{view.flight.before.winner ?? 'No winner'}</b><small>{view.flight.before.projections.filter((item) => item.validUnderCurrentVersion).length} counted</small></div><div><span>With the saved rule</span><b>{view.flight.after.winner ?? 'No winner'}</b><small>{view.flight.after.projections.filter((item) => item.validUnderCurrentVersion).length} counted</small></div></div><p className={styles.retention}>Labelled practice observations, not claims about experiments a child performed. Both results are recomputed now from the same stored data.</p></> : <p>The saved records do not retain a complete selected comparison. We will not invent one.</p>}
       </aside><div className={styles.story}><p className={styles.eyebrow}>How it became theirs</p><ol>{view.steps.map((step, index) => <li key={`${step.referenceId}-${index}`} data-actor={step.actor}><span className={styles.step}>{index + 1}</span><div><small>{step.actor === 'ai' ? 'Kale suggested' : step.actor === 'system' ? 'Local computation' : 'Child-authored decision'}</small><h3>{step.title}</h3>{step.title === 'Their words' ? <blockquote>“{step.text}”</blockquote> : <p>{step.text}</p>}</div></li>)}</ol><p className={styles.limits}>This explains recorded choices and reproducible behavior. It does not infer mastery, emotions, predictions or learning gains.</p></div></div>
-      <details className={styles.receipts}><summary>Look under the hood · verified local receipts</summary><p>SHA-256 over canonical JSON · algorithm version {view.run.algorithmVersion}. Hashes make these bytes reproducible; they are not a signature or proof of who physically clicked.</p><dl><dt>Saved version</dt><dd>{view.run.versionId}</dd><dt>Child approval</dt><dd>{view.run.approvalEventId}</dd><dt>Evidence events</dt><dd>{view.run.sourceEventIds.join(', ')}</dd><dt>Version hash</dt><dd>{view.run.versionHash}</dd><dt>Replay input hash</dt><dd>{view.run.inputHash}</dd><dt>Replay output hash</dt><dd>{view.run.outputHash}</dd><dt>Source hash</dt><dd>{view.run.sourceHash}</dd>{'markHash' in view.run ? <><dt>Exact mark hash</dt><dd>{view.run.markHash}</dd></> : null}</dl><p>Runs in this export are marked <code>recomputed_for_evidence</code>. We do not store a history of when the saved tool was used. Suggestions, edits and approvals retain separate actors.</p></details>
+      <details className={styles.receipts}>
+        <summary>Look under the hood · verified local receipts</summary>
+        <p>SHA-256 over canonical JSON · algorithm version {view.run.algorithmVersion}. Hashes make these bytes reproducible; they are not a signature or proof of who physically clicked.</p>
+        <dl><dt>Saved version</dt><dd>{view.run.versionId}</dd><dt>Child approval</dt><dd>{view.run.approvalEventId}</dd><dt>Evidence events</dt><dd>{view.run.sourceEventIds.join(', ')}</dd><dt>Version hash</dt><dd>{view.run.versionHash}</dd><dt>Replay input hash</dt><dd>{view.run.inputHash}</dd><dt>Replay output hash</dt><dd>{view.run.outputHash}</dd><dt>Source hash</dt><dd>{view.run.sourceHash}</dd>{'markHash' in view.run ? <><dt>Exact mark hash</dt><dd>{view.run.markHash}</dd></> : null}</dl>
+        <p>Runs in this export are marked <code>recomputed_for_evidence</code>. Saved trails describe the current picture, not a complete usage history. Suggestions, edits and approvals retain separate actors.</p>
+      </details>
       <section className={styles.rights} aria-labelledby="data-rights-title"><div><p className={styles.eyebrow}>You keep control</p><h3 id="data-rights-title">Your work. Your data.</h3><p>Everything here is read from this browser’s local storage. Export the verified records, or choose exactly what to remove. Deletion cannot be undone here.</p><button disabled={busy} className={styles.primary} onClick={() => { void download(); }}>Download this tool’s records</button></div><div className={styles.deleteOptions}>{sourceDocument !== undefined ? <button disabled={busy} onClick={() => setTarget({ kind: 'drawing', toolId: view.tool.toolId, documentId: sourceDocument.documentId, ownerChildId: view.tool.ownerChildId, name: 'the source drawing' })}>Delete source drawing…</button> : null}<button disabled={busy} onClick={() => setTarget({ kind: 'tool', toolId: view.tool.toolId, ownerChildId: view.tool.ownerChildId, name: view.tool.displayName })}>Delete this tool…</button><button disabled={busy} className={styles.danger} onClick={() => setTarget({ kind: 'profile', toolId: view.tool.toolId, ownerChildId: view.tool.ownerChildId, name: view.ownerDisplayName })}>Delete all this child’s local data…</button><small>Downloaded files are outside the app; deletion cannot remove those copies. Other open workspaces may need a reload.</small></div></section>
     </>}
     {notice !== '' ? <p className={styles.notice} role="status">{notice}</p> : null}{error !== null && target === null ? <p className={styles.error} role="alert">{error}</p> : null}
     <dialog ref={dialog} className={styles.dialog} aria-labelledby="delete-title" aria-describedby="delete-details" onCancel={(event) => { event.preventDefault(); closeDialog(); }}>
-      <p className={styles.eyebrow}>Local data · permanent deletion</p><h3 id="delete-title">{target?.kind === 'profile' ? 'Delete this child’s local data?' : target?.kind === 'drawing' ? 'Delete the source drawing?' : 'Delete this saved tool?'}</h3><p id="delete-details">{target?.kind === 'profile' ? `This removes ${target.name}’s profile if present, all their owned tools, drawings, mark copies, observations and unfinished review words from this browser. Copies owned by another child remain anonymized under the existing sharing rules. Nothing on another device or in downloaded files is removed.` : target?.kind === 'drawing' ? 'Only the editable source drawing is removed. Saved tools still keep their separate mark copies and reviewed paths. Delete the tool, or all this child’s local data, to remove those copies too.' : `“${target?.name ?? ''}” and its versions, copied marks, reviews, observations and local summaries will be removed. The separate source drawing will remain.`} This cannot be undone here.</p>{error !== null ? <p className={styles.error} role="alert">{error}</p> : null}<div className={styles.dialogActions}><button ref={cancel} disabled={busy} onClick={closeDialog}>Cancel · keep my data</button><button disabled={busy} className={styles.danger} onClick={() => { void confirmDelete(); }}>{busy ? 'Deleting…' : 'Delete permanently'}</button></div>
+      <p className={styles.eyebrow}>Local data · permanent deletion</p><h3 id="delete-title">{target?.kind === 'profile' ? 'Delete this child’s local data?' : target?.kind === 'drawing' ? 'Delete the source drawing?' : 'Delete this saved tool?'}</h3><p id="delete-details">{target?.kind === 'profile' ? `This removes ${target.name}’s profile if present, all their owned tools, drawings, mark copies, observations and unfinished review words from this browser. Copies owned by another child remain anonymized under the existing sharing rules. Nothing on another device or in downloaded files is removed.` : target?.kind === 'drawing' ? 'Only the editable source drawing is removed. Saved tools still keep their separate mark copies and reviewed paths. Delete the tool, or all this child’s local data, to remove those copies too.' : `“${target?.name ?? ''}” and its versions, copied marks, reviews, observations and local summaries will be removed. Patterns using this tool will be hidden. The separate source drawing and hand-drawn lines will remain.`} This cannot be undone here.</p>{error !== null ? <p className={styles.error} role="alert">{error}</p> : null}<div className={styles.dialogActions}><button ref={cancel} disabled={busy} onClick={closeDialog}>Cancel · keep my data</button><button disabled={busy} className={styles.danger} onClick={() => { void confirmDelete(); }}>{busy ? 'Deleting…' : 'Delete permanently'}</button></div>
     </dialog>
   </section>;
 }
